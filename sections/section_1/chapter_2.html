@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Nội dung khóa học & Mục tiêu – Claude 101</title>
+  <link rel="stylesheet" href="../../styles.css" />
+  <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+  <script src="../../mermaid-config.js"></script>
+  <link rel="stylesheet" href="../../prism.css" />
+  <script src="../../prism.js"></script>
+</head>
+<body class="chapter-body">
+
+  <div class="chapter-breadcrumb">
+    <span class="section-part">1. Giới thiệu khóa học</span>
+    <span class="sep">/</span>
+    <span class="chapter-part">Nội dung khóa học & Mục tiêu sau khi hoàn thành</span>
+  </div>
+
+  <h2 class="section-heading">Giới thiệu</h2>
+  <p class="body-text">
+    Khóa học <strong>Claude 101 – From Zero to Hero</strong> đưa học viên đi từ những khái niệm cơ bản nhất về Claude
+    đến khả năng ứng dụng thành thạo vào công việc hằng ngày, dù bạn là Developer, Tester, DevOps Engineer hay
+    Project Manager. Toàn bộ 11 chương được thiết kế theo độ khó tăng dần: bắt đầu từ làm quen giao diện, tới các
+    kỹ thuật mở rộng (Skill, Sub-agent, MCP, Hooks), và kết thúc bằng quy trình phát triển phần mềm có kiểm soát
+    với Spec-Kit. Chương này giúp bạn nắm được toàn bộ lộ trình học và những kết quả cụ thể sẽ đạt được sau khi
+    hoàn thành khóa học.
+  </p>
+
+  <h2 class="section-heading">Lộ trình khóa học</h2>
+  <div class="mermaid">
+  flowchart TD
+      S1["🎓<br/><b>Section 1</b><br/>Giới thiệu giảng viên & khóa học"]
+      S2["<img src="../../assets/svg-icon/claude-logo.svg" width="25px" height="25px"/><br/><b>Section 2</b><br/>Làm quen với Claude"]
+      S3["🧩<br/><b>Section 3</b><br/>Claude Skills & Agent"]
+      S4["👨‍💻<br/><b>Section 4</b><br/>Claude Code cho Developer"]
+      S5["⚙️<br/><b>Section 5</b><br/>Claude cho DevOps & Cloud"]
+      S6["🧪<br/><b>Section 6</b><br/>Claude cho Tester/QA"]
+      S7["📋<br/><b>Section 7</b><br/>Claude cho Project Manager"]
+      S8["🔌<br/><b>Section 8</b><br/>Model Context Protocol (MCP)"]
+      S9["🪝<br/><b>Section 9</b><br/>Claude Code Hooks"]
+      S10["📐<br/><b>Section 10</b><br/>Spec-Kit Framework"]
+      S11["🏁<br/><b>Section 11</b><br/>Tổng kết & Định hướng nâng cao"]
+
+      S1 --> S2 --> S3 
+      S3 --> S4
+      S3 --> S5
+      S3 --> S6
+      S3 --> S7
+      S4 --> S8
+      S5 --> S8
+      S6 --> S8
+      S7 --> S8
+      S8 --> S9 --> S10 --> S11
+  </div>
+  <p class="arch-caption">Section 2–3 xây nền tảng chung; Section 4–7 rẽ nhánh theo vai trò công việc; Section 8–10 nâng cao kỹ thuật tích hợp & quy trình.</p>
+
+  <h2 class="section-heading">Mục tiêu sau khi hoàn thành khóa học</h2>
+  <ul class="feature-list">
+    <li>Hiểu rõ hệ sinh thái sản phẩm Claude (Claude Desktop App, Claude Code, Claude Projects, Claude Cowork) và biết khi nào nên dùng công cụ nào.</li>
+    <li>Sử dụng thành thạo Claude Code trong quy trình làm việc hằng ngày: đọc hiểu codebase, viết tính năng mới, refactor, debug, tích hợp Git.</li>
+    <li>Tự xây dựng được Claude Skill và Sub-agent để mở rộng năng lực xử lý tác vụ chuyên biệt.</li>
+    <li>Áp dụng Claude vào đúng vai trò công việc của bản thân: Developer, DevOps/Cloud Engineer, Tester/QA, hoặc Project Manager.</li>
+    <li>Hiểu và cấu hình được Model Context Protocol (MCP) để kết nối Claude Code với hệ thống bên ngoài (database, codebase phức tạp).</li>
+    <li>Tự động hoá vòng đời làm việc bằng Claude Code Hooks.</li>
+    <li>Áp dụng phương pháp Spec-Driven Development với Spec-Kit để phát triển tính năng có kiểm soát, giảm rủi ro "vibe coding".</li>
+    <li>Có lộ trình cá nhân hoá để tiếp tục ứng dụng và nâng cao kỹ năng sau khóa học (Claude API, Claude Agent SDK).</li>
+  </ul>
+
+  <h2 class="section-heading">Đối tượng phù hợp</h2>
+  <div class="usecase-grid">
+    <div class="usecase-card">
+      <h4>Developer</h4>
+      <p>Muốn tăng tốc độ code, đọc hiểu codebase lạ, tự động hoá refactor và viết test.</p>
+    </div>
+    <div class="usecase-card">
+      <h4>Tester / QA</h4>
+      <p>Muốn sinh test case, viết test tự động và phân tích bug nhanh hơn.</p>
+    </div>
+    <div class="usecase-card">
+      <h4>DevOps / Cloud Engineer</h4>
+      <p>Muốn dùng Claude hỗ trợ viết IaC, script vận hành, phân tích log sự cố.</p>
+    </div>
+    <div class="usecase-card">
+      <h4>Project Manager</h4>
+      <p>Muốn soạn tài liệu, tóm tắt họp và quản lý ngữ cảnh dự án hiệu quả hơn.</p>
+    </div>
+  </div>
+
+  <h2 class="section-heading">Thông tin bổ sung</h2>
+  <p class="body-text">
+    Khóa học không yêu cầu kiến thức lập trình chuyên sâu — chỉ cần một máy tính và tài khoản Anthropic
+    (Claude.ai/Claude Console) đã được hướng dẫn tạo ở Section 1. Học viên nên thực hành song song với lý thuyết
+    ngay sau mỗi bài giảng để ghi nhớ tốt hơn, và có thể chọn tập trung sâu vào Section 4–7 tương ứng với vai trò
+    công việc thực tế của mình, thay vì học tuần tự tất cả các nhánh.
+  </p>
+
+</body>
+</html>
