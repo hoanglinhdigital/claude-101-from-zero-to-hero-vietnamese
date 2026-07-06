@@ -1,0 +1,7 @@
+sequenceDiagram
+    actor User as User On-Prem
+    participant AuthControl as Auth Control
+    participant MsgQueue as Message Queue
+
+    User->>AuthControl: Xác thực thiết bị
+    AuthControl->>MsgQueue: Đẩy tin nhắn vào hàng đợi

@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Giới thiệu giảng viên – AWS Advanced Topics</title>
+  <link rel="stylesheet" href="../../styles.css" />
+  <link rel="stylesheet" href="../../prism.css" />
+  <script src="../../prism.js"></script>
+  <style>
+    .instructor-wrap {
+      display: flex;
+      align-items: center;
+      gap: 40px;
+      margin-bottom: 8px;
+    }
+    .instructor-info { flex: 0 0 60%; max-width: 60%; }
+    .instructor-photo {
+      flex-shrink: 0;
+      width: 350px;
+      height: 350px;
+      border-radius: 50%;
+      overflow: hidden;
+      border: 4px solid #2563eb;
+      box-shadow: 0 4px 16px rgba(185, 203, 240, 0.18);
+    }
+    .instructor-photo img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    .whoami-list {
+      list-style: none;
+      padding: 0;
+      font-size: 18px;
+      line-height: 2;
+    }
+    .whoami-list li { padding: 4px 0; border-bottom: 1px solid #f1f5f9; }
+    .whoami-key { color: #7c3aed; font-weight: 700; margin-right: 6px; }
+    .cert-sub { margin: 4px 0 4px 24px; }
+    .cert-sub li {
+      border-bottom: none;
+      color: #2563eb;
+      font-style: italic;
+      padding: 2px 0;
+    }
+    .course-gallery {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+      gap: 18px;
+      margin: 14px 0;
+    }
+    .course-card {
+      background: #fff;
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
+      overflow: hidden;
+      box-shadow: 0 1px 4px rgba(0,0,0,.06);
+    }
+    .course-card img {
+      width: 100%;
+      display: block;
+    }
+    .course-card .course-title {
+      padding: 12px 16px;
+      font-size: 14px;
+      font-weight: 700;
+      color: #1e293b;
+      border-top: 3px solid #2563eb;
+    }
+  </style>
+</head>
+<body class="chapter-body">
+
+  <div class="chapter-breadcrumb">
+    <span class="section-part">1. Giới thiệu khóa học</span>
+    <span class="sep">/</span>
+    <span class="chapter-part">Giới thiệu giảng viên</span>
+  </div>
+
+  <h2 class="section-heading">&gt;whoami</h2>
+
+  <div class="instructor-wrap">
+    <div class="instructor-info">
+      <ul class="whoami-list">
+        <li><span class="whoami-key">&gt;name:</span>Linh Nguyen</li>
+        <li><span class="whoami-key">&gt;birth_year:</span>1992</li>
+        <li><span class="whoami-key">&gt;live-in:</span>Tokyo - Japan</li>
+        <li><span class="whoami-key">&gt;job_role:</span>Engineering Consultant, Solution Architect</li>
+        <li><span class="whoami-key">&gt;cloud_experience:</span>since 2015, main: <strong>AWS</strong></li>
+        <li><span class="whoami-key">&gt;companies:</span>FPT Japan (current), FPT Software, ShiftAsia, CMC Global, CMC Japan</li>
+        <li>
+          <span class="whoami-key">&gt;highest_certificate:</span>
+          <ul class="cert-sub">
+            <li>- AWS Solution Architect Professional (2020, 2022)</li>
+            <li>- AWS DevOps Engineer Professional (2024)</li>
+          </ul>
+        </li>
+        <li><span class="whoami-key">&gt;training_exp:</span>Instructor tại CodeStar, Company Internal trainer, Private trainer (on-demand), <br/>
+          <b>Udemy</b> *Best seller instructor in AWS & DevOps</li>
+        <li><span class="whoami-key">&gt;hobbies:</span>Gym, piano, travel, reading book, rap (Den Vau's fan 😊)</li>
+      </ul>
+    </div>
+    <div class="instructor-photo">
+      <img src="../../assets/images/avatar-cropped.JPG" alt="Avatar giảng viên Linh Nguyen" />
+    </div>
+  </div>
+
+  <h2 class="section-heading">Các khóa học đã xuất bản</h2>
+  <a href="https://kientrucsugiaiphap.com" target="_blank" rel="noopener noreferrer"><h3><i>Xem tất cả các khóa học của giảng viên trên Udemy</i></h3></a>
+  <div class="course-gallery">
+    <div class="course-card">
+      <img src="../../assets/images/aws-beginner.png" alt="AWS Cloud for beginner" />
+      <div class="course-title">AWS Cloud for beginner</div>
+    </div>
+    <div class="course-card">
+      <img src="../../assets/images/devops-beginner.png" alt="DevOps on AWS for beginner" />
+      <div class="course-title">DevOps on AWS for beginner</div>
+    </div>
+    <div class="course-card">
+      <img src="../../assets/images/azure-beginner.png" alt="Ms Azure for beginner" />
+      <div class="course-title">Ms Azure for beginner</div>
+    </div>
+  </div>
+
+  <h2 class="section-heading">Bản đồ học viên trên toàn thế giới</h2>
+  <img class="figure-full" src="../../assets/images/global-students.png" alt="Bản đồ học viên trên toàn thế giới" />
+
+  <h2 class="section-heading">Course Engagement</h2>
+  <img class="figure-full" src="../../assets/images/course-engagement.png" alt="Course Engagement" />
+
+</body>
+</html>

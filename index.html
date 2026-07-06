@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Claude 101 - Tiếng Việt</title>
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="../../prism.css" />
+  <script src="../../mermaid-config.js"></script>
+    <script src="../../prism.js"></script>
+</head>
+<body>
+
+  <header class="site-header">
+    <div class="logo-wrap">
+      <img src="assets\svg-icon\claude-logo.svg" alt="Claude Logo" class="logo" />
+    </div>
+    <h1 class="site-title">Claude <span>from zero to hero - Tiếng Việt</span></h1>
+  </header>
+
+  <div class="layout">
+    <nav class="sidebar" id="sidebar" aria-label="Course navigation">
+
+      <!-- ═══════════════════════════════════════════════════════
+           NAVIGATION — chỉnh sửa text chương học trực tiếp tại đây
+           Thêm chương: copy một thẻ <li> và tăng data-chapter
+           Thêm section: copy một khối <div class="nav-section"> và tăng data-section
+      ══════════════════════════════════════════════════════════ -->
+
+      <!-- Section 1 -->
+      <div class="nav-section">
+        <div class="nav-section-title" data-section="1" role="button" tabindex="0">
+          <svg class="icon" width="13" height="13" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M1.5 3.5A1 1 0 012.5 2.5h3.586a1 1 0 01.707.293L7.5 4H13.5A1 1 0 0114.5 5v7a1 1 0 01-1 1h-11a1 1 0 01-1-1V3.5z" stroke="currentColor" stroke-width="1.3" fill="none"/></svg>
+          1. Giới thiệu về giảng viên &amp; khoá học
+        </div>
+        <ul class="nav-chapters">
+          <li><a href="#" data-section="1" data-chapter="1">Giới thiệu giảng viên Linh Nguyễn</a></li>
+          <li><a href="#" data-section="1" data-chapter="2">Nội dung khóa học & Mục tiêu sau khi hoàn thành</a></li>
+          <li><a href="#" data-section="1" data-chapter="3">Yêu cầu đầu vào & Lưu ý trong quá trình học</a></li>
+          <li><a href="#" data-section="1" data-chapter="4">Tương tác với giảng viên như thế nào?</a></li>
+        </ul>
+      </div>
+
+      <!-- Section 2 -->
+      <div class="nav-section">
+        <div class="nav-section-title" data-section="2" role="button" tabindex="0">
+          <svg class="icon" width="13" height="13" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M1.5 3.5A1 1 0 012.5 2.5h3.586a1 1 0 01.707.293L7.5 4H13.5A1 1 0 0114.5 5v7a1 1 0 01-1 1h-11a1 1 0 01-1-1V3.5z" stroke="currentColor" stroke-width="1.3" fill="none"/></svg>
+          2. Làm quen với Claude
+        </div>
+        <ul class="nav-chapters">
+          <li><a href="#" data-section="2" data-chapter="1">Giới thiệu về Claude</a></li>
+          <li><a href="#" data-section="2" data-chapter="2">Claude desktop app</a></li>
+          <li><a href="#" data-section="2" data-chapter="3">Claude Project</a></li>
+          <li><a href="#" data-section="2" data-chapter="4">Claude Code</a></li>
+          <li><a href="#" data-section="2" data-chapter="5">Lab - làm quen với Claude Code</a></li>
+          <li><a href="#" data-section="2" data-chapter="6">System promp - CLAUDE.md</a></li>
+          <li><a href="#" data-section="2" data-chapter="7">Claude Cowork</a></li>
+          <li><a href="#" data-section="2" data-chapter="8">Claude Design</a></li>
+          <li><a href="#" data-section="2" data-chapter="9">Tip để tiết kiệm tiền khi sử dụng Claude</a></li>
+        </ul>
+      </div>
+
+      <!-- Section 3 -->
+      <div class="nav-section">
+        <div class="nav-section-title" data-section="3" role="button" tabindex="0">
+          <svg class="icon" width="13" height="13" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M1.5 3.5A1 1 0 012.5 2.5h3.586a1 1 0 01.707.293L7.5 4H13.5A1 1 0 0114.5 5v7a1 1 0 01-1 1h-11a1 1 0 01-1-1V3.5z" stroke="currentColor" stroke-width="1.3" fill="none"/></svg>
+          3. Claude Skills & Agent
+        </div>
+        <ul class="nav-chapters">
+          <li><a href="#" data-section="3" data-chapter="1">Claude Skills là gì?</a></li>
+          <li><a href="#" data-section="3" data-chapter="2">Lab - Tạo một Claude Skill</a></li>
+          <li><a href="#" data-section="3" data-chapter="3">Claude Agent là gì?</a></li>
+          <li><a href="#" data-section="3" data-chapter="4">Lab - Tạo một Claude Sub-Agent</a></li>
+
+        </ul>
+      </div>
+
+
+    </nav>
+
+    <div class="content-area">
+      <iframe
+        id="content-frame"
+        src="welcome.html"
+        title="Chapter content"
+        allowfullscreen>
+      </iframe>
+    </div>
+  </div>
+
+  <script>
+    let activeSection = null;
+    let activeChapter = null;
+
+    function navigateTo(sectionId, chapterId) {
+      document.querySelectorAll('.nav-section-title').forEach(el => el.classList.remove('active'));
+      document.querySelectorAll('.nav-chapters a').forEach(el => el.classList.remove('active'));
+
+      activeSection = sectionId;
+      activeChapter = chapterId;
+
+      const sectionEl = document.querySelector(`.nav-section-title[data-section="${sectionId}"]`);
+
+      if (chapterId) {
+        const chapterEl = document.querySelector(
+          `.nav-chapters a[data-section="${sectionId}"][data-chapter="${chapterId}"]`
+        );
+        if (chapterEl) {
+          chapterEl.classList.add('active');
+          chapterEl.scrollIntoView({ block: 'nearest' });
+        }
+        const frame = document.getElementById('content-frame');
+        if (frame) frame.src = `sections/section_${sectionId}/chapter_${chapterId}.html`;
+      }
+
+      if (sectionEl) sectionEl.classList.add('active');
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      document.querySelectorAll('.nav-section-title').forEach(el => {
+        el.addEventListener('click', () => navigateTo(parseInt(el.dataset.section), 0));
+        el.addEventListener('keydown', e => {
+          if (e.key === 'Enter' || e.key === ' ') navigateTo(parseInt(el.dataset.section), 0);
+        });
+      });
+
+      document.querySelectorAll('.nav-chapters a').forEach(el => {
+        el.addEventListener('click', e => {
+          e.preventDefault();
+          navigateTo(parseInt(el.dataset.section), parseInt(el.dataset.chapter));
+        });
+      });
+    });
+  </script>
+</body>
+</html>
