@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Yêu cầu đầu vào & Lưu ý trong quá trình học – Claude 101</title>
+  <link rel="stylesheet" href="../../styles.css" />
+  <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+  <script src="../../mermaid-config.js"></script>
+  <link rel="stylesheet" href="../../prism.css" />
+  <script src="../../prism.js"></script>
+</head>
+<body class="chapter-body">
+
+  <div class="chapter-breadcrumb">
+    <span class="section-part">1. Giới thiệu khóa học</span>
+    <span class="sep">/</span>
+    <span class="chapter-part">Yêu cầu đầu vào & Lưu ý trong quá trình học</span>
+  </div>
+
+  <h2 class="section-heading">Giới thiệu</h2>
+  <p class="body-text">
+    Khóa học được thiết kế cho người mới bắt đầu, không yêu cầu kiến thức lập trình chuyên sâu. Tuy nhiên, để việc
+    thực hành các bài lab diễn ra thuận lợi, bạn nên chuẩn bị trước một số công cụ và tài khoản cần thiết.
+  </p>
+
+  <h2 class="section-heading">Yêu cầu đầu vào</h2>
+
+  <h3 class="sub-heading">Kiến thức nền tảng</h3>
+  <ul class="feature-list">
+    <li>Không yêu cầu biết lập trình chuyên sâu — phù hợp với mọi background, kể cả người không thuộc ngành IT.</li>
+    <li>Biết sử dụng cơ bản VS Code (mở project, dùng terminal tích hợp) là một lợi thế.</li>
+    <li>Biết thao tác Git cơ bản (clone, commit, push, pull) là một lợi thế, đặc biệt khi thực hành các lab tích hợp Git (CICD, code review).</li>
+    <li>Biết một trong các ngôn ngữ lập trình (Python, JavaScript, Java...) và có kiến thức cơ bản về Database (SQL) sẽ giúp bạn thực hành các lab nhanh và hiểu sâu hơn.</li>
+  </ul>
+
+  <h3 class="sub-heading">Tài khoản cần chuẩn bị</h3>
+  <ul class="feature-list">
+    <li>Tài khoản GitHub (miễn phí) — dùng để lưu trữ code trong các bài lab thực hành.</li>
+    <li>Tài khoản Claude (Personal, Team hoặc Enterprise tùy nhu cầu) — dùng cho toàn bộ các bài thực hành với Claude Desktop App và Claude Code trong khóa học.</li>
+  </ul>
+
+  <h3 class="sub-heading">Thiết bị & kết nối</h3>
+  <ul class="feature-list">
+    <li>Laptop/máy tính cá nhân (Windows, macOS hoặc Linux đều được), đủ cấu hình để chạy VS Code và Docker (một số lab ở Section 4 sử dụng Docker cho database).</li>
+    <li>Kết nối Internet ổn định xuyên suốt quá trình học — Claude Desktop App và Claude Code đều cần kết nối mạng để hoạt động.</li>
+  </ul>
+
+  <h2 class="section-heading">Mô hình chuẩn bị trước khi học</h2>
+  <div class="mermaid">
+  flowchart TD
+      User["👤<br/><b>Học viên</b>"]
+      Laptop["<img src='../../assets/svg-icon/laptop.svg' style='width:30px;height:30px;'/><br/><b>Laptop cá nhân</b><br/>Windows / macOS / Linux"]
+      IDE["<img src='../../assets/svg-icon/ide.svg' style='width:30px;height:30px;'/><br/><b>VS Code / Terminal</b><br/>Cài đặt local"]
+      Github["<img src='../../assets/svg-icon/github.svg' style='width:30px;height:30px;'/><br/><b>Tài khoản GitHub</b><br/>Lưu trữ & backup code"]
+      Claude["<img src='../../assets/svg-icon/claude-logo.svg' style='width:30px;height:30px;'/><br/><b>Tài khoản Claude</b><br/>Personal / Team / Enterprise"]
+
+      User --> Laptop
+      Laptop --> IDE
+      Laptop -->|"🌐 Internet"| Github
+      Laptop -->|"🌐 Internet"| Claude
+  </div>
+  <p class="arch-caption">Laptop kết nối Internet là trung tâm — từ đó truy cập tài khoản GitHub, tài khoản Claude và làm việc với VS Code/Terminal cài đặt local.</p>
+
+  <h2 class="section-heading">Lưu ý trong quá trình học</h2>
+  <div class="alert alert-info">
+    <strong>Chi phí (Cost):</strong> Claude tính phí theo lượng token sử dụng (Personal/Team theo gói subscription, API theo usage). Luôn theo dõi mức sử dụng, chọn model phù hợp với độ khó tác vụ (Haiku cho tác vụ đơn giản, Sonnet cho công việc hằng ngày, Opus cho tác vụ phức tạp) để tránh phát sinh chi phí không cần thiết.
+  </div>
+  <div class="alert alert-danger">
+    <strong>Bảo mật (Security):</strong> Tuyệt đối không commit các thông tin nhạy cảm (API key, mật khẩu, secret,
+    file <code>.env</code>...) lên GitHub, kể cả private repository. Việc lộ thông tin nhạy cảm có thể dẫn đến các
+    security incident nghiêm trọng. Luôn thêm các file này vào <code>.gitignore</code> trước khi commit.
+  </div>
+  <div class="alert alert-warning">
+    <strong>Backup:</strong> Luôn backup code sau mỗi phiên làm việc với Claude Code (commit & push lên GitHub) và
+    backup database khi cần thiết. Claude cũng như các công cụ AI nói chung có khả năng gặp sai sót trong quá trình thực thi yêu cầu (vd xóa nhầm file, edit làm hỏng các source code gốc), bạn cần backup code thường xuyên sau mỗi phiên làm việc hoặc hoàn thành một chức năng để có thể rollback lại nếu gặp sự cố.
+  </div>
+
+  <h2 class="section-heading">Thông tin bổ sung</h2>
+  <p class="body-text">
+    Nếu bạn chưa có kinh nghiệm với VS Code, Git hoặc lập trình, vẫn có thể theo học bình thường — các bài lab đều
+    hướng dẫn command chi tiết, copy-paste được ngay. Những kiến thức nền tảng nêu trên chỉ giúp bạn thực hành nhanh
+    và hiểu sâu hơn, không phải điều kiện bắt buộc. Việc chuẩn bị đầy đủ tài khoản GitHub và Claude trước khi vào
+    Section 2 sẽ giúp bạn không bị gián đoạn trong quá trình thực hành.
+  </p>
+
+  <script>mermaid.initialize({ startOnLoad: true, theme: 'default' });</script>
+</body>
+</html>

@@ -6,7 +6,7 @@
 
 **Ngôn ngữ:** Tiếng Việt
 
-**Tổng thời lượng dự kiến:** 13–15 giờ (video lý thuyết + thực hành)
+**Tổng thời lượng dự kiến:** 12–14 giờ (video lý thuyết + thực hành)
 
 ---
 

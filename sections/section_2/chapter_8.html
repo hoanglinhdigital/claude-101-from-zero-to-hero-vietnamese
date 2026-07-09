@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lab: Sử dụng Claude Cowork – Claude 101</title>
+  <link rel="stylesheet" href="../../styles.css" />
+  <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+  <script src="../../mermaid-config.js"></script>
+  <link rel="stylesheet" href="../../prism.css" />
+  <script src="../../prism.js"></script>
+  <script src="../../script.js"></script>
+</head>
+<body class="chapter-body">
+
+  <div class="chapter-breadcrumb">
+    <span class="section-part">2. Làm quen với Claude</span>
+    <span class="sep">/</span>
+    <span class="chapter-part">Lab: Sử dụng Claude Cowork</span>
+  </div>
+
+  <h2 class="section-heading">Mục tiêu</h2>
+  <ul class="feature-list">
+    <li>Phân biệt rõ khi nào nên dùng Claude Cowork và khi nào chỉ cần chat 1-1 thông thường.</li>
+    <li>Tạo được một phiên làm việc Cowork và mời/tham gia bằng nhiều thiết bị khác nhau.</li>
+    <li>Demo được khả năng cộng tác cơ bản: chia sẻ ngữ cảnh chung, giao task cho Claude và theo dõi tiến độ theo thời gian thực giữa các thành viên.</li>
+  </ul>
+
+  <h2 class="section-heading">So sánh nhanh: Chat thông thường vs Claude Cowork</h2>
+  <table class="compare-table">
+    <thead>
+      <tr>
+        <th>Tiêu chí</th>
+        <th>Chat 1-1 thông thường</th>
+        <th>Claude Cowork</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Số người tham gia một phiên</td>
+        <td>Chỉ 1 người dùng</td>
+        <td class="yes">Nhiều thành viên cùng tham gia</td>
+      </tr>
+      <tr>
+        <td>Ngữ cảnh (context)</td>
+        <td>Riêng của từng người, không tự chia sẻ</td>
+        <td class="yes">Dùng chung trong cả không gian làm việc</td>
+      </tr>
+      <tr>
+        <td>Giao & theo dõi task</td>
+        <td>Không có khái niệm giao việc cho người khác</td>
+        <td class="yes">Giao task cho Claude, mọi thành viên đều thấy trạng thái</td>
+      </tr>
+      <tr>
+        <td>Lịch sử hoạt động</td>
+        <td>Chỉ hiển thị cho chính người chat</td>
+        <td class="yes">Tất cả thành viên xem được lịch sử chung</td>
+      </tr>
+      <tr>
+        <td>Phù hợp cho</td>
+        <td>Công việc cá nhân, tra cứu nhanh</td>
+        <td class="yes">Làm việc nhóm, dự án cần nhiều người theo dõi cùng lúc</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h2 class="section-heading">Kiến trúc tổng quan</h2>
+  <div class="mermaid">
+  flowchart TD
+      subgraph Cowork["<img src='../../assets/svg-icon/claude-logo.svg' style='width:26px;height:26px;'/> Không gian Claude Cowork dùng chung"]
+          Context["<img src='../../assets/svg-icon/task.svg' style='width:26px;height:26px;'/><br/><b>Ngữ cảnh & Task chung</b>"]
+      end
+      U1["<img src='../../assets/svg-icon/laptop.svg' style='width:30px;height:30px;'/><br/><b>Thiết bị 1 — Desktop</b><br/>Vai trò: Thành viên A"]
+      U2["<img src='../../assets/svg-icon/smartphone.svg' style='width:30px;height:30px;'/><br/><b>Thiết bị 2 — Mobile</b><br/>Vai trò: Thành viên B"]
+      API["<img src='../../assets/svg-icon/claude-logo.svg' style='width:28px;height:28px;'/><br/><b>Anthropic API</b><br/>Xử lý model"]
+
+      U1 -->|"Cùng tài khoản Claude"| Cowork
+      U2 -->|"Cùng tài khoản Claude"| Cowork
+      U1 -->|"Giao task / gửi ngữ cảnh"| Context
+      U2 -->|"Giao task / xem tiến độ"| Context
+      Context -->|"Gửi yêu cầu"| API
+      API -->|"Kết quả"| Context
+      Context -.->|"Đồng bộ real-time"| U1
+      Context -.->|"Đồng bộ real-time"| U2
+  </div>
+  <p class="arch-caption">Trong demo này, một tài khoản Claude duy nhất được đăng nhập trên hai thiết bị (Desktop và Mobile) để đóng vai hai "thành viên" khác nhau — cả hai cùng truy cập một không gian Cowork, chia sẻ ngữ cảnh và theo dõi task theo thời gian thực.</p>
+
+  <h2 class="section-heading">Yêu cầu trước khi bắt đầu</h2>
+  <ul class="feature-list">
+    <li>Tài khoản Claude đã đăng nhập trên Claude Desktop App (xem lại Lab ở Chapter 1).</li>
+    <li>Một thiết bị thứ hai để đóng vai thành viên còn lại — khuyến nghị dùng điện thoại (app Claude trên iOS/Android) hoặc trình duyệt trên máy khác. Nếu chỉ có một tài khoản, đăng nhập cùng tài khoản đó trên cả hai thiết bị.</li>
+    <li>Kết nối Internet ổn định trên cả hai thiết bị trong suốt quá trình demo.</li>
+    <li>Một chủ đề/dự án giả lập đơn giản để demo, ví dụ: "Lên kế hoạch tổ chức buổi họp team building".</li>
+  </ul>
+  <div class="alert alert-tip">
+    <strong>Lưu ý:</strong> Claude Cowork là tính năng mới trong hệ sinh thái Claude, tên gọi và vị trí các nút bấm trong giao diện thực tế có thể khác đôi chút so với mô tả trong bài lab này — nếu không thấy đúng tên mục, hãy tìm các mục có ý nghĩa tương đương như "Shared workspace", "Team session" hoặc "Cowork".
+  </div>
+
+  <h2 class="section-heading">Các bước thực hành</h2>
+  <ol class="step-list">
+    <li>
+      <div>
+        <strong>Bước 1: Tạo phiên làm việc Cowork trên Desktop</strong>
+        <p>Trên Claude Desktop App, tìm và chọn mục <strong>Cowork</strong> (hoặc Shared workspace), chọn <strong>Tạo mới</strong> và đặt tên cho phiên làm việc, ví dụ <em>"Team Building 2026"</em>.</p>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 2: Lấy link/mã mời tham gia</strong>
+        <p>Trong phiên Cowork vừa tạo, tìm nút <strong>Invite</strong> hoặc <strong>Share</strong> để lấy link mời — nếu chỉ dùng một tài khoản, có thể bỏ qua bước mời và đăng nhập trực tiếp bằng tài khoản đó trên thiết bị thứ hai.</p>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 3: Tham gia phiên Cowork trên thiết bị thứ hai</strong>
+        <p>Mở app Claude (hoặc trình duyệt) trên điện thoại/máy thứ hai, đăng nhập cùng tài khoản, mở link mời (hoặc vào lại đúng phiên Cowork vừa tạo) để tham gia cùng không gian làm việc.</p>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 4: Chia sẻ ngữ cảnh chung từ Desktop</strong>
+        <p>Từ thiết bị Desktop (đóng vai Thành viên A), nhập thông tin nền cho dự án giả lập vào phiên Cowork.</p>
+        <pre class="command-line" data-prompt=">"><code class="language-text">Chúng ta cần lên kế hoạch tổ chức buổi họp team building cho 20 người vào cuối tháng sau, ngân sách khoảng 15 triệu đồng. Hãy ghi nhớ thông tin này cho các task tiếp theo trong phiên làm việc này.</code></pre>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 5: Giao task từ thiết bị Mobile</strong>
+        <p>Chuyển qua thiết bị Mobile (đóng vai Thành viên B), giao một task cụ thể cho Claude ngay trong cùng phiên Cowork — không cần nhập lại ngữ cảnh vì đã được chia sẻ chung ở Bước 4.</p>
+        <pre class="command-line" data-prompt=">"><code class="language-text">Dựa trên ngân sách và số lượng người đã đề cập, hãy đề xuất 3 phương án địa điểm tổ chức team building phù hợp, kèm ước tính chi phí cho mỗi phương án.</code></pre>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 6: Quan sát cập nhật theo thời gian thực trên Desktop</strong>
+        <p>Quay lại thiết bị Desktop, kiểm tra xem task vừa giao từ Mobile có xuất hiện và cập nhật trạng thái (đang xử lý → hoàn tất) trong cùng phiên Cowork hay không, mà không cần refresh hay nhập lại gì thêm.</p>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 7: Phản hồi và giao tiếp task tiếp theo</strong>
+        <p>Từ Desktop, review kết quả 3 phương án Claude đề xuất, phản hồi để tinh chỉnh hoặc giao task kế tiếp — mọi phản hồi đều hiển thị chung cho cả hai "thành viên" trong phiên.</p>
+        <pre class="command-line" data-prompt=">"><code class="language-text">Phương án 2 phù hợp nhất. Hãy lập một checklist các việc cần chuẩn bị trước 2 tuần cho phương án này.</code></pre>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 8: Kiểm tra lịch sử hoạt động chung</strong>
+        <p>Mở mục <strong>Activity</strong> (hoặc lịch sử phiên làm việc) để xem toàn bộ các task đã giao, từ thiết bị/thành viên nào và trạng thái hiện tại — minh chứng cho tính minh bạch khi làm việc nhóm qua Cowork.</p>
+      </div>
+    </li>
+  </ol>
+
+  <h2 class="section-heading">Troubleshoot</h2>
+  <div class="alert alert-warning">
+    <strong>Lỗi:</strong> Không tìm thấy mục Cowork trong Claude Desktop App hoặc app Mobile.<br/>
+    <strong>Nguyên nhân:</strong> Tính năng Cowork đang được triển khai theo từng gói cước/khu vực, có thể chưa bật cho tài khoản đang dùng.<br/>
+    <strong>Giải pháp:</strong> Kiểm tra tài khoản đang dùng gói cước nào (Personal/Team/Enterprise), cập nhật app lên phiên bản mới nhất, hoặc tham khảo tài liệu chính thức của Anthropic về điều kiện sử dụng Cowork.
+  </div>
+  <div class="alert alert-warning">
+    <strong>Lỗi:</strong> Task giao từ thiết bị Mobile không hiển thị ngay trên Desktop.<br/>
+    <strong>Nguyên nhân:</strong> Độ trễ đồng bộ do kết nối mạng chậm, hoặc phiên Desktop đang ở trạng thái cũ chưa refresh.<br/>
+    <strong>Giải pháp:</strong> Kiểm tra lại kết nối Internet trên cả hai thiết bị, thử thoát và vào lại phiên Cowork trên Desktop.
+  </div>
+  <div class="alert alert-danger">
+    <strong>Lỗi:</strong> Thiết bị thứ hai không tham gia được đúng phiên Cowork đã tạo (bị tạo phiên mới, tách rời).<br/>
+    <strong>Nguyên nhân:</strong> Dùng sai link mời, hoặc đăng nhập nhầm tài khoản khác trên thiết bị thứ hai.<br/>
+    <strong>Giải pháp:</strong> Xác nhận cả hai thiết bị đang đăng nhập cùng một tài khoản, lấy lại đúng link/mã mời từ phiên Cowork gốc trên Desktop.
+  </div>
+
+  <h2 class="section-heading">Dọn dẹp resource</h2>
+  <div class="alert alert-info">Bài lab này chỉ thao tác trong phạm vi tài khoản Claude cá nhân, không tạo ra resource cloud phát sinh chi phí ngoài usage theo gói cước đang sử dụng.</div>
+  <ul class="feature-list">
+    <li>Trên thiết bị Mobile: chọn <strong>Leave workspace</strong> (hoặc Rời phiên làm việc) để thoát khỏi phiên Cowork demo.</li>
+    <li>Trên Desktop: mở lại phiên Cowork <em>"Team Building 2026"</em>, chọn <strong>Delete workspace</strong> (hoặc Xoá phiên làm việc) nếu không cần giữ lại nội dung demo.</li>
+  </ul>
+
+  <script>mermaid.initialize({ startOnLoad: true, theme: 'default' });</script>
+</body>
+</html>

@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Claude Cowork & Claude Design – Claude 101</title>
+  <link rel="stylesheet" href="../../styles.css" />
+  <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+  <script src="../../mermaid-config.js"></script>
+  <link rel="stylesheet" href="../../prism.css" />
+  <script src="../../prism.js"></script>
+  <script src="../../script.js"></script>
+</head>
+<body class="chapter-body">
+
+  <div class="chapter-breadcrumb">
+    <span class="section-part">2. Làm quen với Claude</span>
+    <span class="sep">/</span>
+    <span class="chapter-part">Claude Cowork & Claude Design</span>
+  </div>
+
+  <h2 class="section-heading">Giới thiệu</h2>
+  <p class="body-text">
+    Bên cạnh Claude Desktop App và Claude Code, hệ sinh thái Claude còn có hai công cụ hướng tới nhu cầu làm việc
+    nhóm và tài liệu trực quan: <strong>Claude Cowork</strong> <span class="badge badge-purple">Mới</span> — không
+    gian cộng tác cho phép nhiều thành viên cùng tham gia một phiên làm việc với Claude, chia sẻ ngữ cảnh và theo dõi
+    tiến độ tác vụ theo thời gian thực; và <strong>Claude Design</strong> <span class="badge badge-purple">Mới</span>
+    — công cụ hỗ trợ dựng tài liệu, sơ đồ và bản trình bày trực quan từ mô tả bằng ngôn ngữ tự nhiên. Hai công cụ này
+    không thay thế Desktop App/Claude Code mà mở rộng thêm chiều hướng cộng tác nhóm và trình bày nội dung.
+  </p>
+
+  <h2 class="section-heading">Các tính năng chính</h2>
+  <ul class="feature-list">
+    <li><strong>Claude Cowork — Không gian làm việc chung:</strong> nhiều thành viên cùng truy cập một phiên làm việc, thấy được lịch sử trao đổi và các tác vụ Claude đang/đã thực hiện.</li>
+    <li><strong>Claude Cowork — Phân chia & theo dõi tác vụ:</strong> giao việc cho Claude ngay trong không gian nhóm, theo dõi trạng thái (đang xử lý, cần review, hoàn tất) như một board công việc.</li>
+    <li><strong>Claude Cowork — Ngữ cảnh dùng chung:</strong> tài liệu, quy chuẩn của nhóm được chia sẻ chung, tránh mỗi thành viên phải tự cung cấp lại ngữ cảnh riêng lẻ.</li>
+    <li><strong>Claude Design — Sinh tài liệu/trình bày trực quan:</strong> tạo bản trình bày (slide), tài liệu định dạng, sơ đồ từ mô tả ngắn gọn bằng ngôn ngữ tự nhiên.</li>
+    <li><strong>Claude Design — Chỉnh sửa lặp lại (iterative):</strong> tinh chỉnh bố cục, nội dung qua nhiều vòng phản hồi, giữ nhất quán phong cách xuyên suốt tài liệu.</li>
+  </ul>
+
+  <h2 class="section-heading">Mô hình kiến trúc</h2>
+  <div class="mermaid">
+  flowchart LR
+      subgraph Team["👥 Nhóm làm việc"]
+          U1["👤<br/><b>Thành viên A</b>"]
+          U2["👤<br/><b>Thành viên B</b>"]
+      end
+      Cowork["<img src='../../assets/svg-icon/claude-logo.svg' style='width:32px;height:32px;'/><br/><b>Claude Cowork</b><br/>Không gian & ngữ cảnh dùng chung"]
+      Design["<img src='../../assets/svg-icon/claude-logo.svg' style='width:32px;height:32px;'/><br/><b>Claude Design</b><br/>Sinh tài liệu, trình bày trực quan"]
+      API["<img src='../../assets/svg-icon/claude-logo.svg' style='width:28px;height:28px;'/><br/><b>Anthropic API</b><br/>Xử lý model"]
+      Output["<img src='../../assets/svg-icon/task.svg' style='width:28px;height:28px;'/><br/><b>Tài liệu / Slide / Sơ đồ</b>"]
+
+      U1 -->|"Trao đổi, giao việc"| Cowork
+      U2 -->|"Trao đổi, giao việc"| Cowork
+      Cowork -->|"Gửi yêu cầu"| API
+      Cowork -->|"Yêu cầu dựng nội dung trực quan"| Design
+      Design -->|"Gửi yêu cầu"| API
+      Design -->|"Xuất kết quả"| Output
+  </div>
+  <p class="arch-caption">Claude Cowork là lớp không gian làm việc nhóm dùng chung ngữ cảnh; khi cần dựng tài liệu/trình bày trực quan, nhóm có thể gọi tới Claude Design để sinh kết quả rồi tiếp tục tinh chỉnh trong cùng không gian cộng tác.</p>
+
+  <h2 class="section-heading">Use Cases</h2>
+  <div class="usecase-grid">
+    <div class="usecase-card">
+      <h4>Họp nhóm & giao việc</h4>
+      <p>Cả nhóm cùng thảo luận trong một phiên Cowork, giao Claude thực hiện các tác vụ nhỏ và theo dõi tiến độ chung.</p>
+    </div>
+    <div class="usecase-card">
+      <h4>Chuẩn hoá ngữ cảnh dự án</h4>
+      <p>Chia sẻ tài liệu quy chuẩn (style guide, quy trình) một lần cho cả nhóm thay vì từng người tự cung cấp ngữ cảnh riêng.</p>
+    </div>
+    <div class="usecase-card">
+      <h4>Dựng bản trình bày nhanh</h4>
+      <p>Mô tả nội dung cần trình bày, để Claude Design sinh bản slide/tài liệu nháp, sau đó tinh chỉnh lại theo góp ý.</p>
+    </div>
+  </div>
+
+  <h2 class="section-heading">Thông tin bổ sung</h2>
+  <p class="body-text">
+    Claude Cowork và Claude Design là các công cụ mở rộng, phù hợp khi công việc cần nhiều người cùng tham gia hoặc
+    cần tài liệu/trình bày trực quan — với công việc cá nhân hằng ngày, Claude Desktop App và Claude Code vẫn là hai
+    công cụ chính xuyên suốt khoá học này. Vì đây là các tính năng mới trong hệ sinh thái Claude, phạm vi tính năng
+    và điều kiện sử dụng (gói cước, giới hạn số thành viên) có thể thay đổi theo thời gian — nên kiểm tra tài liệu
+    chính thức của Anthropic trước khi áp dụng vào công việc thực tế của nhóm.
+  </p>
+
+  <script>mermaid.initialize({ startOnLoad: true, theme: 'default' });</script>
+</body>
+</html>

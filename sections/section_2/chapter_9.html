@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lab: Sử dụng Claude Design – Claude 101</title>
+  <link rel="stylesheet" href="../../styles.css" />
+  <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+  <script src="../../mermaid-config.js"></script>
+  <link rel="stylesheet" href="../../prism.css" />
+  <script src="../../prism.js"></script>
+  <script src="../../script.js"></script>
+</head>
+<body class="chapter-body">
+
+  <div class="chapter-breadcrumb">
+    <span class="section-part">2. Làm quen với Claude</span>
+    <span class="sep">/</span>
+    <span class="chapter-part">Lab: Sử dụng Claude Design</span>
+  </div>
+
+  <h2 class="section-heading">Giới thiệu nhanh</h2>
+  <p class="body-text">
+    <strong>Claude Design</strong> <span class="badge badge-purple">Mới</span> là công cụ giúp dựng nội dung trực
+    quan — slide trình bày, trang web, tài liệu, sơ đồ — chỉ từ mô tả bằng ngôn ngữ tự nhiên. Thay vì phải tự tay
+    thiết kế từng phần tử, người dùng mô tả mục tiêu và nội dung mong muốn, Claude Design sẽ dựng bản nháp hoàn
+    chỉnh và cho phép tinh chỉnh lại qua nhiều vòng phản hồi.
+  </p>
+
+  <h2 class="section-heading">Use case thường sử dụng</h2>
+  <div class="usecase-grid">
+    <div class="usecase-card">
+      <h4>Slide trình bày (Presentation)</h4>
+      <p>Dựng nhanh bộ slide cho báo cáo, so sánh giải pháp, thuyết trình nội bộ mà không cần mở PowerPoint từ đầu.</p>
+    </div>
+    <div class="usecase-card">
+      <h4>Trang web / Landing page</h4>
+      <p>Thiết kế trang giới thiệu sản phẩm, landing page bán hàng bằng HTML/CSS chỉ từ mô tả nội dung và bố cục mong muốn.</p>
+    </div>
+    <div class="usecase-card">
+      <h4>Tài liệu & sơ đồ trực quan</h4>
+      <p>Sinh tài liệu định dạng đẹp, sơ đồ quy trình, infographic tóm tắt số liệu cho báo cáo hoặc chia sẻ nội bộ.</p>
+    </div>
+  </div>
+
+  <h2 class="section-heading">Mục tiêu</h2>
+  <ul class="feature-list">
+    <li>Hiểu cách mô tả yêu cầu cho Claude Design để nhận được bản nháp sát với mong muốn ngay từ lần đầu.</li>
+    <li>Dùng Claude Design dựng một slide trình bày so sánh các framework thuộc họ Node.js.</li>
+    <li>Dùng Claude Design dựng một trang website bán khóa học bằng HTML/Tailwind CSS.</li>
+    <li>Biết cách tinh chỉnh (refine) và xuất kết quả ra file để sử dụng thực tế.</li>
+  </ul>
+
+  <h2 class="section-heading">Kiến trúc tổng quan</h2>
+  <div class="mermaid">
+  flowchart LR
+      User(("👤<br/><b>Học viên</b>"))
+      Design["<img src='../../assets/svg-icon/claude-logo.svg' style='width:32px;height:32px;'/><br/><b>Claude Design</b><br/>Mô tả bằng ngôn ngữ tự nhiên"]
+      API["<img src='../../assets/svg-icon/claude-logo.svg' style='width:28px;height:28px;'/><br/><b>Anthropic API</b><br/>Xử lý model"]
+      Slide["<img src='../../assets/svg-icon/task.svg' style='width:28px;height:28px;'/><br/><b>Slide trình bày</b><br/>So sánh Node.js framework"]
+      Web["<img src='../../assets/svg-icon/ide.svg' style='width:28px;height:28px;'/><br/><b>Website HTML/Tailwind</b><br/>Trang bán khóa học"]
+
+      User -->|"Mô tả yêu cầu"| Design
+      Design -->|"Gửi prompt"| API
+      API -->|"Sinh nội dung, bố cục"| Design
+      Design -->|"Xuất bản"| Slide
+      Design -->|"Xuất bản"| Web
+      User -.->|"Phản hồi, tinh chỉnh"| Design
+  </div>
+  <p class="arch-caption">Claude Design nhận mô tả từ người dùng, gửi tới Anthropic API để sinh nội dung/bố cục, sau đó cho phép tinh chỉnh lặp lại nhiều vòng trước khi xuất ra kết quả cuối (slide, website...).</p>
+
+  <h2 class="section-heading">Yêu cầu trước khi bắt đầu</h2>
+  <ul class="feature-list">
+    <li>Tài khoản Claude đã đăng nhập, có quyền truy cập Claude Design (Personal/Team/Enterprise tuỳ điều kiện triển khai).</li>
+    <li>Kết nối Internet ổn định trong suốt quá trình thực hành.</li>
+    <li>Kiến thức nền cơ bản về các framework Node.js (Express, NestJS, Fastify, Koa) để đánh giá nội dung slide có chính xác không — không bắt buộc nhưng giúp thực hành hiệu quả hơn.</li>
+    <li>Một thư mục trên máy local để lưu lại file website xuất ra, ví dụ <code>D:\lab-claude-design\</code>.</li>
+  </ul>
+  <div class="alert alert-tip">
+    <strong>Lưu ý:</strong> Claude Design là tính năng mới, giao diện và tên các nút bấm (Export, Download, Refine...) có thể thay đổi theo thời gian — nếu không thấy đúng tên mục như mô tả, hãy tìm các mục có ý nghĩa tương đương.
+  </div>
+
+  <h2 class="section-heading">Các bước thực hành</h2>
+
+  <h3 class="sub-heading">Demo 1: Thiết kế slide so sánh các framework Node.js</h3>
+  <ol class="step-list">
+    <li>
+      <div>
+        <strong>Bước 1: Mở Claude Design và tạo bản thiết kế mới</strong>
+        <p>Truy cập Claude Design, chọn <strong>New design</strong> (hoặc New presentation), chọn loại nội dung là <strong>Slide/Presentation</strong>.</p>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 2: Mô tả yêu cầu nội dung slide</strong>
+        <p>Nhập mô tả càng cụ thể càng giúp Claude Design dựng đúng nội dung mong muốn — nêu rõ chủ đề, các mục cần so sánh và số lượng slide.</p>
+        <pre class="command-line" data-prompt=">"><code class="language-text">Tạo một bộ slide trình bày so sánh 4 framework phổ biến của Node.js: Express, NestJS, Fastify và Koa. Mỗi framework cần so sánh theo các tiêu chí: hiệu năng (performance), độ khó khi học (learning curve), hệ sinh thái/thư viện hỗ trợ (ecosystem) và loại project phù hợp (project nhỏ/vừa/lớn). Trình bày dưới dạng bảng so sánh trực quan, tối đa 6 slide, phong cách gọn gàng chuyên nghiệp.</code></pre>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 3: Xem bản nháp và kiểm tra nội dung</strong>
+        <p>Claude Design sẽ dựng bản nháp gồm nhiều slide hiển thị trực tiếp trên canvas. Rà soát lại nội dung so sánh có chính xác, dễ đọc và đúng số lượng slide đã yêu cầu không.</p>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 4: Tinh chỉnh bố cục/nội dung</strong>
+        <p>Gửi phản hồi để chỉnh sửa slide — ví dụ đổi màu, thêm slide tổng kết, hoặc nhấn mạnh một tiêu chí cụ thể.</p>
+        <pre class="command-line" data-prompt=">"><code class="language-text">Thêm 1 slide tổng kết ở cuối, đưa ra khuyến nghị nên chọn framework nào tương ứng với từng loại project (startup nhỏ, doanh nghiệp lớn, real-time application). Đổi màu chủ đạo của slide sang tông xanh dương.</code></pre>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 5: Xuất bản slide</strong>
+        <p>Chọn <strong>Export</strong> (hoặc Download), chọn định dạng phù hợp (PDF/PPTX nếu có hỗ trợ) để lưu bộ slide ra máy local, phục vụ cho việc thuyết trình sau này.</p>
+      </div>
+    </li>
+  </ol>
+
+  <h3 class="sub-heading">Demo 2: Thiết kế website bán khóa học bằng HTML/Tailwind CSS</h3>
+  <ol class="step-list">
+    <li>
+      <div>
+        <strong>Bước 1: Tạo bản thiết kế mới cho website</strong>
+        <p>Trong Claude Design, chọn <strong>New design</strong>, chọn loại nội dung là <strong>Website/Landing page</strong>.</p>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 2: Mô tả yêu cầu website</strong>
+        <p>Nêu rõ mục đích trang, các section cần có và yêu cầu công nghệ (HTML + Tailwind CSS) để kết quả đúng định dạng mong muốn.</p>
+        <pre class="command-line" data-prompt=">"><code class="language-text">Thiết kế một trang landing page bán khóa học online, dùng HTML và Tailwind CSS (qua CDN), responsive tốt trên mobile. Trang gồm các phần: Hero section giới thiệu khóa học "Claude 101 - From Zero to Hero", phần Nội dung khóa học tóm tắt các section chính, phần giới thiệu giảng viên, phần học phí kèm nút Đăng ký ngay (CTA), và Footer. Phong cách tươi sáng, màu chủ đạo cam và tím.</code></pre>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 3: Xem preview trực tiếp</strong>
+        <p>Claude Design hiển thị bản preview website ngay trên canvas — kiểm tra bố cục các section, khả năng responsive bằng cách thu nhỏ khung xem sang kích thước mobile.</p>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 4: Tinh chỉnh nội dung/giao diện</strong>
+        <p>Gửi phản hồi để chỉnh sửa các phần chưa đạt yêu cầu, ví dụ thêm phần đánh giá học viên hoặc đổi lại nút CTA.</p>
+        <pre class="command-line" data-prompt=">"><code class="language-text">Thêm một phần "Đánh giá học viên" (testimonial) gồm 3 card review giả định, đặt ngay trước phần học phí. Nút "Đăng ký ngay" cần nổi bật hơn, dùng màu cam làm nền.</code></pre>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 5: Xuất code website ra file local</strong>
+        <p>Chọn <strong>Export</strong> (hoặc Copy code), lưu lại thành file <code>index.html</code> trong thư mục <code>D:\lab-claude-design\</code>, sau đó mở bằng trình duyệt để kiểm tra lần cuối.</p>
+        <div class="alert alert-info">
+          Vì trang dùng Tailwind CSS qua CDN, cần có kết nối Internet khi mở file để CSS được tải và hiển thị đúng.
+        </div>
+      </div>
+    </li>
+  </ol>
+
+  <h2 class="section-heading">Troubleshoot</h2>
+  <div class="alert alert-warning">
+    <strong>Lỗi:</strong> Nội dung slide/website sinh ra chưa đúng ý, bố cục lộn xộn.<br/>
+    <strong>Nguyên nhân:</strong> Mô tả yêu cầu ban đầu còn mơ hồ, thiếu chi tiết về số lượng phần tử, thứ tự hoặc phong cách mong muốn.<br/>
+    <strong>Giải pháp:</strong> Mô tả lại cụ thể hơn (số lượng slide/section, tiêu chí so sánh, màu sắc, thứ tự hiển thị) và yêu cầu Claude Design chỉnh sửa từng phần một thay vì đổi toàn bộ cùng lúc.
+  </div>
+  <div class="alert alert-warning">
+    <strong>Lỗi:</strong> Xuất file (Export) không có định dạng mong muốn (ví dụ không có PPTX).<br/>
+    <strong>Nguyên nhân:</strong> Tuỳ thời điểm, Claude Design có thể chỉ hỗ trợ một số định dạng xuất nhất định.<br/>
+    <strong>Giải pháp:</strong> Xuất theo định dạng gần nhất đang hỗ trợ (PDF, HTML, ảnh), sau đó dùng công cụ khác (PowerPoint, Google Slides) để chuyển đổi định dạng nếu cần.
+  </div>
+  <div class="alert alert-warning">
+    <strong>Lỗi:</strong> Website xuất ra hiển thị lỗi giao diện, không có style Tailwind.<br/>
+    <strong>Nguyên nhân:</strong> Thiếu kết nối Internet để tải Tailwind CDN, hoặc thẻ <code>&lt;script src="cdn.tailwindcss.com"&gt;</code> bị xoá khi copy code.<br/>
+    <strong>Giải pháp:</strong> Kiểm tra lại file HTML có đầy đủ thẻ script Tailwind CDN trong phần <code>&lt;head&gt;</code>, đảm bảo có kết nối Internet khi mở file.
+  </div>
+
+  <h2 class="section-heading">Dọn dẹp resource</h2>
+  <div class="alert alert-info">Bài lab này chỉ thao tác trên Claude Design (dịch vụ của Anthropic) và lưu kết quả ra máy local, không tạo ra resource cloud nào phát sinh chi phí ngoài usage theo gói cước đang sử dụng.</div>
+  <ul class="feature-list">
+    <li>Xoá các bản thiết kế demo (slide, website) trong Claude Design nếu không cần giữ lại: mở danh sách <strong>My designs</strong>, chọn bản demo và nhấn <strong>Delete</strong>.</li>
+    <li>Xoá thư mục <code>D:\lab-claude-design\</code> chứa file <code>index.html</code> đã xuất ra nếu không còn nhu cầu sử dụng.</li>
+  </ul>
+
+  <script>mermaid.initialize({ startOnLoad: true, theme: 'default' });</script>
+</body>
+</html>

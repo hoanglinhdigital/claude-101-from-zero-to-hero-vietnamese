@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Claude Desktop App – Claude 101</title>
+  <link rel="stylesheet" href="../../styles.css" />
+  <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+  <script src="../../mermaid-config.js"></script>
+  <link rel="stylesheet" href="../../prism.css" />
+  <script src="../../prism.js"></script>
+  <script src="../../script.js"></script>
+</head>
+<body class="chapter-body">
+
+  <div class="chapter-breadcrumb">
+    <span class="section-part">2. Làm quen với Claude</span>
+    <span class="sep">/</span>
+    <span class="chapter-part">Claude Desktop App</span>
+  </div>
+
+  <h2 class="section-heading">Giới thiệu</h2>
+  <p class="body-text">
+    <strong>Claude Desktop App</strong> là ứng dụng giao diện đồ hoạ (GUI) chạy trên Windows/macOS, cho phép trò
+    chuyện trực tiếp với Claude mà không cần mở trình duyệt. Ngoài khung chat thông thường, Desktop App còn cung cấp
+    hai tính năng giúp tổ chức công việc tốt hơn: <strong>Projects</strong> — không gian lưu trữ ngữ cảnh riêng cho
+    từng dự án, và <strong>Artifacts</strong> — khu vực hiển thị và chỉnh sửa nội dung (code, tài liệu, sơ đồ) tách
+    biệt khỏi luồng hội thoại chính.
+  </p>
+
+  <h2 class="section-heading">Các tính năng chính</h2>
+  <ul class="feature-list">
+    <li><strong>Giao diện chat:</strong> hội thoại dạng tin nhắn, hỗ trợ đính kèm file (PDF, hình ảnh, tài liệu văn phòng), chọn model (Haiku/Sonnet/Opus/Fable) và bật/tắt Extended Thinking ngay trong khung chat.</li>
+    <li><strong>Projects:</strong> nhóm nhiều cuộc hội thoại vào một dự án, đính kèm tài liệu nền tảng (project knowledge) để Claude luôn có sẵn ngữ cảnh mà không cần dán lại mỗi lần chat.</li>
+    <li><strong>Artifacts:</strong> tách nội dung dài (code, bài viết, bảng biểu, sơ đồ Mermaid, trang HTML) ra một panel riêng bên cạnh chat, cho phép xem, chỉnh sửa và lấy phiên bản (version) trước đó mà không làm loãng đoạn hội thoại.</li>
+    <li><strong>Lịch sử hội thoại:</strong> tự động lưu và đồng bộ qua tài khoản Anthropic, truy cập lại từ nhiều thiết bị.</li>
+    <li><strong>Tích hợp MCP Server (nâng cao):</strong> Desktop App có thể kết nối tới các MCP Server cục bộ để mở rộng khả năng thao tác với hệ thống bên ngoài (sẽ tìm hiểu kỹ ở Section 8).</li>
+  </ul>
+
+  <h2 class="section-heading">Mô hình kiến trúc</h2>
+  <div class="mermaid">
+  flowchart LR
+      User(("👤<br/><b>Người dùng</b>"))
+      App["<img src='../../assets/svg-icon/claude-logo.svg' style='width:32px;height:32px;'/><br/><b>Claude Desktop App</b><br/>Chat · Projects · Artifacts"]
+      API["<img src='../../assets/svg-icon/claude-logo.svg' style='width:32px;height:32px;'/><br/><b>Anthropic API</b><br/>Xử lý model, sinh câu trả lời"]
+      Knowledge["<img src='../../assets/svg-icon/task.svg' style='width:28px;height:28px;'/><br/><b>Project Knowledge</b><br/>Tài liệu nền tảng của dự án"]
+      Artifact["<img src='../../assets/svg-icon/ide.svg' style='width:28px;height:28px;'/><br/><b>Artifact Panel</b><br/>Code · Tài liệu · Sơ đồ"]
+      MCP["<img src='../../assets/svg-icon/container.svg' style='width:28px;height:28px;'/><br/><b>MCP Server (local)</b><br/>Mở rộng khả năng (tuỳ chọn)"]
+
+      User -->|"Gõ tin nhắn"| App
+      App -->|"Gửi yêu cầu"| API
+      API -->|"Trả kết quả"| App
+      App -->|"Đọc ngữ cảnh dự án"| Knowledge
+      App -->|"Hiển thị nội dung dài"| Artifact
+      App -.->|"Gọi tool (tuỳ chọn)"| MCP
+  </div>
+  <p class="arch-caption">Desktop App đóng vai trò lớp giao diện: gửi tin nhắn tới Anthropic API để xử lý, đồng thời tham chiếu tài liệu trong Project Knowledge và tách nội dung dài ra Artifact Panel để cuộc hội thoại luôn gọn gàng.</p>
+
+  <h2 class="section-heading">Use Cases</h2>
+  <div class="usecase-grid">
+    <div class="usecase-card">
+      <h4>Chat nhanh</h4>
+      <p>Hỏi đáp, tra cứu thông tin, viết/chỉnh sửa nội dung ngắn ngay trong cửa sổ chat, không cần thiết lập gì thêm.</p>
+    </div>
+    <div class="usecase-card">
+      <h4>Projects cho công việc dài hạn</h4>
+      <p>Gom toàn bộ tài liệu, quy chuẩn của một dự án (vd: tài liệu yêu cầu, style guide) vào Project Knowledge để mọi cuộc chat trong dự án đều dùng chung ngữ cảnh.</p>
+    </div>
+    <div class="usecase-card">
+      <h4>Artifacts cho nội dung có thể tái sử dụng</h4>
+      <p>Soạn một trang HTML, đoạn code, hoặc sơ đồ kiến trúc — xem trực tiếp kết quả trong panel Artifact, yêu cầu Claude chỉnh sửa nhiều vòng mà không mất bản gốc.</p>
+    </div>
+  </div>
+
+  <h2 class="section-heading">Thông tin bổ sung</h2>
+  <p class="body-text">
+    Project Knowledge có giới hạn dung lượng tài liệu đính kèm tuỳ theo gói sử dụng (Free/Pro/Max) — nên ưu tiên đính
+    kèm tài liệu cốt lõi, tránh nhồi nhét file không liên quan vì sẽ chiếm context window và tăng chi phí xử lý mỗi
+    lần chat. Artifacts phù hợp cho nội dung cần xem lại nhiều lần hoặc chỉnh sửa lặp đi lặp lại; với câu trả lời một
+    lần, ngắn gọn thì không cần thiết phải tạo Artifact.
+  </p>
+
+  <script>mermaid.initialize({ startOnLoad: true, theme: 'default' });</script>
+</body>
+</html>

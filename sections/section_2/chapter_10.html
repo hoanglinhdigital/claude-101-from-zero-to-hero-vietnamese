@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lab: Claude Code qua CLI – Claude 101</title>
+  <link rel="stylesheet" href="../../styles.css" />
+  <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+  <script src="../../mermaid-config.js"></script>
+  <link rel="stylesheet" href="../../prism.css" />
+  <script src="../../prism.js"></script>
+  <script src="../../script.js"></script>
+</head>
+<body class="chapter-body">
+
+  <div class="chapter-breadcrumb">
+    <span class="section-part">2. Làm quen với Claude</span>
+    <span class="sep">/</span>
+    <span class="chapter-part">Lab: Claude Code qua CLI</span>
+  </div>
+
+  <h2 class="section-heading">Mục tiêu</h2>
+  <ul class="feature-list">
+    <li>Biết cách khởi động Claude Code trong một project cụ thể thông qua terminal.</li>
+    <li>Phân biệt được 3 chế độ tương tác: Plan mode, Accept Edits mode và Auto-accept mode — biết khi nào nên dùng chế độ nào.</li>
+    <li>Nắm được các slash command thường dùng nhất và công dụng của từng lệnh.</li>
+    <li>Thực hành dùng Claude Code khởi tạo một project Next.js mới và tự sinh file <code>CLAUDE.md</code> chứa thông tin cơ bản của project.</li>
+  </ul>
+
+  <h2 class="section-heading">Kiến trúc tổng quan</h2>
+  <div class="mermaid">
+  flowchart LR
+      User(("👤<br/><b>Developer</b>"))
+      Term["<img src='../../assets/svg-icon/ide.svg' style='width:32px;height:32px;'/><br/><b>Terminal</b><br/>Chạy lệnh claude"]
+      Mode{"<img src='../../assets/svg-icon/task.svg' style='width:26px;height:26px;'/><br/><b>Chế độ hiện tại</b><br/>Plan / Accept Edits / Auto-accept"}
+      API["<img src='../../assets/svg-icon/claude-logo.svg' style='width:28px;height:28px;'/><br/><b>Anthropic API</b><br/>Xử lý model"]
+      FS["<img src='../../assets/svg-icon/laptop.svg' style='width:28px;height:28px;'/><br/><b>Project Next.js</b><br/>File code + CLAUDE.md"]
+
+      User -->|"claude"| Term
+      Term --> Mode
+      Mode -->|"Gửi yêu cầu"| API
+      API -->|"Trả kế hoạch / thay đổi đề xuất"| Mode
+      Mode -->|"Plan: chỉ hiển thị, chưa ghi file"| User
+      Mode -->|"Accept Edits / Auto-accept: ghi trực tiếp"| FS
+  </div>
+  <p class="arch-caption">Terminal là nơi khởi động Claude Code; chế độ đang chọn (Plan/Accept Edits/Auto-accept) quyết định Claude Code chỉ đề xuất hay ghi thay đổi trực tiếp lên project.</p>
+
+  <h2 class="section-heading">Yêu cầu trước khi bắt đầu</h2>
+  <ul class="feature-list">
+    <li>Claude Code CLI đã được cài đặt và đăng nhập thành công (xem lại Lab ở Section 2, Chapter 1).</li>
+    <li>Node.js phiên bản 18 trở lên đã được cài đặt trên máy — cần thiết để khởi tạo project Next.js.</li>
+    <li>Terminal: PowerShell hoặc Windows Terminal.</li>
+    <li>Kết nối Internet ổn định trong suốt quá trình thực hành.</li>
+  </ul>
+
+  <h2 class="section-heading">Các bước thực hành</h2>
+
+  <h3 class="sub-heading">Phần 1: Khởi động Claude Code</h3>
+  <ol class="step-list">
+    <li>
+      <div>
+        <strong>Bước 1: Tạo thư mục project và di chuyển vào đó</strong>
+        <p>Claude Code luôn chạy trong ngữ cảnh của một thư mục cụ thể — tạo thư mục mới cho project sẽ thực hành trong lab này.</p>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">mkdir D:\lab-claude-code-cli
+cd D:\lab-claude-code-cli</code></pre>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 2: Khởi động Claude Code</strong>
+        <p>Chạy lệnh <code>claude</code> ngay trong thư mục vừa tạo để bắt đầu phiên làm việc tương tác (interactive session).</p>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">claude</code></pre>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 3: Xác nhận tin tưởng thư mục (Trust folder)</strong>
+        <p>Ở lần chạy đầu tiên trong một thư mục mới, Claude Code sẽ hỏi có tin tưởng (trust) thư mục này để cho phép đọc/ghi file hay không — chọn <strong>Yes, proceed</strong> để tiếp tục.</p>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 4: Kiểm tra phiên làm việc đã sẵn sàng</strong>
+        <p>Sau khi vào phiên tương tác, khung nhập lệnh (prompt box) sẽ hiển thị ở cuối terminal — đây là nơi gõ yêu cầu bằng ngôn ngữ tự nhiên cho Claude Code.</p>
+      </div>
+    </li>
+  </ol>
+
+  <h3 class="sub-heading">Phần 2: Các chế độ tương tác (Plan / Accept Edits / Auto-accept)</h3>
+  <p class="body-text">
+    Trong phiên làm việc, nhấn <code>Shift+Tab</code> để chuyển đổi qua lại giữa các chế độ. Chế độ đang chọn được
+    hiển thị ngay phía dưới khung nhập lệnh.
+  </p>
+  <table class="pricing-table">
+    <thead>
+      <tr><th>Chế độ</th><th>Mô tả</th><th>Khi nào nên dùng</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>Plan mode</strong></td>
+        <td>Claude Code chỉ đọc code, phân tích và đề xuất kế hoạch thực hiện — <strong>chưa ghi thay đổi nào lên file</strong>. Cần duyệt (approve) kế hoạch trước khi Claude thực thi.</td>
+        <td>Tác vụ phức tạp, ảnh hưởng nhiều file, hoặc khi mới làm quen với một codebase — cần xem trước Claude sẽ làm gì.</td>
+      </tr>
+      <tr>
+        <td><strong>Accept Edits mode</strong></td>
+        <td>Chế độ mặc định — Claude Code thực hiện thay đổi nhưng vẫn hỏi xác nhận (permission) cho từng hành động quan trọng (sửa file, chạy lệnh có ảnh hưởng).</td>
+        <td>Phù hợp cho hầu hết công việc hằng ngày, đặc biệt khi mới bắt đầu dùng Claude Code cho một loại tác vụ chưa quen.</td>
+      </tr>
+      <tr>
+        <td><strong>Auto-accept mode</strong></td>
+        <td>Claude Code tự động chấp nhận các thay đổi file mà không hỏi lại từng bước, giúp làm việc nhanh hơn với các tác vụ đã tin tưởng.</td>
+        <td>Tác vụ lặp lại, rủi ro thấp, hoặc khi đã quen và tin tưởng cách Claude Code xử lý loại việc đó — vẫn nên review lại bằng <code>git diff</code> sau khi hoàn tất.</td>
+      </tr>
+    </tbody>
+  </table>
+  <div class="alert alert-warning">
+    <strong>Lưu ý an toàn:</strong> Dù ở chế độ nào, Claude Code vẫn sẽ hỏi xác nhận riêng cho các lệnh có khả năng gây ảnh hưởng lớn (xoá file, force push Git...). Không nên để Auto-accept mode chạy các tác vụ chưa từng thử qua ở Accept Edits mode.
+  </div>
+
+  <h3 class="sub-heading">Phần 3: Slash Commands thường dùng</h3>
+  <p class="body-text">Slash command là các lệnh đặc biệt bắt đầu bằng dấu <code>/</code>, gõ trực tiếp trong khung nhập lệnh của Claude Code để thực hiện các tác vụ quản lý phiên làm việc (khác với việc mô tả yêu cầu code bằng ngôn ngữ tự nhiên).</p>
+  <table class="pricing-table">
+    <thead>
+      <tr><th>Slash Command</th><th>Ý nghĩa</th><th>Công dụng</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><code>/help</code></td><td>Trợ giúp</td><td>Hiển thị danh sách toàn bộ slash command và cách sử dụng cơ bản.</td></tr>
+      <tr><td><code>/init</code></td><td>Khởi tạo cấu hình project</td><td>Yêu cầu Claude Code quét project và tự sinh file <code>CLAUDE.md</code> mẫu dựa trên cấu trúc thực tế.</td></tr>
+      <tr><td><code>/clear</code></td><td>Xoá hội thoại</td><td>Bắt đầu một phiên hội thoại mới, xoá toàn bộ lịch sử chat hiện tại (không ảnh hưởng file đã thay đổi).</td></tr>
+      <tr><td><code>/compact</code></td><td>Rút gọn ngữ cảnh</td><td>Tóm tắt lại lịch sử hội thoại dài để giảm số token phải gửi lại, giữ được ngữ cảnh quan trọng.</td></tr>
+      <tr><td><code>/context</code></td><td>Xem context window</td><td>Hiển thị chi tiết context window hiện tại đang được dùng bởi phần nào (system prompt, file đã đọc, lịch sử chat...), giúp biết khi nào nên <code>/compact</code> hoặc <code>/clear</code>.</td></tr>
+      <tr><td><code>/resume</code></td><td>Tiếp tục phiên cũ</td><td>Mở lại một phiên làm việc đã lưu trước đó để tiếp tục thay vì bắt đầu lại từ đầu.</td></tr>
+      <tr><td><code>/model</code></td><td>Chọn model</td><td>Xem hoặc đổi model đang sử dụng cho phiên làm việc (Haiku/Sonnet/Opus).</td></tr>
+      <tr><td><code>/status</code></td><td>Trạng thái</td><td>Kiểm tra tài khoản đang đăng nhập, gói cước và thông tin phiên làm việc hiện tại.</td></tr>
+      <tr><td><code>/cost</code></td><td>Chi phí</td><td>Xem ước tính số token/chi phí đã sử dụng trong phiên làm việc hiện tại.</td></tr>
+      <tr><td><code>/permissions</code></td><td>Quản lý quyền</td><td>Xem và chỉnh sửa danh sách quyền (tool nào được tự động cho phép, tool nào cần hỏi lại).</td></tr>
+      <tr><td><code>/agents</code></td><td>Quản lý Sub-agent</td><td>Xem, tạo hoặc chỉnh sửa các Sub-agent chuyên biệt (sẽ học chi tiết ở Section 3).</td></tr>
+      <tr><td><code>/mcp</code></td><td>Quản lý MCP Server</td><td>Xem danh sách MCP Server đã cấu hình và trạng thái kết nối (sẽ học chi tiết ở Section 8).</td></tr>
+      <tr><td><code>/doctor</code></td><td>Kiểm tra hệ thống</td><td>Chẩn đoán các vấn đề cấu hình/cài đặt của Claude Code trên máy hiện tại.</td></tr>
+      <tr><td><code>/login</code> / <code>/logout</code></td><td>Đăng nhập / đăng xuất</td><td>Chuyển đổi hoặc đăng xuất tài khoản Anthropic đang dùng cho Claude Code.</td></tr>
+    </tbody>
+  </table>
+
+  <h3 class="sub-heading">Phần 4: Thực hành khởi tạo project Next.js & tạo file CLAUDE.md</h3>
+  <ol class="step-list">
+    <li>
+      <div>
+        <strong>Bước 1: Yêu cầu khởi tạo project Next.js</strong>
+        <p>Trong khung nhập lệnh Claude Code (đang ở Accept Edits mode hoặc Plan mode), gõ yêu cầu khởi tạo project.</p>
+        <pre class="command-line" data-prompt=">"><code class="language-text">Khởi tạo một project Next.js mới trong thư mục hiện tại, dùng TypeScript, Tailwind CSS và App Router. Sau khi tạo xong, chạy thử để đảm bảo project build không lỗi.</code></pre>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 2: Duyệt kế hoạch (nếu đang ở Plan mode)</strong>
+        <p>Nếu đang ở Plan mode, Claude Code sẽ hiển thị các bước dự kiến thực hiện (chạy <code>create-next-app</code>, cấu hình các option...) — đọc qua kế hoạch rồi chọn <strong>Approve</strong>/<strong>Yes</strong> để Claude Code bắt đầu thực thi.</p>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 3: Xác nhận các thay đổi được đề xuất</strong>
+        <p>Ở Accept Edits mode, Claude Code sẽ hỏi xác nhận trước khi chạy lệnh khởi tạo project — chọn <strong>Yes</strong> để tiếp tục cho từng bước.</p>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 4: Kiểm tra kết quả project vừa tạo</strong>
+        <p>Sau khi hoàn tất, kiểm tra cấu trúc thư mục vừa được sinh ra để xác nhận project đã khởi tạo đúng.</p>
+        <pre class="command-line" data-prompt="PS>" data-output="2, 3, 4, 5"><code class="language-powershell">dir
+app
+package.json
+tailwind.config.ts
+tsconfig.json</code></pre>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 5: Yêu cầu tạo file CLAUDE.md</strong>
+        <p>Vẫn trong phiên làm việc hiện tại (đã có ngữ cảnh về project vừa tạo), yêu cầu Claude Code sinh file <code>CLAUDE.md</code> — có thể dùng slash command <code>/init</code> hoặc mô tả trực tiếp bằng ngôn ngữ tự nhiên.</p>
+        <pre class="command-line" data-prompt=">"><code class="language-text">/init</code></pre>
+        <p>Hoặc mô tả cụ thể hơn nếu muốn kiểm soát nội dung file:</p>
+        <pre class="command-line" data-prompt=">"><code class="language-text">Tạo file CLAUDE.md cho project này, bao gồm: mô tả ngắn về project (Next.js + TypeScript + Tailwind CSS), cấu trúc thư mục chính, các lệnh thường dùng (dev, build, lint), và quy ước code cơ bản (dùng App Router, không dùng CSS module).</code></pre>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 6: Kiểm tra nội dung file CLAUDE.md</strong>
+        <p>Mở file <code>CLAUDE.md</code> vừa được tạo ở thư mục gốc project để xác nhận nội dung đầy đủ, đúng với thông tin thực tế của project.</p>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">notepad CLAUDE.md</code></pre>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 7: Chạy thử project</strong>
+        <p>Yêu cầu Claude Code chạy dev server để kiểm tra project hoạt động đúng, hoặc tự chạy lệnh trực tiếp trong terminal.</p>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">npm run dev</code></pre>
+        <p>Mở trình duyệt tại <code>http://localhost:3000</code> để xác nhận trang mặc định của Next.js hiển thị thành công.</p>
+      </div>
+    </li>
+  </ol>
+
+  <h2 class="section-heading">Troubleshoot</h2>
+  <div class="alert alert-warning">
+    <strong>Lỗi:</strong> Claude Code báo không thể ghi file hoặc chạy lệnh trong thư mục hiện tại.<br/>
+    <strong>Nguyên nhân:</strong> Thư mục chưa được xác nhận tin tưởng (trust), hoặc đang ở Plan mode nên chưa được phép ghi thay đổi.<br/>
+    <strong>Giải pháp:</strong> Kiểm tra lại prompt xác nhận trust folder ở lần chạy đầu, hoặc chuyển sang Accept Edits mode (<code>Shift+Tab</code>) rồi duyệt lại kế hoạch.
+  </div>
+  <div class="alert alert-warning">
+    <strong>Lỗi:</strong> Lệnh khởi tạo Next.js bị treo, không thấy phản hồi.<br/>
+    <strong>Nguyên nhân:</strong> <code>create-next-app</code> đang chờ nhập tương tác (interactive prompt) mà Claude Code chưa xử lý được, hoặc kết nối mạng chậm khi tải package.<br/>
+    <strong>Giải pháp:</strong> Yêu cầu Claude Code chạy <code>create-next-app</code> kèm đầy đủ flag (vd <code>--ts --tailwind --app --yes</code>) để tránh câu hỏi tương tác; kiểm tra lại kết nối Internet.
+  </div>
+  <div class="alert alert-warning">
+    <strong>Lỗi:</strong> File CLAUDE.md sinh ra quá chung, không phản ánh đúng project.<br/>
+    <strong>Nguyên nhân:</strong> Yêu cầu ban đầu chưa nêu rõ những thông tin cần có trong file.<br/>
+    <strong>Giải pháp:</strong> Yêu cầu Claude Code chỉnh sửa bổ sung từng phần cụ thể (vd "thêm phần quy ước đặt tên component"), hoặc tham khảo cấu trúc CLAUDE.md mẫu sẽ học kỹ hơn ở bài Lab cuối Section này.
+  </div>
+
+  <h2 class="section-heading">Dọn dẹp resource</h2>
+  <div class="alert alert-info">Bài lab này chỉ tạo project và file trên máy local, không tạo ra resource cloud nào phát sinh chi phí ngoài usage theo gói cước Claude đang sử dụng.</div>
+  <script>mermaid.initialize({ startOnLoad: true, theme: 'default' });</script>
+</body>
+</html>

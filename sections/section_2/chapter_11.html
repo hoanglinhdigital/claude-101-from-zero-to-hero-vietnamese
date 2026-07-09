@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lab: Viết CLAUDE.md cho project mẫu – Claude 101</title>
+  <link rel="stylesheet" href="../../styles.css" />
+  <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+  <script src="../../mermaid-config.js"></script>
+  <link rel="stylesheet" href="../../prism.css" />
+  <script src="../../prism.js"></script>
+  <script src="../../script.js"></script>
+</head>
+<body class="chapter-body">
+
+  <div class="chapter-breadcrumb">
+    <span class="section-part">2. Làm quen với Claude</span>
+    <span class="sep">/</span>
+    <span class="chapter-part">Lab: Viết CLAUDE.md cho project mẫu</span>
+  </div>
+
+  <h2 class="section-heading">Mục tiêu</h2>
+  <ul class="feature-list">
+    <li>Hiểu vai trò của file <code>CLAUDE.md</code> — system prompt riêng cho một project, tự động được Claude Code nạp vào ngữ cảnh mỗi khi khởi động.</li>
+    <li>Biết cách xác định những thông tin nào nên đưa vào CLAUDE.md để Claude Code tạo ra code nhất quán, đúng định hướng project.</li>
+    <li>Thực hành viết một file CLAUDE.md đầy đủ cho project mẫu — ứng dụng quản lý chi tiêu (Expense Management), phản ánh đúng tech stack, quy tắc styling, quy tắc icon và quy tắc thiết kế database với Prisma.</li>
+    <li>Kiểm chứng được CLAUDE.md thực sự ảnh hưởng tới cách Claude Code sinh code.</li>
+  </ul>
+
+  <h2 class="section-heading">Kiến trúc tổng quan</h2>
+  <div class="mermaid">
+  flowchart LR
+      Dev(("👤<br/><b>Developer</b>"))
+      CLI["<img src='../../assets/svg-icon/ide.svg' style='width:30px;height:30px;'/><br/><b>Claude Code CLI</b>"]
+      MD["<img src='../../assets/svg-icon/task.svg' style='width:28px;height:28px;'/><br/><b>CLAUDE.md</b><br/>Tech stack · Styling · Icon · Prisma rules"]
+      API["<img src='../../assets/svg-icon/claude-logo.svg' style='width:28px;height:28px;'/><br/><b>Anthropic API</b><br/>Xử lý model"]
+      Code["<img src='../../assets/svg-icon/container.svg' style='width:28px;height:28px;'/><br/><b>Code sinh ra</b><br/>Component, Prisma schema..."]
+
+      Dev -->|"Yêu cầu"| CLI
+      MD -.->|"Tự động nạp làm system prompt"| CLI
+      CLI -->|"System prompt (CLAUDE.md) + yêu cầu"| API
+      API -->|"Code tuân theo quy tắc trong CLAUDE.md"| Code
+  </div>
+  <p class="arch-caption">CLAUDE.md không phải là tài liệu để đọc thủ công — mỗi khi Claude Code khởi động trong thư mục project, nội dung file này được tự động nạp làm ngữ cảnh nền, ảnh hưởng tới toàn bộ code được sinh ra sau đó.</p>
+
+  <h2 class="section-heading">Yêu cầu trước khi bắt đầu</h2>
+  <ul class="feature-list">
+    <li>Project Next.js đã được tạo ở Lab trước (Chapter 10), nằm tại <code>D:\lab-claude-code-cli</code> — bài lab này dùng lại đúng thư mục này.</li>
+    <li>Claude Code CLI đã đăng nhập và chạy được trong thư mục project.</li>
+    <li>Không cần cài đặt Prisma/MySQL/Docker thật ở bài lab này — CLAUDE.md là tài liệu định hướng, phần cài đặt thực tế cho ứng dụng quản lý chi tiêu sẽ được thực hành đầy đủ ở Section 4.</li>
+  </ul>
+
+  <h2 class="section-heading">Các bước thực hành</h2>
+  <ol class="step-list">
+    <li>
+      <div>
+        <strong>Bước 1: Mở lại project và khởi động Claude Code</strong>
+        <p>Di chuyển vào thư mục project đã tạo ở Lab trước và khởi động lại Claude Code.</p>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">cd D:\lab-claude-code-cli
+claude</code></pre>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 2: Mô tả định hướng mới cho project</strong>
+        <p>Vì project hiện tại chỉ là một Next.js base project, cần cung cấp ngữ cảnh rằng từ giờ project này được định hướng phát triển thành ứng dụng quản lý chi tiêu — làm nền để Claude Code viết CLAUDE.md đúng định hướng.</p>
+        <pre class="command-line" data-prompt=">"><code class="language-text">Từ giờ project này sẽ được phát triển thành một ứng dụng quản lý chi tiêu cá nhân (Expense Management App), giúp người dùng ghi nhận, theo dõi và thống kê thu nhập/chi tiêu hằng ngày.</code></pre>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 3: Yêu cầu viết file CLAUDE.md đầy đủ</strong>
+        <p>Gửi yêu cầu chi tiết, nêu rõ từng mục cần có trong CLAUDE.md — nêu càng cụ thể, Claude Code càng viết đúng ý và ít phải chỉnh sửa lại nhiều lần.</p>
+        <pre class="command-line" data-prompt=">"><code class="language-text">Viết (hoặc cập nhật nếu đã có) file CLAUDE.md ở thư mục gốc project, gồm đầy đủ các mục sau:
+
+1. Tổng quan project: ứng dụng quản lý chi tiêu (Expense Management App) — mục đích, đối tượng sử dụng.
+2. Công nghệ sử dụng: Next.js dùng chung cho cả backend (API routes) và frontend, Prisma ORM, MySQL chạy qua Docker container cho môi trường local, Tailwind CSS cho toàn bộ styling.
+3. Quy tắc phối màu & styling:
+   - Màu chủ đạo: xanh dương (#2563eb) cho hành động chính (button, link).
+   - Xanh lá (#16a34a) cho số liệu thu nhập, đỏ (#dc2626) cho số liệu chi tiêu.
+   - Chỉ dùng Tailwind utility class, không dùng inline style, không viết CSS file riêng trừ khi thực sự cần.
+4. Quy tắc sử dụng icon:
+   - Dùng thống nhất bộ icon "lucide-react", không trộn lẫn với bộ icon khác.
+   - Icon dùng trong danh mục chi tiêu phải có ý nghĩa rõ ràng (vd: icon xe cho "Di chuyển", icon giỏ hàng cho "Mua sắm").
+5. Quy tắc thiết kế database với Prisma:
+   - Toàn bộ schema định nghĩa trong file prisma/schema.prisma, không tạo bảng thủ công qua SQL trực tiếp.
+   - Có script seed (prisma/seed.ts) để tạo dữ liệu mẫu ban đầu (danh mục chi tiêu mặc định, 1 user demo).
+   - Mỗi khi thay đổi schema, bắt buộc tạo migration bằng "npx prisma migrate dev --name <mô_tả_thay_đổi>", không sửa trực tiếp trên database.
+
+Trình bày rõ theo từng heading markdown tương ứng.</code></pre>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 4: Review nội dung file CLAUDE.md vừa tạo</strong>
+        <p>Mở file để kiểm tra Claude Code đã phản ánh đầy đủ 5 mục yêu cầu ở Bước 3 hay chưa.</p>
+        <p>Nội dung tham khảo nên có cấu trúc tương tự như sau:</p>
+        <pre class="code-block"><code class="language-markdown"># CLAUDE.md — Expense Management App
+
+## Tổng quan project
+Ứng dụng quản lý chi tiêu cá nhân, giúp người dùng ghi nhận, theo dõi
+và thống kê thu nhập/chi tiêu hằng ngày.
+
+## Công nghệ sử dụng
+- Next.js: dùng chung cho backend (API routes) và frontend.
+- Prisma ORM kết nối MySQL.
+- MySQL chạy qua Docker container cho môi trường local.
+- Tailwind CSS cho toàn bộ styling.
+
+## Quy tắc phối màu & styling
+- Màu chủ đạo: xanh dương #2563eb cho hành động chính.
+- Xanh lá #16a34a cho thu nhập, đỏ #dc2626 cho chi tiêu.
+- Chỉ dùng Tailwind utility class, không dùng inline style.
+
+## Quy tắc sử dụng icon
+- Dùng thống nhất bộ icon lucide-react.
+- Icon danh mục chi tiêu phải có ý nghĩa rõ ràng, dễ nhận diện.
+
+## Quy tắc thiết kế database (Prisma)
+- Định nghĩa schema trong prisma/schema.prisma, không tạo bảng
+  thủ công qua SQL trực tiếp.
+- Có script seed (prisma/seed.ts) tạo dữ liệu mẫu ban đầu.
+- Mỗi khi thay đổi schema: chạy
+  `npx prisma migrate dev --name <mô_tả_thay_đổi>`,
+  không sửa trực tiếp trên database.</code></pre>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 5: Kiểm chứng CLAUDE.md có tác dụng với styling & icon</strong>
+        <p>Bắt đầu một hội thoại mới (<code>/clear</code>) để CLAUDE.md được nạp lại từ đầu, sau đó yêu cầu Claude Code tạo một component nhỏ — không nhắc lại quy tắc màu sắc/icon, chỉ để xem Claude Code có tự áp dụng đúng theo CLAUDE.md hay không.</p>
+        <pre class="command-line" data-prompt=">"><code class="language-text">/clear</code></pre>
+        <pre class="command-line" data-prompt=">"><code class="language-text">Tạo component Button "Thêm chi tiêu mới" cho trang chủ của ứng dụng.</code></pre>
+        <div class="alert alert-tip">
+          Nếu CLAUDE.md phát huy đúng tác dụng, component sinh ra sẽ tự dùng màu xanh dương làm màu chính, dùng icon từ lucide-react và chỉ dùng Tailwind class — dù prompt không nhắc lại các quy tắc này.
+        </div>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 6: Kiểm chứng quy tắc thiết kế database</strong>
+        <p>Yêu cầu Claude Code phác thảo schema Prisma cho 2 bảng cơ bản của ứng dụng, để kiểm tra Claude có tuân đúng quy tắc "định nghĩa trong schema.prisma + có seed data + nhắc migration khi đổi schema" đã khai báo trong CLAUDE.md.</p>
+        <pre class="command-line" data-prompt=">"><code class="language-text">Phác thảo schema Prisma cho 2 bảng: Category (danh mục chi tiêu) và Expense (khoản chi tiêu, liên kết tới Category). Nhắc lại quy trình cần làm sau khi tạo/sửa schema này theo đúng quy tắc project.</code></pre>
+        <div class="alert alert-tip">
+          Câu trả lời đúng theo CLAUDE.md phải nhắc tới việc chạy <code>npx prisma migrate dev</code> để tạo migration, và có gợi ý cập nhật script seed — thay vì chỉ đưa ra schema rồi dừng lại.
+        </div>
+      </div>
+    </li>
+  </ol>
+
+  <h2 class="section-heading">Troubleshoot</h2>
+  <div class="alert alert-warning">
+    <strong>Lỗi:</strong> Claude Code không áp dụng đúng quy tắc trong CLAUDE.md khi sinh code.<br/>
+    <strong>Nguyên nhân:</strong> CLAUDE.md nằm sai vị trí (không phải thư mục gốc project), hoặc phiên làm việc hiện tại được mở trước khi file CLAUDE.md được tạo/sửa nên chưa nạp lại.<br/>
+    <strong>Giải pháp:</strong> Xác nhận file nằm đúng tại thư mục gốc (cùng cấp với <code>package.json</code>), chạy <code>/clear</code> hoặc khởi động lại <code>claude</code> để nạp lại ngữ cảnh mới nhất.
+  </div>
+  <div class="alert alert-warning">
+    <strong>Lỗi:</strong> Nội dung CLAUDE.md quá dài, lặp lại nhiều thông tin không cần thiết.<br/>
+    <strong>Nguyên nhân:</strong> Yêu cầu ban đầu quá chung, Claude Code tự thêm nhiều mục không được yêu cầu.<br/>
+    <strong>Giải pháp:</strong> Yêu cầu Claude Code rút gọn lại, chỉ giữ đúng 5 mục đã thống nhất; nên liệt kê rõ từng mục cần có ngay từ prompt đầu tiên như ở Bước 3.
+  </div>
+  <div class="alert alert-warning">
+    <strong>Lỗi:</strong> Component/schema sinh ra ở Bước 5, 6 không đúng theo quy tắc đã đặt ra.<br/>
+    <strong>Nguyên nhân:</strong> Quy tắc trong CLAUDE.md viết chưa đủ rõ ràng, hoặc mang tính mô tả chung thay vì chỉ dẫn cụ thể (actionable).<br/>
+    <strong>Giải pháp:</strong> Viết lại quy tắc theo dạng chỉ dẫn cụ thể (vd thay "dùng màu sắc hợp lý" bằng đúng mã màu hex như trong Bước 3), yêu cầu Claude Code chỉnh sửa lại đúng phần quy tắc chưa rõ.
+  </div>
+
+  <h2 class="section-heading">Best Practices khi viết CLAUDE.md</h2>
+  <p class="body-text">
+    CLAUDE.md càng rõ ràng, cụ thể và ngắn gọn thì Claude Code càng tuân theo đúng và ít tốn context mỗi phiên làm
+    việc. Nguyên tắc chung: viết CLAUDE.md giống như hướng dẫn nhanh cho một thành viên mới join team — chỉ những gì
+    họ cần biết để code đúng convention, không phải toàn bộ tài liệu dự án.
+  </p>
+  <div class="compare-grid">
+    <div class="compare-card green">
+      <h4>✅ Nên làm</h4>
+      <ul>
+        <li>Viết ngắn gọn, dùng bullet point cụ thể — ưu tiên chỉ dẫn hành động (actionable) hơn mô tả chung.</li>
+        <li>Đưa vào các quy tắc lặp lại nhiều lần: tech stack, cấu trúc thư mục, coding convention, quy tắc styling/icon, quy trình database.</li>
+        <li>Dùng ví dụ cụ thể — mã màu hex, tên thư viện chính xác, tên lệnh đầy đủ — thay vì mô tả mơ hồ.</li>
+        <li>Đặt file ở thư mục gốc project để Claude Code tự động nạp mỗi khi khởi động.</li>
+        <li>Cập nhật lại ngay khi project có thay đổi lớn (đổi tech stack, thêm quy tắc mới).</li>
+        <li>Tách thêm CLAUDE.md riêng ở thư mục con nếu khu vực đó có quy tắc đặc thù khác với quy tắc chung.</li>
+      </ul>
+    </div>
+    <div class="compare-card red">
+      <h4>❌ Không nên</h4>
+      <ul>
+        <li class="cross">Nhồi nhét toàn bộ tài liệu dự án (business logic chi tiết, ghi chú họp, kế hoạch) vào CLAUDE.md.</li>
+        <li class="cross">Viết quy tắc chung, không có tính hành động (vd "code phải sạch", "UI phải đẹp").</li>
+        <li class="cross">Để file quá dài (hàng trăm dòng) — vừa khó đọc, vừa tốn context ở mọi phiên làm việc.</li>
+        <li class="cross">Đưa thông tin nhạy cảm (API key, mật khẩu, secret) vào CLAUDE.md — file này thường được commit vào Git.</li>
+        <li class="cross">Viết quy tắc mâu thuẫn nhau giữa các phần, hoặc để file lỗi thời khi project đã thay đổi convention.</li>
+        <li class="cross">Yêu cầu Claude Code tự bịa ra quy tắc khi chưa chắc — nên tự xác nhận rõ trước khi đưa vào CLAUDE.md.</li>
+      </ul>
+    </div>
+  </div>
+
+  <h2 class="section-heading">Dọn dẹp resource</h2>
+  <div class="alert alert-info">Bài lab này chỉ thao tác file local trong project demo, không tạo resource cloud nào phát sinh chi phí. </div>
+
+  <script>mermaid.initialize({ startOnLoad: true, theme: 'default' });</script>
+</body>
+</html>

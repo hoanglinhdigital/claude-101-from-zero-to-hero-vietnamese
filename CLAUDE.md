@@ -76,7 +76,7 @@ Cấu trúc bắt buộc theo đúng thứ tự:
 3. **Yêu cầu trước khi bắt đầu** — Các tool cần cài đặt tại máy local, Anthropic account, API Key.
 4. **Các bước thực hành** — chi tiết từng bước, ưu tiên dùng command. Command phải copy-paste được, không rút gọn.
 5. **Troubleshoot** — các lỗi thường gặp và cách xử lý (nếu có).
-6. **Dọn dẹp resource** — hướng dẫn xóa toàn bộ resource đã tạo, bắt buộc có.
+6. **Dọn dẹp resource** — hướng dẫn xóa toàn bộ resource đã tạo. *Chỉ áp dụng cho các bài lab có tạo ra resource trên Cloud (ví dụ AWS).
 
 **Format nội dung:** Command nhúng trực tiếp vào HTML. Dùng `<pre class="code-block">` cho command, `<div class="mermaid">` cho diagram.
 

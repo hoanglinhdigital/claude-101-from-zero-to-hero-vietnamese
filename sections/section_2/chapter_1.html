@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lab: Cài đặt Claude Desktop & Claude Code (Windows) – Claude 101</title>
+  <link rel="stylesheet" href="../../styles.css" />
+  <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+  <script src="../../mermaid-config.js"></script>
+  <link rel="stylesheet" href="../../prism.css" />
+  <script src="../../prism.js"></script>
+  <script src="../../script.js"></script>
+</head>
+<body class="chapter-body">
+
+  <div class="chapter-breadcrumb">
+    <span class="section-part">2. Làm quen với Claude</span>
+    <span class="sep">/</span>
+    <span class="chapter-part">Lab: Cài đặt Claude Desktop & Claude Code (Windows)</span>
+  </div>
+
+  <h2 class="section-heading">Mục tiêu</h2>
+  <ul class="feature-list">
+    <li>Cài đặt thành công Claude Desktop App trên Windows và đăng nhập bằng tài khoản Anthropic.</li>
+    <li>Cài đặt thành công Claude Code (CLI) trên Windows thông qua npm.</li>
+    <li>Đăng nhập Claude Code bằng tài khoản Anthropic và xác nhận trạng thái đăng nhập.</li>
+    <li>Biết cách xử lý các lỗi thường gặp khi cài đặt và đăng nhập trên Windows.</li>
+  </ul>
+
+  <h2 class="section-heading">Kiến trúc tổng quan</h2>
+  <div class="mermaid">
+  flowchart TD
+      User["👤<br/><b>Học viên</b>"]
+      PC["<img src='../../assets/svg-icon/laptop.svg' style='width:32px;height:32px;'/><br/><b>Máy Windows</b>"]
+      Desktop["<img src='../../assets/svg-icon/claude-logo.svg' style='width:32px;height:32px;'/><br/><b>Claude Desktop App</b><br/>Ứng dụng GUI: Chat, Projects"]
+      CLI["<img src='../../assets/svg-icon/ide.svg' style='width:32px;height:32px;'/><br/><b>Claude Code CLI</b><br/>Terminal / VS Code"]
+      Browser["<img src='../../assets/svg-icon/browser.svg' style='width:32px;height:32px;'/><br/><b>Trình duyệt</b><br/>Trang đăng nhập OAuth"]
+      Auth["<img src='../../assets/svg-icon/claude-logo.svg' style='width:32px;height:32px;'/><br/><b>claude.ai / console.anthropic.com</b><br/>Xác thực tài khoản Anthropic"]
+
+      User --> PC
+      PC --> Desktop
+      PC --> CLI
+      Desktop -->|"🌐 Mở trình duyệt để login"| Browser
+      CLI -->|"🌐 Mở trình duyệt để login"| Browser
+      Browser -->|"Đăng nhập"| Auth
+      Auth -->|"Session token"| Desktop
+      Auth -->|"Session token"| CLI
+  </div>
+  <p class="arch-caption">Cả Claude Desktop App và Claude Code đều xác thực qua trình duyệt (OAuth) với tài khoản Anthropic — sau khi đăng nhập, session token được lưu cục bộ trên máy để dùng cho các lần sau.</p>
+
+  <h2 class="section-heading">Yêu cầu trước khi bắt đầu</h2>
+  <ul class="feature-list">
+    <li>Windows 10 hoặc Windows 11 (64-bit).</li>
+    <li>Tài khoản Anthropic (Claude.ai) đã tạo ở Section 1 — dùng để đăng nhập cả Claude Desktop App và Claude Code.</li>
+    <li>Node.js phiên bản 18 trở lên — cần thiết để cài đặt Claude Code CLI qua npm.</li>
+    <li>Kết nối Internet ổn định trong suốt quá trình cài đặt và đăng nhập.</li>
+    <li>Terminal: PowerShell hoặc Windows Terminal (khuyến nghị Windows Terminal).</li>
+  </ul>
+
+  <h2 class="section-heading">Các bước thực hành</h2>
+  <ol class="step-list">
+    <li>
+      <div>
+        <strong>Bước 1: Tải Claude Desktop App</strong>
+        <p>Truy cập trang tải Claude Desktop App và chọn phiên bản Windows.</p>
+        <div class="alert alert-info">
+          Link tải: <code>https://claude.ai/download</code> — chọn nút <strong>Download for Windows</strong> để tải file cài đặt <code>Claude-Setup-x64.exe</code>.
+        </div>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 2: Cài đặt Claude Desktop App</strong>
+        <p>Chạy file cài đặt vừa tải và làm theo hướng dẫn trên màn hình. Ứng dụng sẽ tự khởi động sau khi cài xong.</p>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">.\Claude-Setup-x64.exe</code></pre>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 3: Đăng nhập Claude Desktop App bằng tài khoản Anthropic</strong>
+        <p>Khi ứng dụng mở lên, chọn <strong>Log in</strong>, nhập email tài khoản Anthropic (hoặc chọn <strong>Continue with Google</strong>), sau đó xác nhận mã OTP hoặc magic link được gửi vào email.</p>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 4: Kiểm tra Node.js (yêu cầu cho Claude Code)</strong>
+        <p>Mở PowerShell và kiểm tra phiên bản Node.js đã cài đặt. Nếu chưa có hoặc phiên bản dưới 18, cài đặt bản LTS mới nhất bằng <code>winget</code>.</p>
+        <pre class="command-line" data-prompt="PS>" data-output="2, 4"><code class="language-powershell">node -v
+v20.14.0
+npm -v
+10.7.0</code></pre>
+        <p>Nếu chưa cài Node.js:</p>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">winget install OpenJS.NodeJS.LTS</code></pre>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 5: Cài đặt Claude Code CLI</strong>
+        <p>Cài đặt Claude Code trên toàn hệ thống (global) thông qua npm.</p>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">npm install -g @anthropic-ai/claude-code</code></pre>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 6: Kiểm tra Claude Code đã cài đặt thành công</strong>
+        <p>Mở lại (hoặc mở mới) PowerShell rồi kiểm tra phiên bản Claude Code.</p>
+        <pre class="command-line" data-prompt="PS>" data-output="2"><code class="language-powershell">claude --version
+1.x.x (Claude Code)</code></pre>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 7: Đăng nhập Claude Code bằng tài khoản Anthropic</strong>
+        <p>Chạy lệnh <code>claude</code> để khởi động Claude Code, sau đó chọn phương thức đăng nhập bằng tài khoản Anthropic (Claude subscription) hoặc API key (Anthropic Console).</p>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">claude</code></pre>
+        <p>Trong màn hình Claude Code, chọn <strong>Log in with Anthropic Console/Claude account</strong>. Trình duyệt sẽ tự mở trang đăng nhập — hoàn tất OAuth trên trình duyệt rồi quay lại terminal.</p>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 8: Xác nhận đăng nhập thành công</strong>
+        <p>Sau khi đăng nhập, gõ lệnh <code>/status</code> trong Claude Code để kiểm tra tài khoản hiện đang đăng nhập.</p>
+        <pre class="command-line" data-prompt=">" data-output="2, 3"><code class="language-bash">/status
+Account: your-email@example.com
+Plan: Claude Pro</code></pre>
+      </div>
+    </li>
+  </ol>
+
+  <h2 class="section-heading">Troubleshoot</h2>
+  <div class="alert alert-warning">
+    <strong>Lỗi:</strong> <code>'claude' is not recognized as an internal or external command</code><br/>
+    <strong>Nguyên nhân:</strong> Thư mục global npm (<code>%AppData%\npm</code>) chưa nằm trong biến môi trường <code>PATH</code>, hoặc terminal đang mở từ trước khi cài đặt.<br/>
+    <strong>Giải pháp:</strong> Đóng và mở lại PowerShell/Windows Terminal. Nếu vẫn lỗi, kiểm tra và thêm thủ công đường dẫn <code>%AppData%\npm</code> vào <code>PATH</code> trong Environment Variables.
+  </div>
+  <div class="alert alert-warning">
+    <strong>Lỗi:</strong> Cài đặt Claude Code thất bại do phiên bản Node.js quá cũ.<br/>
+    <strong>Nguyên nhân:</strong> Claude Code yêu cầu Node.js phiên bản 18 trở lên.<br/>
+    <strong>Giải pháp:</strong> Chạy <code>winget upgrade OpenJS.NodeJS.LTS</code> hoặc gỡ bản cũ và cài lại bản LTS mới nhất từ nodejs.org.
+  </div>
+  <div class="alert alert-warning">
+    <strong>Lỗi:</strong> Trình duyệt không tự mở khi đăng nhập Claude Code.<br/>
+    <strong>Nguyên nhân:</strong> Máy chưa đặt trình duyệt mặc định, hoặc terminal không có quyền mở ứng dụng ngoài.<br/>
+    <strong>Giải pháp:</strong> Copy đường link đăng nhập hiển thị trong terminal và dán trực tiếp vào trình duyệt để hoàn tất OAuth.
+  </div>
+  <div class="alert alert-danger">
+    <strong>Lỗi:</strong> Không thể kết nối tới <code>claude.ai</code> hoặc <code>api.anthropic.com</code> khi đăng nhập.<br/>
+    <strong>Nguyên nhân:</strong> Firewall/proxy công ty chặn kết nối outbound tới các domain của Anthropic.<br/>
+    <strong>Giải pháp:</strong> Liên hệ bộ phận IT để whitelist domain <code>claude.ai</code>, <code>console.anthropic.com</code> và <code>api.anthropic.com</code>.
+  </div>
+
+  <h2 class="section-heading">Dọn dẹp resource</h2>
+  <div class="alert alert-info">Bước cài đặt này chỉ diễn ra trên máy local, không tạo ra resource cloud phát sinh chi phí. Nếu muốn gỡ hoàn toàn, thực hiện các bước sau.</div>
+  <pre class="command-line" data-prompt="PS>"><code class="language-powershell"># Đăng xuất Claude Code
+claude /logout
+
+# Gỡ cài đặt Claude Code CLI
+npm uninstall -g @anthropic-ai/claude-code</code></pre>
+  <div class="alert alert-info">Để gỡ Claude Desktop App: mở <strong>Settings → Apps → Installed apps</strong>, tìm <strong>Claude</strong> và chọn <strong>Uninstall</strong>. Trong app, có thể đăng xuất trước tại <strong>Settings → Account → Log out</strong>.</div>
+
+  <script>mermaid.initialize({ startOnLoad: true, theme: 'default' });</script>
+</body>
+</html>

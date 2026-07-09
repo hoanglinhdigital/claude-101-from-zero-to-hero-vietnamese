@@ -449,6 +449,59 @@ pre[class*="language-"] {
   border-radius: 6px;
 }
 
+/* ── Global fix: auto-wrap text trong mọi code/command block ──
+   Prism.js (prism.css) load sau styles.css và ép white-space:pre trên
+   pre/code[class*="language-"], khiến các dòng dài (đặc biệt prompt text
+   tiếng Việt trong pre.command-line) tràn ngang ra ngoài màn hình.
+   Ép pre-wrap + overflow-wrap để mọi loại code block tự xuống dòng,
+   giữ overflow-x:auto làm phương án dự phòng cho chuỗi không thể ngắt. */
+pre.code-block,
+pre.command-line,
+pre.code-block code,
+pre.command-line code,
+pre[class*="language-"],
+code[class*="language-"],
+.file-block,
+.scp-block {
+  white-space: pre-wrap !important;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+  overflow-x: auto;
+}
+
+/* ── Copy button cho code block ── */
+pre.code-block,
+pre.command-line {
+    position: relative;
+}
+.copy-btn {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    padding: 4px 10px;
+    font-size: 12px;
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    color: #e2e8f0;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 6px;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 0.15s, background 0.15s;
+}
+pre.code-block:hover .copy-btn,
+pre.command-line:hover .copy-btn {
+    opacity: 1;
+}
+.copy-btn:hover {
+    background: rgba(255, 255, 255, 0.18);
+}
+.copy-btn.copied {
+    color: #16a34a;
+    border-color: #16a34a;
+    opacity: 1;
+}
+
 /* ── Card ── */
 .card {
     background: #fff;

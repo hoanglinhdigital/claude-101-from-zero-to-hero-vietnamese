@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Claude là gì? – Claude 101</title>
+  <link rel="stylesheet" href="../../styles.css" />
+  <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+  <script src="../../mermaid-config.js"></script>
+  <link rel="stylesheet" href="../../prism.css" />
+  <script src="../../prism.js"></script>
+  <script src="../../script.js"></script>
+</head>
+<body class="chapter-body">
+
+  <div class="chapter-breadcrumb">
+    <span class="section-part">2. Làm quen với Claude</span>
+    <span class="sep">/</span>
+    <span class="chapter-part">Claude là gì?</span>
+  </div>
+
+  <h2 class="section-heading">Giới thiệu</h2>
+  <p class="body-text">
+    <strong>Claude</strong> là một dòng mô hình ngôn ngữ lớn (Large Language Model – LLM) do <strong>Anthropic</strong>
+    phát triển, có khả năng hiểu và sinh ra ngôn ngữ tự nhiên giống con người để hỗ trợ hội thoại, viết nội dung,
+    lập trình, phân tích dữ liệu và xử lý tài liệu. Thay vì chỉ có một model duy nhất, Anthropic cung cấp nhiều
+    <strong>dòng model (model line)</strong> với các mức độ tốc độ, chi phí và khả năng suy luận khác nhau — giúp
+    người dùng chọn đúng model cho đúng bài toán, tránh lãng phí chi phí khi dùng model quá mạnh cho tác vụ đơn giản.
+    Gần đây Anthropic ra mắt thêm <strong>Claude Fable 5</strong> — dòng model cao cấp nhất (thuộc nhóm "Mythos-class")
+    tính đến hiện tại, đứng trên cả Opus về khả năng suy luận và làm việc tự động (agentic) trong thời gian dài.
+  </p>
+
+  <h2 class="section-heading">Các tính năng chính</h2>
+  <ul class="feature-list">
+    <li>Xử lý ngôn ngữ tự nhiên đa dạng: viết nội dung, tóm tắt, dịch thuật, phân tích văn bản, trả lời câu hỏi.</li>
+    <li>Hỗ trợ lập trình mạnh: đọc hiểu codebase, viết tính năng mới, refactor, debug, sinh test tự động.</li>
+    <li>Context window lớn (lên đến hàng trăm nghìn token) — đọc và ghi nhớ được tài liệu, codebase dài trong một phiên làm việc.</li>
+    <li>Đa phương thức (multimodal): hiểu được văn bản, hình ảnh, PDF, biểu đồ, không chỉ riêng text.</li>
+    <li>Có 4 dòng model chính — <strong>Haiku</strong>, <strong>Sonnet</strong>, <strong>Opus</strong> và mới nhất <strong>Fable 5</strong> — đánh đổi giữa tốc độ, chi phí và độ "thông minh".</li>
+    <li>Truy cập qua nhiều giao diện: Claude.ai (web/mobile), Claude Desktop App, Claude Code (CLI), hoặc tích hợp qua API.</li>
+  </ul>
+
+  <h3 class="sub-heading">So sánh 4 dòng model</h3>
+  <table class="pricing-table">
+    <thead>
+      <tr><th>Model</th><th>Tốc độ</th><th>Chi phí tương đối</th><th>Use case chính</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><strong>Haiku</strong></td><td>Rất nhanh</td><td class="price-value">$</td><td>Tác vụ đơn giản, khối lượng lớn: phân loại, trích xuất thông tin, chatbot hỗ trợ nhanh.</td></tr>
+      <tr><td><strong>Sonnet</strong></td><td>Nhanh – Cân bằng</td><td class="price-value">$$</td><td>Công việc hằng ngày: coding với Claude Code, viết nội dung, phân tích dữ liệu.</td></tr>
+      <tr><td><strong>Opus</strong></td><td>Chậm hơn</td><td class="price-value">$$$</td><td>Tác vụ phức tạp: suy luận nhiều bước, nghiên cứu sâu, bài toán đòi hỏi độ chính xác cao.</td></tr>
+      <tr><td><strong>Fable 5</strong> <span class="badge badge-orange">Mới</span></td><td>Chậm nhất</td><td class="price-value">$$$$</td><td>Tác vụ agentic phức tạp, chạy tự động thời gian dài, đòi hỏi khả năng suy luận và lập kế hoạch cao nhất.</td></tr>
+    </tbody>
+  </table>
+
+  <h3 class="sub-heading">Effort — mức độ nỗ lực suy luận</h3>
+  <p class="body-text">
+    Ngoài việc chọn dòng model, mỗi model còn cho phép tinh chỉnh thêm tham số <strong>Effort</strong> — quyết định
+    Claude sẽ bỏ ra "bao nhiêu công sức" tính toán cho mỗi câu trả lời, độc lập với việc chọn Haiku/Sonnet/Opus/Fable.
+    Effort có 5 mức, từ thấp đến cao: <strong>Low</strong>, <strong>Medium</strong>, <strong>High</strong>,
+    <strong>Extra (Xhigh)</strong> và <strong>Max</strong>.
+  </p>
+  <table class="pricing-table">
+    <thead>
+      <tr><th>Effort</th><th>Khi nào dùng</th><th>Chi phí & thời gian</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><strong>Low</strong></td><td>Chat thông thường, tác vụ khối lượng lớn, không cần suy luận sâu.</td><td class="price-value">Thấp / Nhanh</td></tr>
+      <tr><td><strong>Medium</strong></td><td>Công việc tri thức hằng ngày với vài bước xử lý — mức mặc định hợp lý cho phần lớn use case.</td><td class="price-value">Trung bình</td></tr>
+      <tr><td><strong>High</strong></td><td>Suy luận phức tạp, khi chất lượng quan trọng hơn tốc độ/chi phí (mặc định của API).</td><td class="price-value">Cao</td></tr>
+      <tr><td><strong>Extra (Xhigh)</strong></td><td>Mức trung gian giữa High và Max — cho tác vụ cần nhiều hơn High nhưng chưa cần tốn token như Max (thường có ở Opus/Fable).</td><td class="price-value">Rất cao</td></tr>
+      <tr><td><strong>Max</strong></td><td>Tác vụ khó nhất, không giới hạn ngân sách token — chấp nhận chi phí và thời gian chờ cao nhất.</td><td class="price-value">Cao nhất</td></tr>
+    </tbody>
+  </table>
+  <div class="alert alert-warning">
+    Effort ảnh hưởng trực tiếp đến chi phí: cùng một câu hỏi, chạy ở mức <strong>Max</strong> có thể tốn <strong>gấp 10 lần</strong> số token so với mức <strong>Low</strong>. Nên chọn effort tương ứng với độ khó thực tế của tác vụ, không nên luôn để Max.
+  </div>
+
+  <h3 class="sub-heading">Enable Thinking (Extended Thinking) khác gì so với không enable?</h3>
+  <p class="body-text">
+    <strong>Extended Thinking</strong> là một cơ chế khác, tách biệt với Effort. Khi được bật (Enable Thinking),
+    Claude sẽ "suy nghĩ" từng bước trước khi trả lời — tự lập kế hoạch giải quyết, thử nhiều hướng tiếp cận và
+    tự kiểm tra lại logic — thay vì trả lời ngay câu đầu tiên nghĩ ra. Đây vẫn là cùng một model, chỉ khác là model
+    được cho thêm thời gian và "không gian suy nghĩ" trước khi sinh câu trả lời cuối cùng.
+  </p>
+  <ul class="feature-list">
+    <li><strong>Khi Enable Thinking:</strong> Xuất hiện thêm phần "Thinking" (có thể mở rộng để xem) hiển thị quá trình suy luận của Claude — hữu ích để kiểm chứng cách Claude ra kết quả, đặc biệt với bài toán nhiều bước, toán học, debug logic phức tạp.</li>
+    <li><strong>Khi tắt (không Enable Thinking):</strong> Claude trả lời trực tiếp, không hiển thị quá trình suy luận — tốc độ phản hồi nhanh hơn, phù hợp cho câu hỏi đơn giản, tra cứu thông tin, viết nội dung ngắn.</li>
+    <li><strong>Liên hệ với Effort:</strong> Effort quyết định "bao nhiêu" ngân sách suy luận được cấp; Thinking quyết định việc Claude có chủ động suy luận từng bước (và hiển thị quá trình đó) hay không. Hai cơ chế này phối hợp với nhau (Adaptive Thinking) để tự động điều chỉnh mức suy luận phù hợp.</li>
+  </ul>
+  <div class="alert alert-tip">
+    <strong>Gợi ý áp dụng:</strong> Với câu hỏi đơn giản, tra cứu nhanh — tắt Thinking, dùng effort Low/Medium để tiết kiệm chi phí và có kết quả nhanh. Với bài toán nhiều bước, code phức tạp hoặc cần độ chính xác cao — bật Thinking và tăng effort lên High/Extra/Max.
+  </div>
+
+  <h2 class="section-heading">Mô hình lựa chọn model theo bài toán</h2>
+  <div class="mermaid">
+  flowchart LR
+      User(("👤<br/><b>Người dùng</b>"))
+      Haiku["<img src='../../assets/svg-icon/claude-logo.svg' style='width:30px;height:30px;'/><br/><b>Claude Haiku</b><br/>⚡ Nhanh · 💰 Rẻ nhất"]
+      Sonnet["<img src='../../assets/svg-icon/claude-logo.svg' style='width:30px;height:30px;'/><br/><b>Claude Sonnet</b><br/>⚖️ Cân bằng"]
+      Opus["<img src='../../assets/svg-icon/claude-logo.svg' style='width:30px;height:30px;'/><br/><b>Claude Opus</b><br/>🧠 Mạnh nhất"]
+      Fable["<img src='../../assets/svg-icon/claude-logo.svg' style='width:30px;height:30px;'/><br/><b>Claude Fable 5</b><br/>🚀 Cao cấp nhất · Agentic dài hạn"]
+
+      User -->|"Tác vụ đơn giản, số lượng lớn"| Haiku
+      User -->|"Công việc hằng ngày, coding"| Sonnet
+      User -->|"Tác vụ phức tạp, suy luận sâu"| Opus
+      User -->|"Tác vụ agentic phức tạp nhất, chạy dài hạn"| Fable
+  </div>
+  <p class="arch-caption">Chọn model theo độ khó của bài toán — không nên dùng Opus cho tác vụ đơn giản vì tốn chi phí không cần thiết, và không nên dùng Haiku cho bài toán cần suy luận sâu vì dễ cho kết quả chưa đủ chính xác.</p>
+
+  <h2 class="section-heading">Use Cases</h2>
+  <div class="usecase-grid">
+    <div class="usecase-card">
+      <h4>Haiku — Xử lý số lượng lớn</h4>
+      <p>Phân loại email, trích xuất dữ liệu từ tài liệu, chatbot trả lời nhanh các câu hỏi đơn giản.</p>
+    </div>
+    <div class="usecase-card">
+      <h4>Sonnet — Công việc hằng ngày</h4>
+      <p>Viết và refactor code với Claude Code, soạn tài liệu, phân tích dữ liệu, hầu hết tác vụ trong khóa học này.</p>
+    </div>
+    <div class="usecase-card">
+      <h4>Opus — Bài toán phức tạp</h4>
+      <p>Nghiên cứu chuyên sâu, lên chiến lược, giải quyết vấn đề nhiều bước đòi hỏi độ chính xác và suy luận cao.</p>
+    </div>
+    <div class="usecase-card">
+      <h4>Fable 5 — Agentic dài hạn</h4>
+      <p>Tự lập kế hoạch và thực thi các tác vụ nhiều bước, chạy tự động trong thời gian dài với ít cần con người can thiệp giữa chừng — phù hợp cho các dự án agent phức tạp nhất.</p>
+    </div>
+  </div>
+
+  <h2 class="section-heading">Thông tin bổ sung</h2>
+  <p class="body-text">
+    Mỗi model đều có giới hạn về <strong>context window</strong> (lượng token tối đa đọc được trong một lần trò
+    chuyện) và <strong>knowledge cutoff</strong> (mốc thời gian dữ liệu huấn luyện) — Claude không tự biết các sự
+    kiện xảy ra sau mốc này trừ khi được cung cấp thêm thông tin trong prompt hoặc qua công cụ tìm kiếm. Để tối ưu
+    chi phí, nên bắt đầu với Sonnet cho phần lớn công việc hằng ngày, chỉ chuyển sang Opus khi thực sự cần độ chính
+    xác cao, và dùng Haiku cho các tác vụ lặp lại với khối lượng lớn.
+  </p>
+  <div class="alert alert-info">
+    <strong>Claude Fable 5:</strong> Ra mắt giữa năm 2026, đây là model "Mythos-class" đầu tiên được Anthropic đưa
+    ra sử dụng rộng rãi qua Claude API, Claude Platform, Amazon Bedrock, Google Cloud và Microsoft Foundry, cũng như
+    trên Claude.ai, Claude Desktop App và Claude Code. Fable 5 có chi phí cao nhất trong 4 dòng model (khoảng
+    $10/triệu token input và $50/triệu token output tại thời điểm ra mắt — giá có thể thay đổi theo thời gian), do
+    đó chỉ nên dùng cho các tác vụ agentic phức tạp nhất, cần chạy tự động trong thời gian dài. Với công việc hằng
+    ngày trong khóa học này, Sonnet vẫn là lựa chọn mặc định hợp lý nhất.
+  </div>
+
+</body>
+</html>
