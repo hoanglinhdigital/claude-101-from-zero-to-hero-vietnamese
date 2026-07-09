@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Vai trò Claude trong quản lý dự án – Claude 101</title>
+  <link rel="stylesheet" href="../../styles.css" />
+  <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+  <script src="../../mermaid-config.js"></script>
+  <link rel="stylesheet" href="../../prism.css" />
+  <script src="../../prism.js"></script>
+  <script src="../../script.js"></script>
+</head>
+<body class="chapter-body">
+
+  <div class="chapter-breadcrumb">
+    <span class="section-part">7. Claude cho Project Manager</span>
+    <span class="sep">/</span>
+    <span class="chapter-part">Vai trò Claude trong quản lý dự án</span>
+  </div>
+
+  <h2 class="section-heading">Giới thiệu</h2>
+  <p class="body-text">
+    Công việc của một <strong>Project Manager (PM)</strong> xoay quanh rất nhiều tài liệu (kế hoạch, báo cáo, biên bản
+    họp), rất nhiều nguồn thông tin rời rạc cần tổng hợp (tiến độ từng thành viên, rủi ro phát sinh, phản hồi khách
+    hàng), và liên tục phải ra quyết định dựa trên những thông tin đó. Claude có thể hỗ trợ PM ở <strong>3 việc chính</strong>:
+    soạn thảo tài liệu nhanh hơn, tổng hợp thông tin từ nhiều nguồn thành bản tóm tắt mạch lạc, và hỗ trợ phân tích để
+    PM ra quyết định tốt hơn — nhưng Claude <strong>không thay thế vai trò quản lý</strong>. Chương này giới thiệu tổng
+    quan 3 vai trò hỗ trợ đó và ranh giới cần luôn nhớ khi dùng Claude trong công việc quản lý dự án.
+  </p>
+
+  <h2 class="section-heading">Các tính năng chính</h2>
+  <ul class="feature-list">
+    <li><strong>Soạn thảo tài liệu</strong> — từ một mô tả ngắn gọn, Claude soạn nhanh project plan, risk register, status report, biên bản họp theo cấu trúc chuẩn, PM chỉnh sửa lại thay vì viết từ đầu.</li>
+    <li><strong>Tổng hợp thông tin</strong> — đưa nhiều nguồn rời rạc (transcript họp, báo cáo tiến độ từng thành viên, email) cho Claude, yêu cầu tổng hợp thành một bản tóm tắt duy nhất, dễ đọc, đúng trọng tâm.</li>
+    <li><strong>Hỗ trợ ra quyết định</strong> — Claude phân tích rủi ro, so sánh phương án, liệt kê ưu/nhược điểm dựa trên thông tin được cung cấp, giúp PM có thêm góc nhìn trước khi quyết định — Claude đề xuất, PM chọn.</li>
+    <li>Ở mọi bước, Claude là <strong>công cụ hỗ trợ tăng tốc</strong>, không phải người chịu trách nhiệm — PM luôn phải review lại nội dung trước khi gửi cho team, khách hàng, hoặc cấp trên.</li>
+    <li><strong>Giới hạn cần lưu ý:</strong> Claude không có trách nhiệm pháp lý/nghiệp vụ đối với kết quả dự án, và không nắm được ngữ cảnh chính trị, quan hệ con người trong tổ chức (ai đang mâu thuẫn với ai, ưu tiên ngầm của cấp trên...) — những yếu tố này chỉ PM mới nắm được và phải tự cân nhắc khi ra quyết định cuối cùng.</li>
+  </ul>
+
+  <h2 class="section-heading">Mô hình kiến trúc</h2>
+  <div class="mermaid">
+  flowchart LR
+      subgraph P1["1️⃣ Khởi tạo dự án"]
+        direction TB
+        C1["<img src='../../assets/svg-icon/claude-logo.svg' style='width:24px;height:24px;'/><br/><b>Claude hỗ trợ</b><br/>Soạn project charter,<br/>phân tích stakeholder"]
+        D1(("<img src='../../assets/svg-icon/user.svg' style='width:22px;height:22px;'/><br/><b>PM quyết định</b><br/>Phê duyệt khởi động dự án"))
+        C1 --> D1
+      end
+
+      subgraph P2["2️⃣ Lập kế hoạch"]
+        direction TB
+        C2["<img src='../../assets/svg-icon/claude-logo.svg' style='width:24px;height:24px;'/><br/><b>Claude hỗ trợ</b><br/>Soạn project plan,<br/>risk register"]
+        D2(("<img src='../../assets/svg-icon/user.svg' style='width:22px;height:22px;'/><br/><b>PM quyết định</b><br/>Chốt scope · timeline · ngân sách"))
+        C2 --> D2
+      end
+
+      subgraph P3["3️⃣ Thực thi & theo dõi"]
+        direction TB
+        C3["<img src='../../assets/svg-icon/claude-logo.svg' style='width:24px;height:24px;'/><br/><b>Claude hỗ trợ</b><br/>Tóm tắt họp, status report,<br/>phân tích rủi ro"]
+        D3(("<img src='../../assets/svg-icon/user.svg' style='width:22px;height:22px;'/><br/><b>PM quyết định</b><br/>Điều chỉnh kế hoạch,<br/>xử lý xung đột con người"))
+        C3 --> D3
+      end
+
+      subgraph P4["4️⃣ Kết thúc dự án"]
+        direction TB
+        C4["<img src='../../assets/svg-icon/claude-logo.svg' style='width:24px;height:24px;'/><br/><b>Claude hỗ trợ</b><br/>Soạn báo cáo tổng kết,<br/>lessons learned"]
+        D4(("<img src='../../assets/svg-icon/user.svg' style='width:22px;height:22px;'/><br/><b>PM quyết định</b><br/>Đánh giá thành công,<br/>ký nghiệm thu"))
+        C4 --> D4
+      end
+
+      D1 --> C2
+      D2 --> C3
+      D3 --> C4
+  </div>
+  <p class="arch-caption">Xuyên suốt 4 giai đoạn của một dự án, Claude luôn đóng vai trò hỗ trợ (soạn thảo, tổng hợp, phân tích) — còn điểm quyết định cuối cùng (nút tròn) ở mỗi giai đoạn luôn thuộc về PM, người nắm đầy đủ ngữ cảnh con người và tổ chức mà Claude không có.</p>
+
+  <h2 class="section-heading">Use Cases</h2>
+  <div class="usecase-grid">
+    <div class="usecase-card">
+      <h4>Soạn tài liệu nhanh</h4>
+      <p>Từ mô tả ngắn gọn về dự án, Claude soạn ngay bản dự thảo project plan/status report, PM tiết kiệm thời gian format và trình bày.</p>
+    </div>
+    <div class="usecase-card">
+      <h4>Tổng hợp thông tin phân tán</h4>
+      <p>Gộp báo cáo tiến độ từ nhiều thành viên, transcript họp, email phản hồi thành một bức tranh tổng thể duy nhất trước khi báo cáo cấp trên.</p>
+    </div>
+    <div class="usecase-card">
+      <h4>Phân tích hỗ trợ quyết định</h4>
+      <p>So sánh 2-3 phương án xử lý một rủi ro/vấn đề, liệt kê ưu nhược điểm để PM có thêm góc nhìn khách quan trước khi quyết định.</p>
+    </div>
+  </div>
+
+  <h2 class="section-heading">Thông tin bổ sung</h2>
+  <p class="body-text">
+    Claude không thay thế được kinh nghiệm và trách nhiệm của PM — mọi nội dung Claude soạn ra hoặc đề xuất cần được
+    PM review dưới góc nhìn thực tế của dự án và tổ chức. Đặc biệt với các quyết định ảnh hưởng đến con người (đánh
+    giá hiệu suất, phân công lại nhân sự, xử lý xung đột nội bộ), Claude chỉ nên đóng vai trò gợi ý khung suy nghĩ,
+    tuyệt đối không nên dùng câu trả lời của Claude như một quyết định cuối cùng.
+  </p>
+  <div class="alert alert-warning">
+    <strong>Luôn nhớ:</strong> Claude không biết các ràng buộc chính trị/con người trong tổ chức của bạn (ai đang căng
+    thẳng với ai, ưu tiên ngầm của ban lãnh đạo, lịch sử mâu thuẫn cũ...) trừ khi bạn chủ động nêu ra. Với các quyết
+    định nhạy cảm, hãy coi câu trả lời của Claude là một góc nhìn tham khảo, không phải kết luận cuối cùng.
+  </div>
+
+  <script>mermaid.initialize({ startOnLoad: true, theme: 'default' });</script>
+</body>
+</html>

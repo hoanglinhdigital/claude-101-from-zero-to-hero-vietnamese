@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lab - Sinh bộ test case từ requirement – Claude 101</title>
+  <link rel="stylesheet" href="../../styles.css" />
+  <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+  <script src="../../mermaid-config.js"></script>
+  <link rel="stylesheet" href="../../prism.css" />
+  <script src="../../prism.js"></script>
+  <script src="../../script.js"></script>
+</head>
+<body class="chapter-body">
+
+  <div class="chapter-breadcrumb">
+    <span class="section-part">6. Claude cho Tester / QA</span>
+    <span class="sep">/</span>
+    <span class="chapter-part">Lab - Sinh bộ test case từ requirement</span>
+  </div>
+
+  <h2 class="section-heading">Mục tiêu</h2>
+  <ul class="feature-list">
+    <li>Đưa một requirement mẫu cụ thể cho Claude và yêu cầu sinh bộ test case đầy đủ.</li>
+    <li>Đảm bảo bộ test case bao phủ đủ 3 nhóm: happy path, edge case, negative case.</li>
+    <li>Trình bày test case theo bảng chuẩn: <strong>No, Mô tả, Bước thực hiện, Dữ liệu vào, Kết quả mong đợi</strong>.</li>
+    <li>Biết cách yêu cầu Claude tự rà soát lại để bổ sung case còn thiếu.</li>
+  </ul>
+
+  <h2 class="section-heading">Kiến trúc tổng quan</h2>
+  <div class="mermaid">
+  flowchart LR
+      Tester(("<img src='../../assets/svg-icon/user.svg' style='width:26px;height:26px;'/><br/><b>Tester</b>"))
+      CC["<img src='../../assets/svg-icon/claude-logo.svg' style='width:28px;height:28px;'/><br/><b>Claude</b>"]
+      Req["📋 <b>Requirement mẫu</b><br/>Tạo khoản chi tiêu"]
+      Output["🧪 <b>Bộ test case</b><br/>Happy + Edge + Negative"]
+
+      Tester -->|"Đưa requirement + yêu cầu"| CC
+      Req --> CC
+      CC --> Output --> Tester
+  </div>
+  <p class="arch-caption">Tester cung cấp requirement kèm ràng buộc rõ ràng, Claude sinh bộ test case đầy đủ 3 nhóm để Tester review và bổ sung.</p>
+
+  <h2 class="section-heading">Yêu cầu trước khi bắt đầu</h2>
+  <ul class="feature-list">
+    <li>Tài khoản Claude.ai hoặc Claude Code CLI đã cài đặt, đăng nhập thành công (xem lại Section 2).</li>
+    <li>Đã đọc qua Chapter 2 — kỹ thuật viết prompt sinh test case bao phủ đủ 3 nhóm.</li>
+    <li>Không cần project code cụ thể ở bài lab này — chỉ cần một yêu cầu chức năng bằng văn bản.</li>
+  </ul>
+
+  <h2 class="section-heading">Các bước thực hành</h2>
+
+  <h3 class="sub-heading">Phần 1: Đưa requirement và yêu cầu sinh test case</h3>
+  <ol class="step-list">
+    <li>
+      <div>
+        <strong>Bước 1: Mở Claude Code (hoặc Claude.ai) và cung cấp requirement</strong>
+        <p>Requirement mẫu dùng cho bài lab này — chức năng <strong>tạo khoản chi tiêu</strong> của app Quản lý chi tiêu đã xây dựng ở Section 4:</p>
+        <pre class="command-line" data-prompt=">"><code class="language-text">Requirement: Chức năng "Tạo khoản chi tiêu" trong app Quản lý chi tiêu.
+Ràng buộc:
+1. Số tiền (amount) phải lớn hơn 0.
+2. Ngày chi tiêu (spentAt) không được ở tương lai (phải &lt;= thời điểm hiện tại).
+3. Phải chọn một category có sẵn trong hệ thống (categoryId phải tồn tại).
+4. Title (tên khoản chi tiêu) là trường bắt buộc, không được để trống.
+
+Hãy sinh cho tôi bộ test case đầy đủ cho chức năng này, bao phủ đủ 3 nhóm: happy path, edge case, negative case. Trình bày dưới dạng bảng với đúng các cột: No, Mô tả, Bước thực hiện, Dữ liệu vào, Kết quả mong đợi. Với mỗi test case, ghi rõ thuộc nhóm nào (Happy path / Edge case / Negative case) ngay trong cột Mô tả.</code></pre>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 2: Yêu cầu Claude tự rà soát lại bộ test case vừa sinh</strong>
+        <p>Gửi tiếp một prompt rà soát để phát hiện case còn thiếu, đặc biệt các case kết hợp nhiều ràng buộc cùng lúc.</p>
+        <pre class="command-line" data-prompt=">"><code class="language-text">Rà soát lại bộ test case vừa sinh: còn thiếu case nào thuộc 3 nhóm trên không? Đặc biệt kiểm tra các trường hợp: (1) vi phạm nhiều ràng buộc cùng lúc (vd amount âm VÀ ngày ở tương lai cùng lúc), (2) thiếu field bắt buộc, (3) kiểu dữ liệu sai (vd amount là chuỗi ký tự thay vì số). Bổ sung các case còn thiếu vào bảng theo đúng format cũ.</code></pre>
+      </div>
+    </li>
+  </ol>
+
+  <h3 class="sub-heading">Phần 2: Đối chiếu kết quả</h3>
+  <p class="body-text">Bảng dưới đây là bộ test case tham khảo — dùng để đối chiếu với kết quả Claude sinh ra ở Bước 1-2, không phải để copy thay cho việc tự thực hành.</p>
+  <table class="info-table">
+    <thead>
+      <tr><th>No</th><th>Mô tả</th><th>Bước thực hiện</th><th>Dữ liệu vào</th><th>Kết quả mong đợi</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>TC01</td>
+        <td><span class="tag tag-green">Happy</span> Tạo khoản chi tiêu hợp lệ, đầy đủ thông tin</td>
+        <td>Nhập title, amount, chọn category hợp lệ, chọn ngày, bấm Lưu</td>
+        <td>title="Ăn trưa", amount=150000, category="Ăn uống" (có sẵn), spentAt=hôm nay</td>
+        <td>Lưu thành công, hiển thị trong danh sách chi tiêu</td>
+      </tr>
+      <tr>
+        <td>TC02</td>
+        <td><span class="tag tag-green">Happy</span> Tạo khoản chi tiêu với ngày trong quá khứ</td>
+        <td>Tương tự TC01, chọn ngày đã qua</td>
+        <td>spentAt = hôm qua</td>
+        <td>Lưu thành công</td>
+      </tr>
+      <tr>
+        <td>TC03</td>
+        <td><span class="tag tag-orange">Edge</span> Số tiền là giá trị dương nhỏ nhất hợp lệ</td>
+        <td>Nhập amount = 0.01, các field khác hợp lệ</td>
+        <td>amount = 0.01</td>
+        <td>Lưu thành công (vì 0.01 &gt; 0)</td>
+      </tr>
+      <tr>
+        <td>TC04</td>
+        <td><span class="tag tag-orange">Edge</span> Ngày chi tiêu đúng bằng thời điểm hiện tại</td>
+        <td>Nhập spentAt = đúng ngày giờ hiện tại lúc submit</td>
+        <td>spentAt = now()</td>
+        <td>Lưu thành công (chưa được xem là "tương lai")</td>
+      </tr>
+      <tr>
+        <td>TC05</td>
+        <td><span class="tag tag-orange">Edge</span> Số tiền có nhiều chữ số thập phân</td>
+        <td>Nhập amount với 3 chữ số thập phân</td>
+        <td>amount = 125000.999</td>
+        <td>Hệ thống làm tròn theo quy tắc rõ ràng hoặc từ chối có thông báo, không lưu sai giá trị</td>
+      </tr>
+      <tr>
+        <td>TC06</td>
+        <td><span class="tag tag-red">Negative</span> Số tiền bằng 0</td>
+        <td>Nhập amount = 0, các field khác hợp lệ</td>
+        <td>amount = 0</td>
+        <td>Bị từ chối, trả lỗi rõ ràng "Số tiền phải lớn hơn 0", không lưu bản ghi</td>
+      </tr>
+      <tr>
+        <td>TC07</td>
+        <td><span class="tag tag-red">Negative</span> Số tiền âm</td>
+        <td>Nhập amount = -50000</td>
+        <td>amount = -50000</td>
+        <td>Bị từ chối, trả lỗi rõ ràng, không lưu bản ghi</td>
+      </tr>
+      <tr>
+        <td>TC08</td>
+        <td><span class="tag tag-red">Negative</span> Ngày chi tiêu ở tương lai</td>
+        <td>Chọn ngày sau ngày hiện tại</td>
+        <td>spentAt = ngày mai</td>
+        <td>Bị từ chối, trả lỗi "Ngày chi tiêu không được ở tương lai"</td>
+      </tr>
+      <tr>
+        <td>TC09</td>
+        <td><span class="tag tag-red">Negative</span> Category không tồn tại</td>
+        <td>Gửi categoryId không có trong hệ thống</td>
+        <td>categoryId = 9999 (không tồn tại)</td>
+        <td>Bị từ chối, trả lỗi rõ ràng, không tạo bản ghi "mồ côi"</td>
+      </tr>
+      <tr>
+        <td>TC10</td>
+        <td><span class="tag tag-red">Negative</span> Thiếu field bắt buộc (title)</td>
+        <td>Bỏ trống title, các field khác hợp lệ</td>
+        <td>title = ""</td>
+        <td>Bị từ chối, trả lỗi validate field bắt buộc</td>
+      </tr>
+      <tr>
+        <td>TC11</td>
+        <td><span class="tag tag-red">Negative</span> Kết hợp nhiều vi phạm cùng lúc</td>
+        <td>Nhập amount âm VÀ ngày ở tương lai cùng lúc</td>
+        <td>amount = -100, spentAt = 7 ngày sau</td>
+        <td>Bị từ chối ngay từ ràng buộc đầu tiên được kiểm tra, không lưu bản ghi</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="verify-box">
+    <h4>✅ Kết quả mong đợi</h4>
+    <p class="body-text">Bộ test case Claude sinh ra ở Bước 1-2 đạt tối thiểu độ bao phủ tương đương bảng tham khảo trên: ít nhất 2 case happy path, 2-3 case edge case, và 4-6 case negative case, đúng format bảng 5 cột yêu cầu.</p>
+  </div>
+
+  <h2 class="section-heading">Troubleshoot</h2>
+  <div class="alert alert-warning">
+    <strong>Lỗi:</strong> Claude chỉ sinh toàn happy path, thiếu edge/negative case.<br/>
+    <strong>Nguyên nhân:</strong> Prompt ban đầu chỉ nói chung "sinh test case" mà không yêu cầu tường minh đủ 3 nhóm.<br/>
+    <strong>Giải pháp:</strong> Bổ sung lại yêu cầu rõ ràng "bao phủ đủ 3 nhóm: happy path, edge case, negative case" và liệt kê từng ràng buộc cụ thể của requirement, như prompt mẫu ở Bước 1.
+  </div>
+  <div class="alert alert-warning">
+    <strong>Lỗi:</strong> Một số test case Claude sinh ra giả định sai về hành vi hệ thống (vd giả định có giới hạn số tiền tối đa mà requirement không đề cập).<br/>
+    <strong>Nguyên nhân:</strong> Requirement gốc chưa đủ chi tiết, Claude tự suy diễn thêm ràng buộc không có thật.<br/>
+    <strong>Giải pháp:</strong> Chỉ giữ lại các case dựa trên ràng buộc đã nêu rõ trong requirement; nếu muốn kiểm tra thêm ràng buộc khác, bổ sung rõ vào requirement trước khi generate lại.
+  </div>
+
+  <h2 class="section-heading">Dọn dẹp resource</h2>
+  <div class="alert alert-info">Bài lab này chỉ làm việc với văn bản (requirement, prompt, bảng test case) — không tạo ra resource nào trên máy local hoặc Cloud, do đó không cần thực hiện bước dọn dẹp.</div>
+
+  <script>mermaid.initialize({ startOnLoad: true, theme: 'default' });</script>
+</body>
+</html>

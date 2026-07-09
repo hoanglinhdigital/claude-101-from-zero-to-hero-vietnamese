@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Model Context Protocol là gì – Claude 101</title>
+  <link rel="stylesheet" href="../../styles.css" />
+  <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+  <script src="../../mermaid-config.js"></script>
+  <link rel="stylesheet" href="../../prism.css" />
+  <script src="../../prism.js"></script>
+  <script src="../../script.js"></script>
+</head>
+<body class="chapter-body">
+
+  <div class="chapter-breadcrumb">
+    <span class="section-part">8. Model Context Protocol (MCP)</span>
+    <span class="sep">/</span>
+    <span class="chapter-part">Model Context Protocol là gì</span>
+  </div>
+
+  <h2 class="section-heading">Giới thiệu</h2>
+  <p class="body-text">
+    <strong>Model Context Protocol (MCP)</strong> là một chuẩn giao tiếp mở do Anthropic công bố cuối năm 2024, định
+    nghĩa cách một AI Agent (như Claude Code, Claude Desktop) kết nối và thao tác với các hệ thống, dữ liệu, công cụ
+    bên ngoài — database, filesystem, API nội bộ, dịch vụ SaaS... MCP thường được ví như <strong>"USB-C cho AI
+    Agent"</strong>: giống như USB-C cho phép một cáp duy nhất cắm được vào nhiều loại thiết bị khác nhau thay vì mỗi
+    thiết bị cần một loại cổng riêng, MCP cho phép một AI Agent nói cùng một "ngôn ngữ" để kết nối với rất nhiều hệ
+    thống khác nhau, thay vì phải viết tích hợp riêng cho từng cặp Agent – Hệ thống.
+  </p>
+  <p class="body-text">
+    Vấn đề MCP giải quyết thường được gọi là bài toán <strong>M × N integrations</strong>: nếu có M AI Agent/AI App
+    khác nhau và N hệ thống/công cụ cần kết nối tới, theo cách truyền thống cần viết tới M × N đoạn tích hợp riêng lẻ
+    (mỗi Agent tự viết code kết nối riêng cho từng hệ thống). Với MCP, mỗi hệ thống chỉ cần expose <strong>một
+    MCP Server</strong>, và mỗi AI Agent chỉ cần implement <strong>một MCP Client</strong> hiểu chuẩn chung — số
+    lượng tích hợp cần xây giảm từ M × N xuống còn <strong>M + N</strong>.
+  </p>
+
+  <h2 class="section-heading">Các tính năng chính</h2>
+  <ul class="feature-list">
+    <li><strong>Chuẩn mở, không ràng buộc vào một AI App cụ thể</strong> — bất kỳ AI Agent nào implement đúng chuẩn MCP (Claude Code, Claude Desktop, hoặc các AI App khác) đều có thể dùng lại cùng một MCP Server.</li>
+    <li><strong>Giảm số lượng tích hợp cần viết</strong> — từ M × N xuống M + N, mỗi hệ thống chỉ cần viết/duy trì một MCP Server duy nhất cho mọi AI Agent sử dụng.</li>
+    <li><strong>Mở rộng khả năng của Agent không cần sửa code Agent</strong> — muốn Claude Code đọc thêm một hệ thống mới, chỉ cần thêm một MCP Server tương ứng, không cần chờ cập nhật bản thân Claude Code.</li>
+    <li><strong>Hệ sinh thái MCP Server sẵn có đang phát triển nhanh</strong> — nhiều MCP Server cho các hệ thống phổ biến (filesystem, Git, database, các dịch vụ SaaS...) đã được cộng đồng và các nhà cung cấp xây dựng sẵn, có thể tái sử dụng thay vì tự viết từ đầu.</li>
+    <li><strong>Giao tiếp theo chuẩn JSON-RPC 2.0</strong>, hỗ trợ cả kết nối chạy trên máy local (qua stdio) và kết nối tới server ở nơi khác (qua HTTP/SSE) — sẽ tìm hiểu chi tiết ở Chapter 3.</li>
+  </ul>
+
+  <h2 class="section-heading">Mô hình kiến trúc</h2>
+  <div class="mermaid">
+  flowchart LR
+      subgraph Before["❌ Trước khi có MCP — M × N tích hợp riêng lẻ"]
+          direction TB
+          A1["🤖 <b>AI App A</b>"]
+          A2["🤖 <b>AI App B</b>"]
+          T1["<img src='../../assets/svg-icon/mysql-workbench.svg' style='width:24px;height:24px;'/><br/>Database"]
+          T2["📁 Filesystem"]
+          T3["🔧 Internal API"]
+          A1 -->|"tích hợp riêng"| T1
+          A1 -->|"tích hợp riêng"| T2
+          A1 -->|"tích hợp riêng"| T3
+          A2 -->|"tích hợp riêng"| T1
+          A2 -->|"tích hợp riêng"| T2
+          A2 -->|"tích hợp riêng"| T3
+      end
+
+      subgraph After["✅ Sau khi có MCP — M + N qua 1 chuẩn chung"]
+          direction TB
+          B1["🤖 <b>AI App A</b>"]
+          B2["🤖 <b>AI App B</b>"]
+          Proto{{"<img src='../../assets/svg-icon/router.svg' style='width:26px;height:26px;'/><br/><b>Chuẩn MCP</b>"}}
+          S1["<img src='../../assets/svg-icon/mysql-workbench.svg' style='width:24px;height:24px;'/><br/>MCP Server<br/>Database"]
+          S2["📁 MCP Server<br/>Filesystem"]
+          S3["🔧 MCP Server<br/>Internal API"]
+          B1 --- Proto
+          B2 --- Proto
+          Proto --- S1
+          Proto --- S2
+          Proto --- S3
+      end
+  </div>
+  <p class="arch-caption">Trước MCP, mỗi AI App phải tự viết tích hợp riêng cho từng hệ thống (số lượng tích hợp = số AI App × số hệ thống). Sau khi có MCP, mọi AI App nói cùng một chuẩn để dùng chung mọi MCP Server — số lượng tích hợp cần xây chỉ còn bằng tổng số AI App cộng tổng số hệ thống.</p>
+
+  <h2 class="section-heading">Use Cases</h2>
+  <div class="usecase-grid">
+    <div class="usecase-card">
+      <h4>Trợ lý code hiểu codebase nội bộ</h4>
+      <p>Một MCP Server phân tích quan hệ code (call graph, dependency) giúp Claude Code hiểu kiến trúc project phức tạp trước khi sửa một tính năng, thay vì chỉ đọc file rời rạc.</p>
+    </div>
+    <div class="usecase-card">
+      <h4>Kiểm chứng dữ liệu tự động</h4>
+      <p>Một MCP Server kết nối database cho phép Claude Code tự truy vấn để xác nhận một thao tác ghi dữ liệu (tạo/sửa/xoá) đã thực sự đúng, không cần học viên tự mở công cụ quản trị DB kiểm tra tay.</p>
+    </div>
+    <div class="usecase-card">
+      <h4>Kết nối hệ thống doanh nghiệp</h4>
+      <p>Doanh nghiệp expose một MCP Server duy nhất cho hệ thống nội bộ (ticketing, wiki, CRM...), mọi AI Agent trong tổ chức dùng chung, không cần xây tích hợp riêng cho từng công cụ AI đang dùng.</p>
+    </div>
+  </div>
+
+  <h2 class="section-heading">Thông tin bổ sung</h2>
+  <p class="body-text">
+    MCP không phải là sản phẩm riêng của Claude — đây là một chuẩn mở, bất kỳ ai cũng có thể viết MCP Server hoặc
+    MCP Client theo chuẩn này. Vì một MCP Server có thể chạy code tuỳ ý và truy cập đúng những gì bạn cấp quyền, nên
+    trước khi thêm bất kỳ MCP Server nào (đặc biệt là MCP Server do cộng đồng viết) vào Claude Code, cần đánh giá độ
+    tin cậy của nó — nguồn gốc, mã nguồn có công khai không, phạm vi quyền yêu cầu là gì. Chương 3 của Section này sẽ
+    đi sâu vào các nguyên tắc an toàn khi cấp quyền cho MCP Server.
+  </p>
+
+  <script>mermaid.initialize({ startOnLoad: true, theme: 'default' });</script>
+</body>
+</html>

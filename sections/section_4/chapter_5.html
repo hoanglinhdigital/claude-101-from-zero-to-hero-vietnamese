@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lab - Khám phá & tóm tắt kiến trúc một repository có sẵn – Claude 101</title>
+  <link rel="stylesheet" href="../../styles.css" />
+  <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+  <script src="../../mermaid-config.js"></script>
+  <link rel="stylesheet" href="../../prism.css" />
+  <script src="../../prism.js"></script>
+  <script src="../../script.js"></script>
+</head>
+<body class="chapter-body">
+
+  <div class="chapter-breadcrumb">
+    <span class="section-part">4. Claude Code cho Developer</span>
+    <span class="sep">/</span>
+    <span class="chapter-part">Lab - Khám phá & tóm tắt kiến trúc một repository có sẵn</span>
+  </div>
+
+  <h2 class="section-heading">Mục tiêu</h2>
+  <ul class="feature-list">
+    <li>Dùng Claude Code để đọc và tóm tắt kiến trúc một repository mã nguồn mở lần đầu tiếp cận, không cần đọc thủ công toàn bộ code.</li>
+    <li>Biết cách đặt prompt yêu cầu Claude Code tóm tắt entry point, luồng dữ liệu và các module chính của một codebase lạ.</li>
+    <li>Rút ra được bức tranh tổng quan kiến trúc trong thời gian ngắn — kỹ năng quan trọng khi tham gia một project/team mới.</li>
+  </ul>
+
+  <h2 class="section-heading">Mô hình kiến trúc</h2>
+  <div class="mermaid">
+  flowchart LR
+      Dev(("<img src='../../assets/svg-icon/developer.svg' style='width:26px;height:26px;'/><br/><b>Developer</b>"))
+      Repo["<img src='../../assets/svg-icon/github.svg' style='width:28px;height:28px;'/><br/><b>Repository mã nguồn mở</b><br/>Clone về máy local"]
+      CC["<img src='../../assets/svg-icon/claude-logo.svg' style='width:28px;height:28px;'/><br/><b>Claude Code</b>"]
+      Read["🔍 Đọc package.json,<br/>entry point, cấu trúc thư mục"]
+      Sum["📄 Tóm tắt kiến trúc<br/>luồng dữ liệu, module chính"]
+
+      Dev -->|"git clone"| Repo
+      Dev -->|"Yêu cầu tóm tắt"| CC
+      CC -->|"Explore"| Repo
+      Repo --> Read
+      Read --> Sum
+      Sum -->|"Trả kết quả"| Dev
+  </div>
+  <p class="arch-caption">Claude Code tự đọc file cấu hình, entry point và các module chính của repository, sau đó tổng hợp lại thành bản tóm tắt kiến trúc dễ hiểu cho người mới tiếp cận.</p>
+
+  <h2 class="section-heading">Yêu cầu trước khi bắt đầu</h2>
+  <ul class="feature-list">
+    <li>Claude Code CLI đã cài đặt và đăng nhập thành công (xem lại Section 2).</li>
+    <li>Git đã được cài đặt trên máy (<code>git --version</code> chạy được).</li>
+    <li>Node.js phiên bản 18 trở lên (không bắt buộc chạy được project, chỉ cần cho việc xem <code>package.json</code>/cấu trúc).</li>
+    <li>Terminal: PowerShell hoặc Windows Terminal.</li>
+    <li>Kết nối Internet để clone repository.</li>
+  </ul>
+
+  <h2 class="section-heading">Các bước thực hành</h2>
+  <ol class="step-list">
+    <li>
+      <div>
+        <strong>Bước 1: Clone repository mẫu</strong>
+        <p>Bài lab này dùng <strong>Express.js</strong> — một framework Node.js phổ biến, mã nguồn gọn, cấu trúc rõ ràng, phù hợp để luyện kỹ năng đọc hiểu codebase lạ. Có thể thay bằng bất kỳ repository Next.js/Node.js mã nguồn mở khác mà học viên quan tâm.</p>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">mkdir D:\lab-explore-repo
+cd D:\lab-explore-repo
+git clone https://github.com/expressjs/express.git
+cd express</code></pre>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 2: Khởi động Claude Code trong thư mục repository</strong>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">claude</code></pre>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 3: Yêu cầu tóm tắt tổng quan project</strong>
+        <p>Bắt đầu bằng một prompt tổng quát để Claude Code đọc <code>package.json</code>, README và cấu trúc thư mục cấp cao nhất.</p>
+        <pre class="command-line" data-prompt=">"><code class="language-text">Đọc package.json, README.md và cấu trúc thư mục cấp cao nhất của repository này. Tóm tắt: (1) project này làm gì, (2) các dependency chính và vai trò của chúng, (3) entry point chính của thư viện/ứng dụng nằm ở file nào.</code></pre>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 4: Yêu cầu tóm tắt luồng dữ liệu chính</strong>
+        <p>Đi sâu hơn vào cách các thành phần chính phối hợp với nhau khi xử lý một request/tác vụ điển hình.</p>
+        <pre class="command-line" data-prompt=">"><code class="language-text">Dựa trên entry point vừa tìm được, mô tả luồng xử lý chính khi có một HTTP request đi vào: request đi qua những module/hàm nào theo thứ tự, middleware được áp dụng ở đâu, và response được trả về như thế nào. Vẽ giúp một sơ đồ Mermaid flowchart minh hoạ luồng này.</code></pre>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 5: Yêu cầu liệt kê các module chính và trách nhiệm</strong>
+        <pre class="command-line" data-prompt=">"><code class="language-text">Liệt kê các file/module quan trọng nhất trong thư mục lib/ (hoặc thư mục source chính), mỗi module nêu rõ trách nhiệm chính (một câu ngắn) và các module khác mà nó phụ thuộc vào hoặc được gọi từ đâu.</code></pre>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 6: Yêu cầu định hướng nếu cần thêm một tính năng nhỏ</strong>
+        <p>Đây là bước hữu ích nhất trong thực tế — xác nhận Claude Code đã hiểu đúng kiến trúc bằng cách hỏi nó gợi ý điểm bắt đầu cho một thay đổi giả định.</p>
+        <pre class="command-line" data-prompt=">"><code class="language-text">Nếu muốn thêm một middleware mới áp dụng cho mọi route (ví dụ middleware ghi log thời gian xử lý request), nên bắt đầu sửa/đọc ở file nào trước tiên? Giải thích ngắn gọn vì sao.</code></pre>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 7 (tuỳ chọn): Lưu lại bản tóm tắt thành file</strong>
+        <p>Yêu cầu Claude Code ghi lại toàn bộ nội dung tóm tắt đã trao đổi thành một file Markdown để tham khảo lại sau, không cần đọc lại toàn bộ hội thoại.</p>
+        <pre class="command-line" data-prompt=">"><code class="language-text">Tổng hợp toàn bộ nội dung đã tóm tắt ở trên (tổng quan project, luồng xử lý request, danh sách module chính) thành một file ARCHITECTURE-SUMMARY.md ở gốc thư mục hiện tại.</code></pre>
+      </div>
+    </li>
+  </ol>
+
+  <div class="verify-box">
+    <h4>✅ Kết quả mong đợi</h4>
+    <p class="body-text">Sau 5-6 prompt, học viên có được bức tranh tổng quan về cách một codebase quen được tổ chức: entry point, luồng xử lý chính, module quan trọng nhất — mà không cần tự đọc từng file một cách thủ công. File <code>ARCHITECTURE-SUMMARY.md</code> (nếu thực hiện Bước 7) có thể dùng lại làm tài liệu tham khảo nhanh cho lần sau.</p>
+  </div>
+
+  <h2 class="section-heading">Troubleshoot</h2>
+  <div class="alert alert-warning">
+    <strong>Lỗi:</strong> <code>git clone</code> báo lỗi timeout hoặc không kết nối được.<br/>
+    <strong>Nguyên nhân:</strong> Mạng công ty/proxy chặn kết nối đến GitHub, hoặc kết nối Internet không ổn định.<br/>
+    <strong>Giải pháp:</strong> Kiểm tra lại cấu hình proxy của Git (<code>git config --get http.proxy</code>), thử đổi sang mạng khác, hoặc tải repository dưới dạng file ZIP trực tiếp từ trang GitHub rồi giải nén thủ công.
+  </div>
+  <div class="alert alert-warning">
+    <strong>Lỗi:</strong> Bản tóm tắt của Claude Code chưa chính xác hoặc bỏ sót phần quan trọng.<br/>
+    <strong>Nguyên nhân:</strong> Repository quá lớn, Claude Code chỉ đọc được một phần trong lượt Explore đầu tiên, chưa đủ ngữ cảnh.<br/>
+    <strong>Giải pháp:</strong> Yêu cầu Claude Code đọc sâu thêm vào đúng thư mục/file còn thiếu (chỉ định rõ đường dẫn), hoặc chia nhỏ câu hỏi thành nhiều lượt tập trung vào từng module một.
+  </div>
+  <div class="alert alert-warning">
+    <strong>Lỗi:</strong> Phiên làm việc báo context quá dài, phản hồi chậm dần.<br/>
+    <strong>Nguyên nhân:</strong> Repository có nhiều file, Claude Code đã đọc và giữ lại quá nhiều nội dung trong context của phiên hiện tại.<br/>
+    <strong>Giải pháp:</strong> Dùng slash command <code>/compact</code> để rút gọn lịch sử hội thoại trước khi tiếp tục hỏi thêm, giữ lại phần tóm tắt quan trọng.
+  </div>
+
+  <h2 class="section-heading">Dọn dẹp resource</h2>
+  <div class="alert alert-info">Bài lab này chỉ clone và đọc code trên máy local, không tạo ra resource cloud nào và không phát sinh chi phí ngoài usage theo gói cước Claude đang sử dụng. Có thể xoá thư mục repository đã clone sau khi hoàn thành nếu không cần dùng lại:</div>
+  <pre class="command-line" data-prompt="PS>"><code class="language-powershell">Remove-Item -Recurse -Force D:\lab-explore-repo</code></pre>
+
+  <script>mermaid.initialize({ startOnLoad: true, theme: 'default' });</script>
+</body>
+</html>

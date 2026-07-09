@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lab - Tạo một Claude Sub-Agent – Claude 101</title>
+  <link rel="stylesheet" href="../../styles.css" />
+  <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+  <script src="../../mermaid-config.js"></script>
+  <link rel="stylesheet" href="../../prism.css" />
+  <script src="../../prism.js"></script>
+  <script src="../../script.js"></script>
+</head>
+<body class="chapter-body">
+
+  <div class="chapter-breadcrumb">
+    <span class="section-part">3. Claude Skills & Agent</span>
+    <span class="sep">/</span>
+    <span class="chapter-part">Lab - Tạo một Claude Sub-Agent</span>
+  </div>
+
+  <h2 class="section-heading">Mục tiêu</h2>
+  <ul class="feature-list">
+    <li>Tự tạo một Sub-agent chuyên biệt — <strong>code-reviewer</strong> — chỉ chuyên review chất lượng code, với phạm vi tools và system prompt riêng.</li>
+    <li>Hiểu cách khai báo YAML frontmatter cho Sub-agent: <code>name</code>, <code>description</code>, <code>tools</code>, <code>model</code>.</li>
+    <li>Biết 2 cách gọi Sub-agent: tự động qua trigger trong description, và gọi rõ ràng qua lệnh <code>/agents</code>.</li>
+    <li>Xác nhận được Sub-agent thực sự được Main Agent sử dụng khi review một đoạn code mẫu.</li>
+  </ul>
+
+  <h2 class="section-heading">Kiến trúc tổng quan</h2>
+  <div class="mermaid">
+  flowchart LR
+      User(("👤<br/><b>Học viên</b>"))
+      Main["<img src='../../assets/svg-icon/claude-logo.svg' style='width:30px;height:30px;'/><br/><b>Main Agent</b><br/>Phiên Claude Code chính"]
+      Dir["📂 <b>.claude/agents/</b><br/>code-reviewer.md"]
+      SA["🤖 <b>Sub-agent: code-reviewer</b><br/>tools: Read, Grep, Glob<br/>model: sonnet"]
+      Code["📄 <b>expense.js</b><br/>Đoạn code cần review"]
+
+      User -->|"'Review file expense.js'"| Main
+      Main -->|"Đọc description"| Dir
+      Dir -->|"Description khớp yêu cầu review"| Main
+      Main -->|"Task tool: giao việc review"| SA
+      SA -->|"Đọc code"| Code
+      Code -->|"Nội dung file"| SA
+      SA -->|"Danh sách finding (bug, style, security)"| Main
+      Main -->|"Tổng hợp phản hồi"| User
+  </div>
+  <p class="arch-caption">Main Agent phát hiện Sub-agent code-reviewer phù hợp dựa trên description, giao việc qua Task tool; Sub-agent chỉ có quyền đọc (Read/Grep/Glob), tự đọc file code và trả về danh sách finding, không tự sửa file.</p>
+
+  <h2 class="section-heading">Yêu cầu trước khi bắt đầu</h2>
+  <ul class="feature-list">
+    <li>Claude Code CLI đã cài đặt và đăng nhập thành công (xem lại Section 2).</li>
+    <li>Terminal: PowerShell hoặc Windows Terminal.</li>
+    <li>Có thể dùng lại project <code>D:\lab-claude-skill</code> ở bài Lab trước, hoặc tạo project mới như hướng dẫn dưới đây.</li>
+  </ul>
+
+  <h2 class="section-heading">Các bước thực hành</h2>
+
+  <h3 class="sub-heading">Phần 1: Chuẩn bị project và đoạn code mẫu để review</h3>
+  <ol class="step-list">
+    <li>
+      <div>
+        <strong>Bước 1: Tạo thư mục project</strong>
+        <p>Tạo một project trống dùng để thực hành tạo Sub-agent.</p>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">mkdir D:\lab-claude-subagent
+cd D:\lab-claude-subagent</code></pre>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 2: Tạo file code mẫu có vài vấn đề chất lượng</strong>
+        <p>Tạo file <code>expense.js</code> chứa vài lỗi phổ biến (không kiểm tra input, dùng biến toàn cục, không xử lý lỗi) để Sub-agent có thứ để review.</p>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">notepad expense.js</code></pre>
+        <p>Dán nội dung sau vào file rồi lưu (Ctrl+S):</p>
+        <pre class="file-block"><span class="filename">expense.js</span><span class="cmt">// Bien toan cuc luu danh sach khoan chi tieu</span>
+<span class="hl">var</span> expenses = [];
+
+<span class="hl">function</span> addExpense(amount, category) {
+    <span class="cmt">// Khong kiem tra amount co hop le hay khong</span>
+    expenses.push({ amount: amount, category: category });
+    <span class="hl">return</span> <span class="str">"OK"</span>;
+}
+
+<span class="hl">function</span> getTotal() {
+    <span class="hl">var</span> total = 0;
+    <span class="hl">for</span> (<span class="hl">var</span> i = 0; i &lt;= expenses.length; i++) {
+        total = total + expenses[i].amount;
+    }
+    <span class="hl">return</span> total;
+}
+
+<span class="hl">function</span> deleteExpense(index) {
+    expenses.splice(index, 1);
+}</span></pre>
+      </div>
+    </li>
+  </ol>
+
+  <h3 class="sub-heading">Phần 2: Tạo Sub-agent code-reviewer</h3>
+  <ol class="step-list">
+    <li>
+      <div>
+        <strong>Bước 3: Tạo thư mục Sub-agent</strong>
+        <p>Sub-agent được khai báo dưới dạng file Markdown trong thư mục <code>.claude/agents/</code> ở gốc project.</p>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">mkdir .claude\agents</code></pre>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 4: Viết file code-reviewer.md</strong>
+        <p>Tạo file <code>code-reviewer.md</code> bên trong thư mục <code>.claude\agents</code>.</p>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">notepad .claude\agents\code-reviewer.md</code></pre>
+        <p>Dán nội dung sau vào file rồi lưu (Ctrl+S) — lưu ý phần <code>tools</code> chỉ liệt kê đúng 3 quyền đọc, <strong>không</strong> có quyền ghi/xoá file hay chạy lệnh:</p>
+        <pre class="file-block"><span class="filename">.claude/agents/code-reviewer.md</span><span class="hl">---
+name</span>: code-reviewer
+<span class="hl">description</span>: <span class="str">Chuyên gia review chất lượng code. Dùng Sub-agent này khi người dùng yêu cầu "review code", "kiểm tra chất lượng code", "review file", hoặc "đánh giá đoạn code" trước khi merge/commit. Chỉ đọc code, không tự sửa file.</span>
+<span class="hl">tools</span>: Read, Grep, Glob
+<span class="hl">model</span>: sonnet
+<span class="hl">---</span>
+
+Bạn là một <span class="str">Senior Code Reviewer</span> có nhiều năm kinh nghiệm, chuyên trách kiểm tra chất
+lượng code trước khi merge. Khi được giao review một file hoặc đoạn code, luôn thực hiện theo quy trình sau:
+
+<span class="cmt">## Quy trình review</span>
+1. Đọc toàn bộ nội dung file được yêu cầu review bằng tool Read.
+2. Kiểm tra theo 4 nhóm tiêu chí:
+   - **Bug/Logic**: lỗi off-by-one, thiếu kiểm tra input, xử lý sai điều kiện biên.
+   - **Bảo mật**: dữ liệu đầu vào không được validate, rủi ro injection.
+   - **Coding convention**: dùng `var` thay vì `let/const`, biến toàn cục không cần thiết,
+     thiếu xử lý lỗi (try/catch).
+   - **Khả năng đọc/maintain**: tên hàm/biến không rõ nghĩa, hàm quá dài, thiếu comment.
+3. Với mỗi vấn đề tìm được, trả lời theo format: **[Mức độ] Dòng X — Mô tả vấn đề — Đề xuất sửa**.
+   Mức độ gồm: `Critical`, `Warning`, `Suggestion`.
+4. Không tự sửa file — chỉ liệt kê finding và đề xuất, để người dùng hoặc Main Agent quyết định
+   bước tiếp theo.
+5. Nếu không tìm thấy vấn đề nào, xác nhận rõ ràng "Không phát hiện vấn đề đáng chú ý" — không
+   bịa ra lỗi không có thật.</pre>
+      </div>
+    </li>
+  </ol>
+
+  <div class="alert alert-tip">
+    <strong>Vì sao giới hạn <code>tools</code> chỉ gồm Read, Grep, Glob?</strong> Đây là nguyên tắc <strong>least privilege</strong> đã học ở chương trước — Sub-agent chuyên review chỉ cần đọc và tìm kiếm trong code, không cần quyền ghi/xoá file hay chạy lệnh hệ thống, giảm rủi ro nếu system prompt bị dẫn dắt sai hướng.
+  </div>
+
+  <h3 class="sub-heading">Phần 3: Test Sub-agent</h3>
+  <ol class="step-list">
+    <li>
+      <div>
+        <strong>Bước 5: Khởi động Claude Code trong project</strong>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">cd D:\lab-claude-subagent
+claude</code></pre>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 6: Kiểm tra Sub-agent đã được nhận diện</strong>
+        <p>Dùng slash command <code>/agents</code> để xem danh sách Sub-agent hiện có trong project — <code>code-reviewer</code> phải xuất hiện trong danh sách này.</p>
+        <pre class="command-line" data-prompt=">"><code class="language-text">/agents</code></pre>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 7: Test gọi tự động qua description (auto-invoke)</strong>
+        <p>Gõ một yêu cầu có ngữ cảnh khớp với description đã khai báo, không nhắc rõ tên Sub-agent.</p>
+        <pre class="command-line" data-prompt=">"><code class="language-text">Review chất lượng code trong file expense.js giúp tôi.</code></pre>
+        <p>Quan sát phản hồi — Claude Code thường hiển thị dòng thông báo dạng <code>Task(code-reviewer)</code> hoặc tương đương ngay trước khi hiển thị kết quả review, xác nhận Main Agent đã giao việc cho đúng Sub-agent.</p>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 8: Test gọi rõ ràng qua Agent tool</strong>
+        <p>Nếu muốn ép dùng đúng Sub-agent này (không để Main Agent tự chọn), có thể chỉ định rõ tên trong prompt.</p>
+        <pre class="command-line" data-prompt=">"><code class="language-text">Dùng sub-agent code-reviewer để review file expense.js.</code></pre>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 9: Đối chiếu kết quả review</strong>
+        <p>Kết quả trả về nên chỉ ra được ít nhất các vấn đề đã cố tình đưa vào ở Bước 2: lỗi off-by-one trong vòng lặp <code>getTotal</code> (điều kiện <code>i &lt;= expenses.length</code>), thiếu validate <code>amount</code> trong <code>addExpense</code>, và dùng <code>var</code>/biến toàn cục thay vì <code>let/const</code>.</p>
+      </div>
+    </li>
+  </ol>
+
+  <div class="verify-box">
+    <h4>✅ Kết quả mong đợi</h4>
+    <p class="body-text">Phản hồi hiển thị rõ Sub-agent <code>code-reviewer</code> được gọi (qua thông báo Task/Sub-agent), liệt kê được ít nhất 3 finding theo format <code>[Mức độ] Dòng X — Mô tả — Đề xuất sửa</code>, và không có thao tác ghi/sửa file nào xảy ra (đúng với phạm vi tools đã giới hạn).</p>
+  </div>
+
+  <h2 class="section-heading">Troubleshoot</h2>
+  <div class="alert alert-warning">
+    <strong>Lỗi:</strong> Main Agent tự review code, không thấy gọi Sub-agent code-reviewer.<br/>
+    <strong>Nguyên nhân:</strong> Description chưa đủ rõ trigger, hoặc câu hỏi của học viên dùng từ ngữ quá khác so với description đã khai báo.<br/>
+    <strong>Giải pháp:</strong> Chỉ định rõ tên Sub-agent trong prompt như Bước 8, hoặc chỉnh lại description cho sát với cách học viên thường hỏi.
+  </div>
+  <div class="alert alert-warning">
+    <strong>Lỗi:</strong> Lệnh <code>/agents</code> không hiển thị Sub-agent <code>code-reviewer</code>.<br/>
+    <strong>Nguyên nhân:</strong> File không nằm đúng đường dẫn <code>.claude/agents/code-reviewer.md</code>, hoặc frontmatter YAML bị sai cú pháp (thiếu dấu <code>---</code> mở/đóng).<br/>
+    <strong>Giải pháp:</strong> Kiểm tra lại bằng <code>dir .claude\agents</code>, mở lại file và đối chiếu đúng cấu trúc frontmatter ở Bước 4, sau đó khởi động lại phiên Claude Code.
+  </div>
+  <div class="alert alert-warning">
+    <strong>Lỗi:</strong> Sub-agent cố gắng sửa trực tiếp file expense.js thay vì chỉ liệt kê finding.<br/>
+    <strong>Nguyên nhân:</strong> Khai báo <code>tools</code> trong frontmatter bị dư quyền (vd vô tình thêm <code>Edit</code>/<code>Write</code>), hoặc system prompt chưa nêu rõ "không tự sửa file".<br/>
+    <strong>Giải pháp:</strong> Kiểm tra lại danh sách <code>tools</code> chỉ gồm <code>Read, Grep, Glob</code>, đảm bảo mục 4 trong quy trình review (không tự sửa file) được giữ nguyên trong system prompt.
+  </div>
+
+  <h2 class="section-heading">Dọn dẹp resource</h2>
+  <div class="alert alert-info">Bài lab này chỉ tạo file và thư mục trên máy local, không tạo ra resource cloud nào và không phát sinh chi phí ngoài usage theo gói cước Claude đang sử dụng. Có thể xoá project nếu không cần dùng tiếp:</div>
+  <pre class="command-line" data-prompt="PS>"><code class="language-powershell">Remove-Item -Recurse -Force D:\lab-claude-subagent</code></pre>
+
+  <script>mermaid.initialize({ startOnLoad: true, theme: 'default' });</script>
+</body>
+</html>

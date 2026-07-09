@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lab - Tóm tắt transcript họp & liệt kê action items – Claude 101</title>
+  <link rel="stylesheet" href="../../styles.css" />
+  <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+  <script src="../../mermaid-config.js"></script>
+  <link rel="stylesheet" href="../../prism.css" />
+  <script src="../../prism.js"></script>
+  <script src="../../script.js"></script>
+</head>
+<body class="chapter-body">
+
+  <div class="chapter-breadcrumb">
+    <span class="section-part">7. Claude cho Project Manager</span>
+    <span class="sep">/</span>
+    <span class="chapter-part">Lab - Tóm tắt transcript họp & liệt kê action items</span>
+  </div>
+
+  <div class="alert alert-info">
+    Bài lab này dùng một đoạn transcript mẫu của buổi họp weekly sync cho dự án <strong>MediBook</strong> (dự án giả
+    lập ở Lab 1). Bạn không cần hoàn thành Lab 1 trước — transcript mẫu dưới đây đã đủ ngữ cảnh để thực hành độc lập.
+  </div>
+
+  <h2 class="section-heading">Mục tiêu</h2>
+  <ul class="feature-list">
+    <li>Biết cách đưa một đoạn transcript họp thực tế cho Claude và yêu cầu tóm tắt đúng trọng tâm.</li>
+    <li>Trích xuất được bảng action items đầy đủ cột Việc cần làm, Người phụ trách, Deadline, Trạng thái từ transcript.</li>
+    <li>Nhận diện được những việc transcript không nêu rõ owner/deadline để tự bổ sung, không để Claude tự suy diễn.</li>
+  </ul>
+
+  <h2 class="section-heading">Kiến trúc tổng quan</h2>
+  <div class="mermaid">
+  flowchart LR
+      Raw["📄 <b>Transcript thô</b><br/>Buổi họp weekly sync"]
+      Browser["<img src='../../assets/svg-icon/browser.svg' style='width:26px;height:26px;'/><br/><b>claude.ai (Web)</b>"]
+      CC["<img src='../../assets/svg-icon/claude-logo.svg' style='width:28px;height:28px;'/><br/><b>Claude</b>"]
+      Summary["📊 <b>Tóm tắt</b><br/>Nội dung chính"]
+      Table["✅ <b>Bảng action items</b><br/>Owner · Deadline · Trạng thái"]
+      Team(("<img src='../../assets/svg-icon/user.svg' style='width:26px;height:26px;'/><br/><b>Team</b>"))
+
+      Raw --> Browser --> CC
+      CC --> Summary --> Team
+      CC --> Table --> Team
+  </div>
+  <p class="arch-caption">Dán transcript vào claude.ai, yêu cầu Claude xử lý song song 2 việc: tóm tắt nội dung chính và trích xuất bảng action items — sẵn sàng gửi lại team ngay sau buổi họp.</p>
+
+  <h2 class="section-heading">Yêu cầu trước khi bắt đầu</h2>
+  <ul class="feature-list">
+    <li>Tài khoản Claude.ai đã đăng nhập (Free hoặc Pro) — hoặc Claude Desktop App.</li>
+    <li>Đã đọc Chapter 3 — kỹ thuật prompt để tóm tắt và trích xuất action items.</li>
+  </ul>
+
+  <h2 class="section-heading">Các bước thực hành</h2>
+
+  <h3 class="sub-heading">Phần 1: Transcript mẫu</h3>
+  <div class="alert alert-tip">
+    Đây là transcript mẫu của buổi họp weekly sync dự án MediBook — 5 thành viên: <strong>Linh (PM)</strong>,
+    <strong>Minh (Dev Backend)</strong>, <strong>Tuấn (Dev Mobile)</strong>, <strong>Hà (Designer)</strong>,
+    <strong>Trang (QA)</strong>. Bạn sẽ dán toàn bộ đoạn này vào prompt ở Bước 2.
+  </div>
+  <ol class="step-list">
+    <li>
+      <div>
+        <strong>Bước 1: Đọc và chuẩn bị transcript mẫu bên dưới</strong>
+        <p>Copy toàn bộ nội dung trong khối dưới đây — đây là dữ liệu đầu vào cho Bước 2:</p>
+        <pre class="command-line" data-prompt=">"><code class="language-text">[09:02] Linh (PM): Chào mọi người, mình bắt đầu họp weekly sync cho dự án MediBook nhé. Minh cập nhật tình hình backend giúp mình.
+[09:03] Minh (Dev Backend): Em đã hoàn thành API đăng ký/đăng nhập và API tìm bác sĩ theo chuyên khoa. Đang làm API đặt lịch, dự kiến xong thứ Sáu tuần này (17/07).
+[09:04] Linh (PM): Ok, còn API tích hợp với hệ thống lịch phòng khám thì sao?
+[09:05] Minh (Dev Backend): Cái đó em chưa bắt đầu vì đang chờ tài liệu API từ phòng khám. Em sẽ follow up với đối tác, mục tiêu bắt đầu code từ 20/07.
+[09:06] Linh (PM): Được, Minh follow up với đối tác trước 18/07 nhé. Tuấn, mobile app tới đâu rồi?
+[09:07] Tuấn (Dev Mobile): Em đã dựng xong màn hình đăng nhập và danh sách bác sĩ, đang chờ Hà gửi UI màn đặt lịch để code tiếp.
+[09:08] Hà (Designer): Em đang hoàn thiện UI màn đặt lịch và màn xác nhận, dự kiến gửi cho Tuấn vào thứ Tư (15/07).
+[09:09] Linh (PM): Cảm ơn Hà. Trang, phía QA có gì cần báo không?
+[09:10] Trang (QA): Em đã viết xong test case cho luồng đăng ký/đăng nhập, tuần sau sẽ viết tiếp test case cho luồng đặt lịch sau khi Minh xong API. Em cũng phát hiện một bug nhỏ ở màn hình tìm bác sĩ — lọc theo chuyên khoa bị sai kết quả khi chọn nhiều chuyên khoa cùng lúc.
+[09:11] Linh (PM): Bug đó ưu tiên cao, Minh có thể xem lại trong hôm nay hoặc ngày mai không?
+[09:12] Minh (Dev Backend): Được, em sẽ fix trong ngày mai (12/07).
+[09:13] Linh (PM): Tốt. Mình tổng kết lại: rủi ro lớn nhất hiện tại là việc chờ tài liệu API từ phòng khám có thể làm trễ tiến độ tích hợp. Mình sẽ liên hệ trực tiếp với phòng khám để đẩy nhanh việc này trước 16/07.
+[09:14] Linh (PM): Việc tiếp theo — tuần sau chúng ta cần bắt đầu test tích hợp toàn luồng đặt lịch trước 25/07 để kịp demo nội bộ vào 01/08. Trang note lại giúp mình mốc demo này.
+[09:15] Trang (QA): Em ghi nhận rồi, em sẽ chuẩn bị checklist test trước 24/07.
+[09:16] Linh (PM): Cảm ơn mọi người, hẹn gặp lại tuần sau.</code></pre>
+      </div>
+    </li>
+  </ol>
+
+  <h3 class="sub-heading">Phần 2: Yêu cầu Claude tóm tắt & trích xuất action items</h3>
+  <ol class="step-list">
+    <li>
+      <div>
+        <strong>Bước 2: Dán transcript kèm yêu cầu vào khung chat claude.ai</strong>
+        <p>Mở một cuộc chat mới trên claude.ai, dán prompt sau (bao gồm toàn bộ transcript ở Bước 1 nối phía dưới yêu cầu):</p>
+        <pre class="command-line" data-prompt=">"><code class="language-text">Đây là transcript buổi họp weekly sync dự án MediBook (app đặt lịch khám bệnh). Hãy giúp tôi:
+
+1. Tóm tắt nội dung chính của buổi họp trong 4-5 câu, tách rõ phần "đã chốt/hoàn thành" và phần "rủi ro cần lưu ý".
+2. Trích xuất toàn bộ action items dưới dạng bảng gồm 4 cột: Việc cần làm, Người phụ trách, Deadline, Trạng thái.
+   - Cột Trạng thái: suy ra từ ngữ cảnh (ví dụ "Đang thực hiện", "Chưa bắt đầu", "Cần theo dõi").
+   - Nếu transcript không nêu rõ người phụ trách hoặc deadline cho một việc, ghi "Chưa xác định" — không tự đoán.
+
+Transcript:
+[09:02] Linh (PM): Chào mọi người, mình bắt đầu họp weekly sync cho dự án MediBook nhé. Minh cập nhật tình hình backend giúp mình.
+[09:03] Minh (Dev Backend): Em đã hoàn thành API đăng ký/đăng nhập và API tìm bác sĩ theo chuyên khoa. Đang làm API đặt lịch, dự kiến xong thứ Sáu tuần này (17/07).
+[09:04] Linh (PM): Ok, còn API tích hợp với hệ thống lịch phòng khám thì sao?
+[09:05] Minh (Dev Backend): Cái đó em chưa bắt đầu vì đang chờ tài liệu API từ phòng khám. Em sẽ follow up với đối tác, mục tiêu bắt đầu code từ 20/07.
+[09:06] Linh (PM): Được, Minh follow up với đối tác trước 18/07 nhé. Tuấn, mobile app tới đâu rồi?
+[09:07] Tuấn (Dev Mobile): Em đã dựng xong màn hình đăng nhập và danh sách bác sĩ, đang chờ Hà gửi UI màn đặt lịch để code tiếp.
+[09:08] Hà (Designer): Em đang hoàn thiện UI màn đặt lịch và màn xác nhận, dự kiến gửi cho Tuấn vào thứ Tư (15/07).
+[09:09] Linh (PM): Cảm ơn Hà. Trang, phía QA có gì cần báo không?
+[09:10] Trang (QA): Em đã viết xong test case cho luồng đăng ký/đăng nhập, tuần sau sẽ viết tiếp test case cho luồng đặt lịch sau khi Minh xong API. Em cũng phát hiện một bug nhỏ ở màn hình tìm bác sĩ — lọc theo chuyên khoa bị sai kết quả khi chọn nhiều chuyên khoa cùng lúc.
+[09:11] Linh (PM): Bug đó ưu tiên cao, Minh có thể xem lại trong hôm nay hoặc ngày mai không?
+[09:12] Minh (Dev Backend): Được, em sẽ fix trong ngày mai (12/07).
+[09:13] Linh (PM): Tốt. Mình tổng kết lại: rủi ro lớn nhất hiện tại là việc chờ tài liệu API từ phòng khám có thể làm trễ tiến độ tích hợp. Mình sẽ liên hệ trực tiếp với phòng khám để đẩy nhanh việc này trước 16/07.
+[09:14] Linh (PM): Việc tiếp theo — tuần sau chúng ta cần bắt đầu test tích hợp toàn luồng đặt lịch trước 25/07 để kịp demo nội bộ vào 01/08. Trang note lại giúp mình mốc demo này.
+[09:15] Trang (QA): Em ghi nhận rồi, em sẽ chuẩn bị checklist test trước 24/07.
+[09:16] Linh (PM): Cảm ơn mọi người, hẹn gặp lại tuần sau.</code></pre>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 3: Đối chiếu bảng action items Claude trả về</strong>
+        <p>Bảng dưới đây là kết quả tham khảo — dùng để đối chiếu với output thực tế Claude trả về cho bạn ở Bước 2:</p>
+        <table class="info-table">
+          <thead><tr><th>Việc cần làm</th><th>Người phụ trách</th><th>Deadline</th><th>Trạng thái</th></tr></thead>
+          <tbody>
+            <tr><td>Hoàn thành API đặt lịch</td><td>Minh (Dev Backend)</td><td>17/07</td><td>Đang thực hiện</td></tr>
+            <tr><td>Follow up tài liệu API với phòng khám</td><td>Minh (Dev Backend)</td><td>18/07</td><td>Chưa bắt đầu</td></tr>
+            <tr><td>Gửi UI màn đặt lịch & xác nhận cho Tuấn</td><td>Hà (Designer)</td><td>15/07</td><td>Đang thực hiện</td></tr>
+            <tr><td>Fix bug lọc bác sĩ theo nhiều chuyên khoa</td><td>Minh (Dev Backend)</td><td>12/07</td><td>Chưa bắt đầu</td></tr>
+            <tr><td>Liên hệ phòng khám đẩy nhanh tài liệu API</td><td>Linh (PM)</td><td>16/07</td><td>Chưa bắt đầu</td></tr>
+            <tr><td>Chuẩn bị checklist test tích hợp đặt lịch</td><td>Trang (QA)</td><td>24/07</td><td>Chưa bắt đầu</td></tr>
+            <tr><td>Test tích hợp toàn luồng đặt lịch</td><td>Chưa xác định</td><td>25/07</td><td>Cần theo dõi</td></tr>
+            <tr><td>Demo nội bộ dự án</td><td>Chưa xác định</td><td>01/08</td><td>Cần theo dõi</td></tr>
+          </tbody>
+        </table>
+        <p class="table-note">Lưu ý 2 dòng cuối: transcript không nêu rõ ai chịu trách nhiệm chính cho việc "test tích hợp" và "demo nội bộ" — Claude đúng khi ghi "Chưa xác định" thay vì tự gán cho Minh hoặc Trang.</p>
+      </div>
+    </li>
+  </ol>
+
+  <div class="verify-box">
+    <h4>✅ Kết quả mong đợi</h4>
+    <p class="body-text">Bạn có một bản tóm tắt ngắn gọn và bảng action items đầy đủ 4 cột, sẵn sàng gửi lại team qua Slack/email — và bảng này chính là tài liệu sẽ được đưa vào Claude Projects ở Lab 3.</p>
+  </div>
+
+  <h2 class="section-heading">Troubleshoot</h2>
+  <div class="alert alert-warning">
+    <strong>Lỗi:</strong> Claude tự gán một người phụ trách cho việc "test tích hợp" hoặc "demo" dù transcript không nói rõ.<br/>
+    <strong>Nguyên nhân:</strong> Prompt chưa nhấn đủ mạnh yêu cầu "không tự đoán".<br/>
+    <strong>Giải pháp:</strong> Nhắc lại rõ trong prompt như Bước 2: "nếu không nêu rõ, ghi Chưa xác định" — nếu Claude vẫn đoán, yêu cầu sửa lại dòng đó trực tiếp trong cùng cuộc chat.
+  </div>
+  <div class="alert alert-warning">
+    <strong>Lỗi:</strong> Bảng action items thiếu một vài việc nhỏ được nhắc lướt qua trong họp (ví dụ Tuấn đang chờ UI).<br/>
+    <strong>Nguyên nhân:</strong> Claude ưu tiên các việc có deadline rõ ràng, dễ bỏ sót các việc "đang chờ/blocked" không có ngày cụ thể.<br/>
+    <strong>Giải pháp:</strong> Hỏi thêm "còn việc nào đang bị block/chờ người khác mà bảng trên chưa liệt kê không?" để Claude bổ sung.
+  </div>
+  <div class="alert alert-warning">
+    <strong>Lỗi:</strong> Tóm tắt lẫn cả phần rủi ro vào phần "đã chốt", không tách bạch.<br/>
+    <strong>Nguyên nhân:</strong> Prompt yêu cầu tóm tắt nhưng chưa nêu rõ cấu trúc tách 2 phần.<br/>
+    <strong>Giải pháp:</strong> Yêu cầu lại rõ ràng "tách riêng phần đã chốt và phần rủi ro cần lưu ý thành 2 đoạn/section riêng".
+  </div>
+
+  <h2 class="section-heading">Dọn dẹp resource</h2>
+  <div class="alert alert-info">
+    Bài lab này chỉ xử lý văn bản trong cuộc chat — không tạo resource nào trên Cloud cần dọn dẹp. Nên giữ lại cuộc
+    chat và bảng action items này vì sẽ dùng làm tài liệu tham khảo ở Lab 3 (Claude Projects).
+  </div>
+
+  <script>mermaid.initialize({ startOnLoad: true, theme: 'default' });</script>
+</body>
+</html>

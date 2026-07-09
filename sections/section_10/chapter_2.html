@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Giới thiệu Spec-Kit & cài đặt specify CLI – Claude 101</title>
+  <link rel="stylesheet" href="../../styles.css" />
+  <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+  <script src="../../mermaid-config.js"></script>
+  <link rel="stylesheet" href="../../prism.css" />
+  <script src="../../prism.js"></script>
+  <script src="../../script.js"></script>
+</head>
+<body class="chapter-body">
+
+  <div class="chapter-breadcrumb">
+    <span class="section-part">10. Phát triển phần mềm với Spec-Kit Framework</span>
+    <span class="sep">/</span>
+    <span class="chapter-part">Giới thiệu Spec-Kit & cài đặt specify CLI</span>
+  </div>
+
+  <h2 class="section-heading">Giới thiệu</h2>
+  <p class="body-text">
+    <strong>Spec-Kit</strong> (<code>github.com/github/spec-kit</code>) là công cụ mã nguồn mở do GitHub phát hành,
+    hiện thực hoá triết lý Spec-Driven Development đã học ở chương trước thành một quy trình cụ thể có thể dùng
+    ngay. Thành phần chính là CLI tên <code>specify</code> — dùng để khởi tạo bộ khung thư mục, template đặc tả, và
+    các slash command <code>/speckit.*</code> tương ứng cho AI coding agent (Claude Code, và một số agent khác).
+    Sau khi cài đặt, học viên chỉ cần gõ slash command ngay trong Claude Code để đi qua từng giai đoạn của SDD, không
+    cần tự tay tạo file hay nhớ cấu trúc đặc tả.
+  </p>
+
+  <h2 class="section-heading">Các tính năng chính</h2>
+  <ul class="feature-list">
+    <li>CLI <code>specify</code> khởi tạo (<code>init</code>) bộ khung Spec-Kit ngay trong một project — tạo thư mục <code>.specify/</code> và các file slash command mà Claude Code có thể nhận diện.</li>
+    <li>Hỗ trợ nhiều AI coding agent khác nhau (Claude Code là một trong số đó) — khi khởi tạo có thể chỉ định agent đích để Spec-Kit sinh đúng định dạng slash command phù hợp.</li>
+    <li>Đóng gói sẵn template cho từng giai đoạn SDD (constitution, specify, plan, tasks, implement) — học viên không cần tự thiết kế cấu trúc đặc tả từ đầu.</li>
+    <li>Mã nguồn mở, cập nhật thường xuyên trên GitHub — có thể theo dõi thay đổi, đóng góp, hoặc tuỳ biến template nếu cần.</li>
+    <li>Không phụ thuộc dịch vụ cloud nào — toàn bộ file sinh ra (constitution, spec, plan, tasks) đều là file Markdown lưu ngay trong project, quản lý được bằng Git như code thông thường.</li>
+  </ul>
+
+  <h2 class="section-heading">Mô hình kiến trúc</h2>
+  <div class="mermaid">
+  flowchart LR
+      Dev(("<img src='../../assets/svg-icon/developer.svg' style='width:26px;height:26px;'/><br/><b>Developer</b>"))
+      GH["<img src='../../assets/svg-icon/github.svg' style='width:28px;height:28px;'/><br/><b>github.com/github/spec-kit</b><br/>Mã nguồn Spec-Kit"]
+
+      subgraph Local["💻 Máy local"]
+          UV["🐍 <b>uv</b><br/>Python package/tool manager"]
+          CLI["⚙️ <b>specify CLI</b><br/>cài qua uv tool install"]
+          Project["<img src='../../assets/svg-icon/ide.svg' style='width:26px;height:26px;'/><br/><b>Project có sẵn</b><br/>(vd lab-expense-management)"]
+          SpecifyDir["📁 <b>.specify/</b><br/>+ slash command /speckit.*"]
+          CC["<img src='../../assets/svg-icon/claude-logo.svg' style='width:28px;height:28px;'/><br/><b>Claude Code</b>"]
+      end
+
+      Dev -->|"Cài đặt"| UV --> CLI
+      CLI -->|"Tải template"| GH
+      Dev -->|"specify init"| CLI
+      CLI -->|"Sinh vào project"| Project --> SpecifyDir
+      SpecifyDir -->|"Slash command /speckit.*<br/>được nhận diện"| CC
+      Dev -->|"Gõ /speckit.*"| CC
+  </div>
+  <p class="arch-caption"><code>specify</code> CLI (cài qua <code>uv</code>) tải template từ repository Spec-Kit trên GitHub, sinh thư mục <code>.specify/</code> và slash command ngay trong project có sẵn — Claude Code tự nhận diện các slash command <code>/speckit.*</code> này sau khi khởi tạo xong.</p>
+
+  <h3 class="sub-heading">Yêu cầu trước khi cài đặt</h3>
+  <div class="prereq-grid">
+    <div class="prereq-item">
+      <div class="label">Python</div>
+      Phiên bản 3.11 trở lên — kiểm tra bằng <code>python --version</code>.
+    </div>
+    <div class="prereq-item">
+      <div class="label">Git</div>
+      Đã cài đặt và có thể gọi từ terminal — kiểm tra bằng <code>git --version</code>.
+    </div>
+    <div class="prereq-item">
+      <div class="label">uv</div>
+      Python package/tool manager — dùng để cài và chạy <code>specify</code> CLI mà không cần quản lý virtualenv thủ công.
+    </div>
+    <div class="prereq-item">
+      <div class="label">Claude Code</div>
+      Đã cài đặt và đăng nhập thành công (xem lại Section 2) — nơi các slash command <code>/speckit.*</code> sẽ được sử dụng.
+    </div>
+  </div>
+
+  <h3 class="sub-heading">Ví dụ lệnh cài đặt</h3>
+  <p class="body-text">Cài <code>specify</code> CLI như một tool cố định (khuyến nghị nếu dùng thường xuyên):</p>
+  <pre class="command-line" data-prompt="PS>"><code class="language-powershell">uv tool install specify-cli --from git+https://github.com/github/spec-kit.git</code></pre>
+  <p class="body-text">Hoặc chạy trực tiếp không cần cài cố định (uv tự tải và chạy trong môi trường tạm):</p>
+  <pre class="command-line" data-prompt="PS>"><code class="language-powershell">uvx --from git+https://github.com/github/spec-kit.git specify init &lt;project-name&gt;</code></pre>
+  <div class="alert alert-info">
+    <strong>Lưu ý:</strong> Tham số/flag cụ thể của lệnh <code>specify init</code> (chọn AI agent đích, khởi tạo vào
+    thư mục hiện tại thay vì tạo thư mục mới...) có thể thay đổi giữa các phiên bản Spec-Kit. Luôn chạy
+    <code>specify --help</code> hoặc <code>specify init --help</code>, hoặc tham khảo
+    <code>github.com/github/spec-kit</code> để có danh sách tuỳ chọn đầy đủ và mới nhất trước khi thực hành.
+  </div>
+
+  <h2 class="section-heading">Use Cases</h2>
+  <div class="usecase-grid">
+    <div class="usecase-card">
+      <h4>Thêm SDD vào project đã có sẵn</h4>
+      <p>Không cần tạo project mới — Spec-Kit có thể khởi tạo ngay trong một codebase đang chạy để áp dụng SDD cho các tính năng mới.</p>
+    </div>
+    <div class="usecase-card">
+      <h4>Chuẩn hoá quy trình làm việc với AI agent</h4>
+      <p>Cùng một bộ slash command, cùng một cấu trúc file — dễ chia sẻ cách làm việc giữa nhiều thành viên trong team.</p>
+    </div>
+    <div class="usecase-card">
+      <h4>Theo dõi lịch sử đặc tả qua Git</h4>
+      <p>Vì spec/plan/task đều là file Markdown, mọi thay đổi đặc tả đều có thể xem lại qua <code>git log</code>/<code>git diff</code> như code thông thường.</p>
+    </div>
+  </div>
+
+  <h2 class="section-heading">Thông tin bổ sung</h2>
+  <p class="body-text">
+    Spec-Kit là project phát triển tích cực — tên lệnh con, cấu trúc thư mục sinh ra, hoặc danh sách agent được hỗ
+    trợ có thể được bổ sung/thay đổi theo thời gian. Chương thực hành tiếp theo (Lab - Cài đặt & khởi tạo project)
+    sẽ hướng dẫn cài đặt từng bước cụ thể trên project <code>lab-expense-management</code> đã tạo ở Section 4.
+  </p>
+
+  <script>mermaid.initialize({ startOnLoad: true, theme: 'default' });</script>
+</body>
+</html>

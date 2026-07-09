@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Vai trò Claude trong quy trình QA – Claude 101</title>
+  <link rel="stylesheet" href="../../styles.css" />
+  <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+  <script src="../../mermaid-config.js"></script>
+  <link rel="stylesheet" href="../../prism.css" />
+  <script src="../../prism.js"></script>
+  <script src="../../script.js"></script>
+</head>
+<body class="chapter-body">
+
+  <div class="chapter-breadcrumb">
+    <span class="section-part">6. Claude cho Tester / QA</span>
+    <span class="sep">/</span>
+    <span class="chapter-part">Vai trò Claude trong quy trình QA</span>
+  </div>
+
+  <h2 class="section-heading">Giới thiệu</h2>
+  <p class="body-text">
+    Công việc kiểm thử (QA/Tester) trải dài từ việc đọc hiểu requirement, thiết kế test case, thực hiện test (thủ công
+    hoặc tự động), đến phân tích kết quả và báo cáo lỗi cho Developer. Claude có thể hỗ trợ ở <strong>hầu hết các bước</strong>
+    trong quy trình này — đọc và làm rõ requirement, sinh bộ test case bao phủ đầy đủ, hỗ trợ viết test tự động, phân
+    tích nguyên nhân khi test fail, và soạn bug report chuẩn. Chương này giới thiệu tổng quan vai trò của Claude trong
+    toàn bộ vòng đời QA trước khi đi sâu vào từng kỹ thuật cụ thể ở các chương sau.
+  </p>
+
+  <h2 class="section-heading">Các tính năng chính</h2>
+  <ul class="feature-list">
+    <li><strong>Phân tích requirement</strong> — Claude đọc yêu cầu chức năng, chỉ ra điểm mơ hồ hoặc thiếu ràng buộc cần hỏi lại trước khi thiết kế test.</li>
+    <li><strong>Sinh test case</strong> — từ một requirement rõ ràng, Claude sinh bộ test case bao phủ đủ 3 nhóm: happy path, edge case, negative case.</li>
+    <li><strong>Hỗ trợ viết test tự động</strong> — Claude Code viết test script (unit test, integration test, hoặc test end-to-end bằng Selenium/Playwright) dựa trên test case đã thiết kế.</li>
+    <li><strong>Phân tích kết quả test fail</strong> — đưa log/stack trace cho Claude để tìm nguyên nhân gốc rễ, phân biệt với các lỗi phái sinh.</li>
+    <li><strong>Soạn bug report</strong> — Claude hỗ trợ chuẩn hoá một mô tả lỗi ngắn gọn thành bug report đầy đủ, dễ tái hiện cho Developer.</li>
+    <li>Ở mọi bước, Claude đóng vai trò <strong>trợ lý tăng tốc</strong> — QA vẫn cần review lại test case, kết quả phân tích và bug report trước khi gửi đi, vì Claude không có toàn bộ ngữ cảnh nghiệp vụ thực tế của sản phẩm.</li>
+  </ul>
+
+  <h2 class="section-heading">Mô hình kiến trúc</h2>
+  <div class="mermaid">
+  flowchart LR
+      QA(("<img src='../../assets/svg-icon/user.svg' style='width:26px;height:26px;'/><br/><b>Tester / QA</b>"))
+      CC["<img src='../../assets/svg-icon/claude-logo.svg' style='width:28px;height:28px;'/><br/><b>Claude</b>"]
+
+      Req["📋 <b>Requirement</b><br/>Yêu cầu chức năng"]
+      Analyze["🔍 <b>Claude phân tích</b><br/>Làm rõ ràng buộc,<br/>điểm mơ hồ"]
+      TC["🧪 <b>Test case</b><br/>Happy · Edge · Negative"]
+      Auto["⚙️ <b>Test tự động</b><br/>Claude Code hỗ trợ viết"]
+      Result["📊 <b>Kết quả test</b>"]
+      Bug["🐛 <b>Bug report</b><br/>(nếu fail)"]
+      Dev(("<img src='../../assets/svg-icon/developer.svg' style='width:26px;height:26px;'/><br/><b>Developer</b>"))
+
+      QA -->|"Cung cấp"| Req --> CC
+      CC --> Analyze --> TC --> Auto --> Result
+      Result -->|"Fail"| Bug --> Dev
+      Result -->|"Pass"| QA
+      Dev -.->|"Fix xong, yêu cầu retest"| Auto
+  </div>
+  <p class="arch-caption">Claude tham gia xuyên suốt từ bước phân tích requirement đến sinh test case, hỗ trợ tự động hoá và phân tích kết quả; khi test fail, Claude hỗ trợ soạn bug report gửi Developer, tạo thành một vòng lặp fix – retest.</p>
+
+  <h2 class="section-heading">Use Cases</h2>
+  <div class="usecase-grid">
+    <div class="usecase-card">
+      <h4>Rút ngắn thời gian thiết kế test case</h4>
+      <p>Từ một requirement, Claude sinh nhanh bộ test case bao phủ đủ 3 nhóm, Tester chỉ cần review và bổ sung thay vì viết từ đầu.</p>
+    </div>
+    <div class="usecase-card">
+      <h4>Tăng tốc viết test tự động</h4>
+      <p>Claude Code hỗ trợ viết test script dựa trên test case đã có sẵn, giảm thời gian chuyển từ thiết kế sang thực thi.</p>
+    </div>
+    <div class="usecase-card">
+      <h4>Bug report rõ ràng, dễ tái hiện</h4>
+      <p>Claude giúp chuẩn hoá cấu trúc bug report ngay cả khi Tester chỉ mô tả lỗi ngắn gọn, giảm số lần Dev phải hỏi lại.</p>
+    </div>
+  </div>
+
+  <h2 class="section-heading">Thông tin bổ sung</h2>
+  <p class="body-text">
+    Claude không "biết" các ràng buộc nghiệp vụ ẩn (implicit business rule) nếu không được nêu rõ trong requirement hoặc
+    prompt — ví dụ giới hạn số tiền tối đa, quy tắc làm tròn riêng của doanh nghiệp. Luôn cung cấp requirement càng đầy
+    đủ càng tốt, và coi test case/bug report do Claude sinh ra là <strong>bản dự thảo chất lượng cao cần review</strong>,
+    không phải kết quả cuối cùng có thể gửi thẳng cho Developer hoặc đưa vào bộ test chính thức.
+  </p>
+  <div class="alert alert-tip">
+    <strong>Mẹo:</strong> Nếu requirement có nhiều điểm chưa rõ, hãy để Claude tự liệt kê câu hỏi cần làm rõ trước khi
+    sinh test case ("đọc requirement này, liệt kê các điểm còn mơ hồ hoặc thiếu ràng buộc mà bạn cần biết để thiết kế
+    test case đầy đủ") — giúp phát hiện sớm lỗ hổng trong chính requirement, trước khi lỗ hổng đó lan sang test case.
+  </div>
+
+  <script>mermaid.initialize({ startOnLoad: true, theme: 'default' });</script>
+</body>
+</html>

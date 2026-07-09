@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lab - Implement & đối chiếu kết quả – Claude 101</title>
+  <link rel="stylesheet" href="../../styles.css" />
+  <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+  <script src="../../mermaid-config.js"></script>
+  <link rel="stylesheet" href="../../prism.css" />
+  <script src="../../prism.js"></script>
+  <script src="../../script.js"></script>
+</head>
+<body class="chapter-body">
+
+  <div class="chapter-breadcrumb">
+    <span class="section-part">10. Phát triển phần mềm với Spec-Kit Framework</span>
+    <span class="sep">/</span>
+    <span class="chapter-part">Lab - Implement & đối chiếu kết quả</span>
+  </div>
+
+  <div class="alert alert-info">
+    Bài lab này <strong>tiếp tục dùng project <code>D:\lab-expense-management</code></strong> và <code>tasks.md</code>
+    của tính năng <strong>"xuất báo cáo chi tiêu theo khoảng thời gian dạng PDF/Excel"</strong> đã tạo ở Chapter 7.
+    Đây là bài lab cuối cùng của Section 10 — khép lại vòng SDD bằng giai đoạn <strong>Implementation</strong> và
+    <strong>Convergence</strong>.
+  </div>
+
+  <h2 class="section-heading">Mục tiêu</h2>
+  <ul class="feature-list">
+    <li>Dùng <code>/speckit.implement</code> để Claude Code triển khai lần lượt các task đã chia ở <code>tasks.md</code>.</li>
+    <li>Theo dõi tiến độ thực thi từng task, xác nhận từng bước trước khi cho phép ghi file.</li>
+    <li>Kiểm chứng tính năng chạy đúng thực tế trên trình duyệt sau khi implement xong.</li>
+    <li>Đối chiếu kết quả thực tế với <code>spec.md</code> ban đầu (giai đoạn Convergence) — xác nhận không thiếu, không lệch yêu cầu.</li>
+  </ul>
+
+  <h2 class="section-heading">Mô hình kiến trúc</h2>
+  <div class="mermaid">
+  flowchart TB
+      Dev(("<img src='../../assets/svg-icon/developer.svg' style='width:26px;height:26px;'/><br/><b>Developer</b>"))
+      CC["<img src='../../assets/svg-icon/claude-logo.svg' style='width:28px;height:28px;'/><br/><b>Claude Code</b>"]
+      Tasks["📋 tasks.md<br/>(Chapter 7)"]
+      Spec["📝 spec.md<br/>(Chapter 6)"]
+
+      subgraph Loop["🔁 /speckit.implement — lặp qua từng task"]
+          T1["Task 1: lib/report-generator.ts"]
+          T2["Task 2: unit test"]
+          T3["Task 3: API route /api/reports/export"]
+          T4["Task 4: UI chọn khoảng thời gian"]
+          T1 --> T2 --> T3 --> T4
+      end
+
+      Browser["<img src='../../assets/svg-icon/browser.svg' style='width:26px;height:26px;'/><br/>Kiểm chứng thực tế<br/>localhost:3000"]
+      Converge["✅ <b>Convergence</b><br/>Đối chiếu code với spec.md"]
+
+      Dev -->|"/speckit.implement"| CC
+      Tasks --> CC
+      CC --> Loop
+      Loop --> Browser
+      Browser --> Converge
+      Spec -.->|"Đối chiếu lại"| Converge
+  </div>
+  <p class="arch-caption">Claude Code thực thi tuần tự từng task trong <code>tasks.md</code>, đánh dấu hoàn thành ngược lại vào file này. Sau khi hết task, bước Convergence đối chiếu toàn bộ kết quả với <code>spec.md</code> gốc để xác nhận đúng yêu cầu — khép vòng SDD cho tính năng này.</p>
+
+  <h2 class="section-heading">Yêu cầu trước khi bắt đầu</h2>
+  <ul class="feature-list">
+    <li>Đã hoàn thành Chapter 7 — <code>specs/{feature-id}/plan.md</code> và <code>tasks.md</code> đã có nội dung chi tiết, đủ nhỏ để implement từng phần.</li>
+    <li>Docker Desktop đang chạy, MySQL container (<code>expense-mysql</code>) đã khởi động lại nếu trước đó đã <code>docker compose down</code>.</li>
+    <li>Claude Code CLI đã cài đặt và đăng nhập thành công.</li>
+    <li>Terminal: PowerShell hoặc Windows Terminal.</li>
+  </ul>
+
+  <h2 class="section-heading">Các bước thực hành</h2>
+
+  <h3 class="sub-heading">Phần 1: Triển khai bằng /speckit.implement</h3>
+  <ol class="step-list">
+    <li>
+      <div>
+        <strong>Bước 1: Khởi động lại MySQL container và Claude Code</strong>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">cd D:\lab-expense-management
+docker compose up -d
+claude</code></pre>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 2: Chạy /speckit.implement để bắt đầu triển khai</strong>
+        <p>Claude Code sẽ đọc <code>tasks.md</code> và thực thi lần lượt từng task theo đúng thứ tự đã chia ở Chapter 7.</p>
+        <pre class="command-line" data-prompt=">"><code class="language-text">/speckit.implement</code></pre>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 3: Theo dõi và xác nhận từng task</strong>
+        <p>Ở mỗi task (tạo <code>lib/report-generator.ts</code>, viết unit test, tạo API route, thêm UI...), đọc qua thay đổi được đề xuất trước khi xác nhận cho ghi file — không xác nhận hàng loạt mà không xem nội dung, đặc biệt với các file liên quan trực tiếp đến logic tính tổng chi tiêu.</p>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 4: Chạy unit test sau khi các task liên quan lib/report-generator.ts hoàn tất</strong>
+        <p>Tự chạy lại test độc lập, không chỉ tin vào báo cáo "đã pass" của Claude Code.</p>
+        <pre class="command-line" data-prompt="PS>" data-output="2, 3, 4"><code class="language-powershell">npm test
+PASS  __tests__/report-generator.test.ts
+  buildReportData
+    ✓ tính đúng tổng chi tiêu theo danh mục trong khoảng thời gian</code></pre>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 5: Chờ Claude Code hoàn thành toàn bộ task và báo cáo tổng kết</strong>
+        <p>Sau khi hết task trong <code>tasks.md</code>, Claude Code thường tự tổng kết các file đã tạo/sửa. Đọc lại tổng kết này trước khi qua bước kiểm chứng thực tế.</p>
+      </div>
+    </li>
+  </ol>
+
+  <h3 class="sub-heading">Phần 2: Kiểm chứng thực tế và Convergence</h3>
+  <ol class="step-list">
+    <li>
+      <div>
+        <strong>Bước 6: Khởi động dev server và thử tính năng trên trình duyệt</strong>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">npm run dev</code></pre>
+        <p>Mở <code>http://localhost:3000</code>, chọn một khoảng thời gian có dữ liệu chi tiêu, chọn định dạng PDF, bấm "Xuất báo cáo" và xác nhận file tải xuống mở được, hiển thị đúng danh sách + tổng theo danh mục. Lặp lại với định dạng Excel.</p>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 7: Thử trường hợp không có dữ liệu</strong>
+        <p>Chọn một khoảng thời gian chắc chắn không có khoản chi tiêu nào, xuất báo cáo và xác nhận file vẫn được tạo, hiển thị "Không có dữ liệu" và tổng bằng 0 đúng như đã đặc tả ở <code>spec.md</code>.</p>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 8: Xác nhận các tính năng cũ không bị ảnh hưởng</strong>
+        <p>Thử lại tính năng xuất CSV theo tháng (Section 4 Chapter 6) và các API CRUD hiện có, xác nhận vẫn hoạt động đúng như trước — đúng nguyên tắc "không phá vỡ contract API hiện có" đã định nghĩa trong <code>constitution.md</code>.</p>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 9: Đối chiếu kết quả với spec.md — giai đoạn Convergence</strong>
+        <p>Mở lại <code>spec.md</code> ở Chapter 6, lập checklist từng yêu cầu và xác nhận từng mục đã đáp ứng đúng trên thực tế (khoảng thời gian tuỳ chọn, 2 định dạng PDF/Excel, tổng theo danh mục, trường hợp rỗng, không ảnh hưởng tính năng cũ).</p>
+        <pre class="command-line" data-prompt=">"><code class="language-text">Đọc lại spec.md của tính năng xuất báo cáo và so sánh với code đã implement. Liệt kê rõ: yêu cầu nào đã đáp ứng đầy đủ, yêu cầu nào còn thiếu hoặc chưa đúng (nếu có), kèm vị trí file liên quan.</code></pre>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 10: Xử lý phần chưa khớp (nếu có)</strong>
+        <p>Nếu Bước 9 phát hiện sai lệch, quay lại cập nhật <code>spec.md</code>/<code>plan.md</code>/<code>tasks.md</code> cho đúng thực tế mong muốn rồi chạy lại <code>/speckit.implement</code> cho phần liên quan — không sửa tay trực tiếp vào code mà bỏ qua việc cập nhật spec, để tránh code và spec lệch nhau trở lại.</p>
+      </div>
+    </li>
+  </ol>
+
+  <div class="verify-box">
+    <h4>✅ Kết quả mong đợi</h4>
+    <p class="body-text">Tính năng xuất báo cáo chi tiêu theo khoảng thời gian hoạt động đúng với cả 2 định dạng PDF và Excel, xử lý đúng trường hợp không có dữ liệu, không làm hỏng các tính năng đã có (CRUD, xuất CSV theo tháng). Toàn bộ yêu cầu trong <code>spec.md</code> được đối chiếu và xác nhận đã đáp ứng — hoàn tất giai đoạn Convergence, khép vòng SDD cho tính năng này.</p>
+  </div>
+
+  <h2 class="section-heading">Troubleshoot</h2>
+  <div class="alert alert-warning">
+    <strong>Lỗi:</strong> <code>/speckit.implement</code> dừng giữa chừng, báo lỗi khi thực thi một task cụ thể.<br/>
+    <strong>Nguyên nhân:</strong> Task đó phụ thuộc vào một thư viện chưa được cài đặt đúng, hoặc mô tả task chưa đủ rõ so với thực tế project.<br/>
+    <strong>Giải pháp:</strong> Đọc thông báo lỗi cụ thể, yêu cầu Claude Code cài package còn thiếu (<code>npm install</code>) hoặc làm rõ lại task đó rồi tiếp tục <code>/speckit.implement</code> — không cần chạy lại từ đầu, các task đã hoàn thành trước đó vẫn được giữ nguyên.
+  </div>
+  <div class="alert alert-warning">
+    <strong>Lỗi:</strong> File PDF/Excel xuất ra bị lỗi font tiếng Việt (dấu hiển thị sai) khi mở lên.<br/>
+    <strong>Nguyên nhân:</strong> Thư viện tạo PDF/Excel dùng font mặc định không hỗ trợ đầy đủ ký tự tiếng Việt có dấu.<br/>
+    <strong>Giải pháp:</strong> Yêu cầu Claude Code cấu hình lại font hỗ trợ Unicode/tiếng Việt cho thư viện đang dùng, hoặc encode đúng UTF-8 tuỳ theo thư viện cụ thể.
+  </div>
+  <div class="alert alert-warning">
+    <strong>Lỗi:</strong> Sau khi implement, tính năng xuất CSV theo tháng (Section 4) không còn hoạt động đúng.<br/>
+    <strong>Nguyên nhân:</strong> Claude Code vô ý sửa vào file/logic dùng chung (vd <code>lib/expense-service.ts</code>) khi implement tính năng mới, vi phạm nguyên tắc "không phá vỡ contract API hiện có".<br/>
+    <strong>Giải pháp:</strong> Dùng <code>git diff</code> để xem chính xác phần nào bị đổi ngoài phạm vi tính năng mới, yêu cầu Claude Code khôi phục lại phần đó và tách rõ logic dùng riêng cho báo cáo mới.
+  </div>
+
+  <h2 class="section-heading">Dọn dẹp resource</h2>
+  <div class="alert alert-warning">
+    <strong>Quan trọng:</strong> Đây là bài lab cuối của Section 10 nhưng project <code>D:\lab-expense-management</code>
+    vẫn là project dùng xuyên suốt khoá học — <strong>không xoá thư mục project</strong>, kể cả thư mục
+    <code>.specify/</code> và <code>specs/</code> vừa tạo.
+  </div>
+  <div class="alert alert-info">Bài lab này không tạo resource cloud tính phí. Chỉ cần dừng container MySQL khi tạm nghỉ giữa các buổi thực hành:</div>
+  <pre class="command-line" data-prompt="PS>"><code class="language-powershell">cd D:\lab-expense-management
+docker compose down</code></pre>
+  <p class="note-text">Có thể commit toàn bộ thay đổi (bao gồm <code>.specify/</code>, <code>specs/</code>, và code tính năng mới) vào Git để lưu lại minh chứng cho cả quy trình SDD đã thực hiện qua 4 bài lab.</p>
+
+  <script>mermaid.initialize({ startOnLoad: true, theme: 'default' });</script>
+</body>
+</html>

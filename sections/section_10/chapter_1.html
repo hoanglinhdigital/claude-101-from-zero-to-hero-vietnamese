@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Spec-Driven Development (SDD) là gì – Claude 101</title>
+  <link rel="stylesheet" href="../../styles.css" />
+  <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+  <script src="../../mermaid-config.js"></script>
+  <link rel="stylesheet" href="../../prism.css" />
+  <script src="../../prism.js"></script>
+  <script src="../../script.js"></script>
+</head>
+<body class="chapter-body">
+
+  <div class="chapter-breadcrumb">
+    <span class="section-part">10. Phát triển phần mềm với Spec-Kit Framework</span>
+    <span class="sep">/</span>
+    <span class="chapter-part">Spec-Driven Development (SDD) là gì</span>
+  </div>
+
+  <h2 class="section-heading">Giới thiệu</h2>
+  <p class="body-text">
+    <strong>Spec-Driven Development (SDD)</strong> là phương pháp phát triển phần mềm trong đó bản <strong>đặc tả
+    (specification)</strong> không còn là tài liệu viết một lần rồi bỏ quên, mà trở thành <strong>artifact thực thi
+    được (executable artifact)</strong> — nguồn chân lý (source of truth) mà cả AI agent (như Claude Code) và con
+    người cùng đọc trực tiếp để sinh ra kế hoạch kỹ thuật, task, và cuối cùng là code. Cách làm truyền thống thường
+    xem spec chỉ là tài liệu tham khảo ban đầu: sau khi code xong, spec nhanh chóng lỗi thời vì không ai cập nhật lại.
+    SDD đảo ngược thứ tự ưu tiên đó — spec luôn phải đúng trước, code là kết quả <em>sinh ra từ</em> spec, không phải
+    ngược lại.
+  </p>
+
+  <h2 class="section-heading">Các tính năng chính</h2>
+  <ul class="feature-list">
+    <li>Đặc tả (spec) được viết dưới dạng có cấu trúc, rõ ràng đến mức AI agent có thể đọc và "thực thi" trực tiếp — không chỉ là văn bản mô tả chung mà con người mới hiểu được.</li>
+    <li>Mọi giai đoạn tiếp theo (kế hoạch kỹ thuật, chia task, code) đều <strong>trace ngược lại được</strong> spec ban đầu — biết chính xác dòng yêu cầu nào sinh ra đoạn code nào.</li>
+    <li>Khi yêu cầu thay đổi, học viên cập nhật spec <strong>trước</strong>, sau đó lan toả xuống plan/task/code — tránh tình trạng code và tài liệu lệch nhau dần theo thời gian.</li>
+    <li>Giảm rủi ro "vibe coding" — code sinh ra tuỳ tiện theo cảm tính của từng lần prompt, không có cơ sở đối chiếu khi cần kiểm tra lại đúng/sai.</li>
+    <li>Phù hợp để làm việc cùng AI coding agent ở quy mô lớn hơn một vài prompt rời rạc — giữ ngữ cảnh nhất quán xuyên suốt cả một tính năng, thậm chí cả dự án.</li>
+  </ul>
+
+  <h2 class="section-heading">Mô hình kiến trúc</h2>
+  <div class="mermaid">
+  flowchart TB
+      subgraph Traditional["📄 Cách làm truyền thống"]
+          direction LR
+          T1["📝<br/><b>Viết spec 1 lần</b><br/>(Word/Confluence...)"]
+          T2["<img src='../../assets/svg-icon/developer.svg' style='width:26px;height:26px;'/><br/><b>Developer code</b><br/>theo hiểu riêng của mình"]
+          T3["✅ Code chạy thực tế<br/>trong production"]
+          T4["🔧 Yêu cầu mới/bugfix<br/>sửa trực tiếp trên code"]
+          T5["📄💤<br/><b>Spec không được cập nhật</b><br/>→ lỗi thời, không ai tin dùng"]
+          T1 --> T2 --> T3 --> T4 --> T5
+          T5 -.->|"Không ai tham chiếu lại spec cũ"| T4
+      end
+
+      subgraph SDD["✅ Spec-Driven Development"]
+          direction LR
+          S1["📜<br/><b>spec.md</b><br/>Nguồn chân lý (source of truth)"]
+          S2["🗺️<br/><b>plan.md</b><br/>Kế hoạch kỹ thuật, sinh từ spec"]
+          S3["📋<br/><b>tasks.md</b><br/>Task nhỏ, sinh từ plan"]
+          S4["<img src='../../assets/svg-icon/claude-logo.svg' style='width:26px;height:26px;'/><br/><b>Code</b><br/>AI agent sinh ra theo task"]
+          S5["🧩<br/><b>Convergence</b><br/>Đối chiếu code với spec ban đầu"]
+          S1 --> S2 --> S3 --> S4 --> S5
+          S5 -.->|"Yêu cầu thay đổi → cập nhật spec trước"| S1
+      end
+  </div>
+  <p class="arch-caption">Cách làm truyền thống: spec chỉ là điểm khởi đầu, dần lỗi thời vì code thay đổi mà không quay lại cập nhật. SDD: spec luôn ở vị trí trung tâm, mọi thay đổi đều bắt đầu từ việc cập nhật spec rồi lan toả xuống plan → task → code, khép vòng bằng bước đối chiếu (convergence).</p>
+
+  <h2 class="section-heading">Use Cases</h2>
+  <div class="usecase-grid">
+    <div class="usecase-card">
+      <h4>Phát triển tính năng có kiểm soát</h4>
+      <p>Thay vì prompt rời rạc "làm cái này, sửa cái kia", toàn bộ tính năng được đặc tả rõ ràng trước, giảm rủi ro AI hiểu sai ý định giữa các lần trao đổi.</p>
+    </div>
+    <div class="usecase-card">
+      <h4>Làm việc nhóm với AI agent</h4>
+      <p>Nhiều người (hoặc nhiều AI agent khác nhau) cùng tham chiếu một spec duy nhất, tránh tình trạng mỗi người hiểu yêu cầu theo một cách.</p>
+    </div>
+    <div class="usecase-card">
+      <h4>Refactor/thay đổi lớn cần đối chiếu lại</h4>
+      <p>Khi cần chứng minh một thay đổi lớn vẫn đáp ứng đúng yêu cầu ban đầu, spec đóng vai trò checklist để đối chiếu (convergence).</p>
+    </div>
+  </div>
+
+  <h2 class="section-heading">Thông tin bổ sung</h2>
+  <p class="body-text">
+    SDD không thay thế hoàn toàn quy trình Explore → Plan → Code → Verify đã học ở Section 4 — có thể xem SDD là một
+    phiên bản <strong>có cấu trúc và ghi lại thành file</strong> của quy trình đó, phù hợp khi tính năng đủ phức tạp
+    để cần một bản đặc tả rõ ràng trước khi bắt tay vào code. Với các thay đổi rất nhỏ (sửa 1-2 dòng, fix lỗi đơn
+    giản), quy trình prompt trực tiếp như ở Section 4 vẫn nhanh và hợp lý hơn.
+  </p>
+  <div class="alert alert-info">
+    <strong>Lưu ý:</strong> Chương tiếp theo sẽ giới thiệu <strong>Spec-Kit</strong> — công cụ mã nguồn mở cụ thể của
+    GitHub giúp áp dụng triết lý SDD vào thực tế thông qua CLI <code>specify</code> và các slash command
+    <code>/speckit.*</code> trong Claude Code.
+  </div>
+
+  <script>mermaid.initialize({ startOnLoad: true, theme: 'default' });</script>
+</body>
+</html>

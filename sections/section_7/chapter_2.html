@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Kỹ thuật prompt cho tài liệu quản lý & Claude Projects – Claude 101</title>
+  <link rel="stylesheet" href="../../styles.css" />
+  <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+  <script src="../../mermaid-config.js"></script>
+  <link rel="stylesheet" href="../../prism.css" />
+  <script src="../../prism.js"></script>
+  <script src="../../script.js"></script>
+</head>
+<body class="chapter-body">
+
+  <div class="chapter-breadcrumb">
+    <span class="section-part">7. Claude cho Project Manager</span>
+    <span class="sep">/</span>
+    <span class="chapter-part">Kỹ thuật prompt cho tài liệu quản lý & Claude Projects</span>
+  </div>
+
+  <h2 class="section-heading">Giới thiệu</h2>
+  <p class="body-text">
+    Chất lượng tài liệu Claude soạn ra phụ thuộc trực tiếp vào chất lượng thông tin đầu vào — cùng một yêu cầu "soạn
+    project plan" nhưng thiếu thông tin sẽ ra một bản chung chung, vô dụng. Chương này trình bày kỹ thuật viết prompt
+    cho 3 loại tài liệu quản lý phổ biến nhất: <strong>project plan</strong>, <strong>risk register</strong> và
+    <strong>status report</strong> — mỗi loại cần một nhóm thông tin đầu vào khác nhau. Đồng thời giới thiệu
+    <strong>Claude Projects</strong> — nơi lưu các thông tin đó lại một lần, dùng xuyên suốt nhiều buổi làm việc mà
+    không cần dán lại từ đầu mỗi lần chat.
+  </p>
+
+  <h2 class="section-heading">Các tính năng chính</h2>
+  <ul class="feature-list">
+    <li><strong>Project plan</strong> — cần mô tả dự án, mục tiêu, deadline, quy mô team, ràng buộc (ngân sách, công nghệ) để Claude soạn được timeline và phân công thực tế, không chung chung.</li>
+    <li><strong>Risk register</strong> — cần bối cảnh dự án (loại dự án, công nghệ, đối tác liên quan) và các rủi ro đã biết (nếu có) để Claude bổ sung thêm rủi ro còn thiếu, không chỉ liệt lại đúng những gì PM đã biết.</li>
+    <li><strong>Status report</strong> — cần dữ liệu tiến độ thật (task hoàn thành/đang làm/trễ, % hoàn thành, vấn đề phát sinh) để Claude tổng hợp đúng số liệu, tránh Claude tự suy diễn tiến độ không có thật.</li>
+    <li><strong>Claude Projects</strong> — không gian riêng cho một dự án, gồm <em>Custom instructions</em> (mô tả ngắn về dự án, vai trò các bên) và <em>Project knowledge</em> (tài liệu nền: project plan, risk register, transcript...) — mọi cuộc chat mới trong Project đều tự động có sẵn ngữ cảnh này.</li>
+    <li>Nguyên tắc chung: prompt luôn nên nêu rõ <strong>cấu trúc output mong muốn</strong> (các phần cần có) để Claude trả lời đúng định dạng cần dùng ngay, không phải chỉnh sửa lại cấu trúc.</li>
+  </ul>
+
+  <h3 class="sub-heading">Input cần cung cấp cho từng loại tài liệu</h3>
+  <table class="info-table">
+    <thead>
+      <tr><th>Loại tài liệu</th><th>Thông tin đầu vào cần có</th><th>Kết quả mong đợi</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>Project Plan</strong></td>
+        <td>Mô tả dự án · Mục tiêu · Deadline/thời hạn · Quy mô & vai trò team · Ràng buộc (ngân sách, công nghệ, phụ thuộc bên ngoài)</td>
+        <td>Mục tiêu · Phạm vi (in/out-scope) · Timeline theo giai đoạn · Phân công vai trò · Rủi ro chính</td>
+      </tr>
+      <tr>
+        <td><strong>Risk Register</strong></td>
+        <td>Bối cảnh dự án (loại dự án, công nghệ, đối tác/bên thứ ba liên quan) · Rủi ro đã biết trước (nếu có) · Mức độ chấp nhận rủi ro của tổ chức (nếu biết)</td>
+        <td>Danh sách rủi ro · Mức độ ảnh hưởng & xác suất · Biện pháp giảm thiểu (mitigation) · Người theo dõi (owner)</td>
+      </tr>
+      <tr>
+        <td><strong>Status Report</strong></td>
+        <td>Danh sách task & trạng thái thực tế (Done/In-progress/Blocked) · % hoàn thành tổng thể · Vấn đề/rủi ro mới phát sinh trong kỳ · Kỳ báo cáo (tuần/sprint nào)</td>
+        <td>Tóm tắt tiến độ tổng thể · Việc đã hoàn thành · Việc đang làm/trễ hẹn · Rủi ro cần lưu ý · Kế hoạch kỳ tới</td>
+      </tr>
+    </tbody>
+  </table>
+  <p class="table-note">Nguyên tắc chung: thông tin đầu vào KHÔNG có sẵn (ví dụ số liệu tiến độ thật) thì Claude không thể tự "biết" — luôn cung cấp đủ dữ liệu thô, đừng để Claude tự đoán.</p>
+
+  <h2 class="section-heading">Mô hình kiến trúc — Claude Projects lưu ngữ cảnh dự án</h2>
+  <div class="mermaid">
+  flowchart LR
+      PM(("<img src='../../assets/svg-icon/user.svg' style='width:26px;height:26px;'/><br/><b>Project Manager</b>"))
+      Proj["<img src='../../assets/svg-icon/claude-logo.svg' style='width:30px;height:30px;'/><br/><b>Claude Project</b><br/>'MediBook App'"]
+      CI["📋 <b>Custom Instructions</b><br/>Mô tả dự án, vai trò team"]
+      PK["<img src='../../assets/svg-icon/sharepoint.svg' style='width:26px;height:26px;'/><br/><b>Project Knowledge</b><br/>Project plan · Risk register · Transcript"]
+      Chat1["💬 <b>Chat 1</b><br/>Soạn status report"]
+      Chat2["💬 <b>Chat 2</b><br/>Phân tích rủi ro mới"]
+      Chat3["💬 <b>Chat 3</b><br/>Hỏi tiến độ 1 task"]
+
+      PM -->|"Tạo Project"| Proj
+      Proj --> CI
+      Proj --> PK
+      CI -.->|"Ngữ cảnh dùng chung"| Chat1
+      CI -.->|"Ngữ cảnh dùng chung"| Chat2
+      PK -.->|"Ngữ cảnh dùng chung"| Chat2
+      PK -.->|"Ngữ cảnh dùng chung"| Chat3
+  </div>
+  <p class="arch-caption">Toàn bộ tài liệu nền của dự án chỉ cần đưa vào Project Knowledge một lần; mọi cuộc chat mới mở trong cùng Project đều tự động tham chiếu ngữ cảnh này, PM không cần dán lại thông tin dự án ở mỗi cuộc chat.</p>
+
+  <h2 class="section-heading">Use Cases</h2>
+  <div class="usecase-grid">
+    <div class="usecase-card">
+      <h4>Soạn nhiều tài liệu cùng một dự án</h4>
+      <p>Dùng chung một Claude Project cho project plan, risk register, status report — Claude luôn nhớ mục tiêu và ràng buộc dự án khi soạn từng tài liệu.</p>
+    </div>
+    <div class="usecase-card">
+      <h4>Không phải dán lại ngữ cảnh mỗi lần chat</h4>
+      <p>Sau khi thêm tài liệu nền vào Project Knowledge, các câu hỏi ngắn ("tuần này có rủi ro gì mới?") vẫn được Claude trả lời đúng ngữ cảnh dự án.</p>
+    </div>
+    <div class="usecase-card">
+      <h4>Chuẩn hoá cách viết prompt cho cả team</h4>
+      <p>Custom instructions của Project có thể quy định luôn định dạng output mong muốn, giúp mọi thành viên dùng Claude cho dự án theo cùng một chuẩn.</p>
+    </div>
+  </div>
+
+  <h2 class="section-heading">Thông tin bổ sung</h2>
+  <p class="body-text">
+    Project Knowledge có giới hạn dung lượng tài liệu tuỳ theo gói sử dụng (Free/Pro/Max) — nên ưu tiên đưa vào các
+    tài liệu cốt lõi, cập nhật thường xuyên (project plan mới nhất, risk register), tránh nhồi nhét toàn bộ lịch sử
+    email/transcript cũ vì sẽ chiếm context window và làm chậm phản hồi. Với thông tin đã lỗi thời (ví dụ project plan
+    bản cũ), nên xoá hoặc thay bằng bản mới để Claude không lấy nhầm dữ liệu cũ khi trả lời.
+  </p>
+  <div class="alert alert-tip">
+    <strong>Mẹo:</strong> Luôn nêu rõ cấu trúc output mong muốn ngay trong prompt (ví dụ: "soạn theo cấu trúc: Mục
+    tiêu, Phạm vi, Timeline, Phân công, Rủi ro") — Claude sẽ trả về đúng định dạng đó ngay từ lần đầu, tiết kiệm thời
+    gian yêu cầu chỉnh sửa lại cấu trúc sau này.
+  </div>
+
+  <script>mermaid.initialize({ startOnLoad: true, theme: 'default' });</script>
+</body>
+</html>

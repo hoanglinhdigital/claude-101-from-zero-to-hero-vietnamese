@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Cấu trúc file sinh ra bởi Spec-Kit & slash command /speckit.* – Claude 101</title>
+  <link rel="stylesheet" href="../../styles.css" />
+  <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+  <script src="../../mermaid-config.js"></script>
+  <link rel="stylesheet" href="../../prism.css" />
+  <script src="../../prism.js"></script>
+  <script src="../../script.js"></script>
+</head>
+<body class="chapter-body">
+
+  <div class="chapter-breadcrumb">
+    <span class="section-part">10. Phát triển phần mềm với Spec-Kit Framework</span>
+    <span class="sep">/</span>
+    <span class="chapter-part">Cấu trúc file sinh ra bởi Spec-Kit & slash command /speckit.*</span>
+  </div>
+
+  <h2 class="section-heading">Giới thiệu</h2>
+  <p class="body-text">
+    Mỗi giai đoạn SDD đã học ở chương trước đều gắn với một slash command <code>/speckit.*</code> cụ thể trong Claude
+    Code, và mỗi slash command đó lại sinh ra (hoặc cập nhật) một file Markdown cố định trong project. Nắm rõ file
+    nào nằm ở đâu, sinh ra từ lệnh nào giúp học viên dễ dàng đọc lại, chỉnh sửa tay khi cần, và hiểu Claude Code đang
+    lấy ngữ cảnh từ đâu ở mỗi bước.
+  </p>
+
+  <h2 class="section-heading">Các tính năng chính</h2>
+  <ul class="feature-list">
+    <li>Toàn bộ file Spec-Kit sinh ra đều là <strong>Markdown thuần</strong> — đọc được trực tiếp, chỉnh sửa tay được, và theo dõi lịch sử thay đổi qua Git như code thông thường.</li>
+    <li><code>.specify/memory/constitution.md</code> — nguyên tắc chung của cả project, dùng chung cho mọi tính năng, chỉ nằm ở một vị trí duy nhất.</li>
+    <li>Mỗi tính năng có một thư mục riêng dưới <code>specs/{feature-id}/</code> — chứa <code>spec.md</code>, <code>plan.md</code>, <code>tasks.md</code> của riêng tính năng đó, không lẫn với tính năng khác.</li>
+    <li>Slash command sau khi <code>specify init</code> được Claude Code tự nhận diện — gõ <code>/speckit.</code> trong khung chat để xem gợi ý danh sách lệnh khả dụng.</li>
+    <li>Mỗi slash command đọc ngữ cảnh từ file do lệnh trước đó sinh ra (vd <code>/speckit.plan</code> đọc lại <code>spec.md</code> và <code>constitution.md</code>) — giữ tính liên kết xuyên suốt cả quy trình.</li>
+  </ul>
+
+  <h2 class="section-heading">Mô hình kiến trúc</h2>
+  <div class="mermaid">
+  flowchart TB
+      Dev(("<img src='../../assets/svg-icon/developer.svg' style='width:26px;height:26px;'/><br/><b>Developer</b>"))
+      CC["<img src='../../assets/svg-icon/claude-logo.svg' style='width:28px;height:28px;'/><br/><b>Claude Code</b>"]
+
+      Cmd1["/speckit.constitution"]
+      Cmd2["/speckit.specify"]
+      Cmd3["/speckit.plan"]
+      Cmd4["/speckit.tasks"]
+      Cmd5["/speckit.implement"]
+
+      F1["📜 .specify/memory/constitution.md"]
+      F2["📝 specs/{feature-id}/spec.md"]
+      F3["🗺️ specs/{feature-id}/plan.md"]
+      F4["📋 specs/{feature-id}/tasks.md"]
+      F5["💻 Code thực tế trong project"]
+
+      Dev -->|"Gõ slash command"| CC
+      CC --> Cmd1 --> F1
+      CC --> Cmd2 -->|"Đọc lại"| F1
+      Cmd2 --> F2
+      CC --> Cmd3 -->|"Đọc lại"| F2
+      Cmd3 --> F3
+      CC --> Cmd4 -->|"Đọc lại"| F3
+      Cmd4 --> F4
+      CC --> Cmd5 -->|"Đọc lại"| F4
+      Cmd5 --> F5
+  </div>
+  <p class="arch-caption">Mỗi slash command vừa đọc lại file do lệnh trước sinh ra để giữ ngữ cảnh, vừa tạo file output riêng cho giai đoạn hiện tại — tạo thành một chuỗi phụ thuộc tuyến tính từ Constitution đến Implementation.</p>
+
+  <h3 class="sub-heading">Cấu trúc thư mục Spec-Kit sinh ra</h3>
+  <div class="file-tree">
+    <span class="dir">.specify/</span><br/>
+    &nbsp;&nbsp;<span class="dir">memory/</span><br/>
+    &nbsp;&nbsp;&nbsp;&nbsp;<span class="file">constitution.md</span> <span class="desc">— nguyên tắc chung của cả project</span><br/>
+    &nbsp;&nbsp;<span class="dir">templates/</span> <span class="note">(nội bộ)</span> <span class="desc">— template Spec-Kit dùng để sinh các file trên</span><br/>
+    <span class="dir">specs/</span><br/>
+    &nbsp;&nbsp;<span class="dir">001-xuat-bao-cao/</span> <span class="note">(ví dụ feature-id)</span><br/>
+    &nbsp;&nbsp;&nbsp;&nbsp;<span class="file">spec.md</span> <span class="desc">— đặc tả tính năng, sinh bởi /speckit.specify</span><br/>
+    &nbsp;&nbsp;&nbsp;&nbsp;<span class="file">plan.md</span> <span class="desc">— kế hoạch kỹ thuật, sinh bởi /speckit.plan</span><br/>
+    &nbsp;&nbsp;&nbsp;&nbsp;<span class="file">tasks.md</span> <span class="desc">— danh sách task, sinh bởi /speckit.tasks</span>
+  </div>
+  <div class="alert alert-info">
+    <strong>Lưu ý:</strong> Tên thư mục <code>{feature-id}</code> (vd <code>001-xuat-bao-cao</code>) do Spec-Kit tự
+    đặt dựa trên số thứ tự và tên tính năng khi chạy <code>/speckit.specify</code>. Quy ước đặt tên chính xác có thể
+    điều chỉnh theo phiên bản — quan trọng là luôn có một thư mục riêng cho mỗi tính năng chứa đủ 3 file
+    <code>spec.md</code>, <code>plan.md</code>, <code>tasks.md</code>.
+  </div>
+
+  <h3 class="sub-heading">5 slash command chính</h3>
+  <table class="info-table">
+    <thead>
+      <tr><th>Slash command</th><th>Giai đoạn</th><th>File sinh ra / cập nhật</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><code>/speckit.constitution</code></td>
+        <td>Constitution</td>
+        <td><code>.specify/memory/constitution.md</code></td>
+      </tr>
+      <tr>
+        <td><code>/speckit.specify</code></td>
+        <td>Specification</td>
+        <td><code>specs/{feature-id}/spec.md</code></td>
+      </tr>
+      <tr>
+        <td><code>/speckit.plan</code></td>
+        <td>Planning</td>
+        <td><code>specs/{feature-id}/plan.md</code></td>
+      </tr>
+      <tr>
+        <td><code>/speckit.tasks</code></td>
+        <td>Task Breakdown</td>
+        <td><code>specs/{feature-id}/tasks.md</code></td>
+      </tr>
+      <tr>
+        <td><code>/speckit.implement</code></td>
+        <td>Implementation</td>
+        <td>Code thực tế trong project (đánh dấu tiến độ ngược lại vào <code>tasks.md</code>)</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h2 class="section-heading">Use Cases</h2>
+  <div class="usecase-grid">
+    <div class="usecase-card">
+      <h4>Đọc lại spec khi quên yêu cầu</h4>
+      <p>Không cần nhớ toàn bộ ngữ cảnh trong đầu — mở lại <code>specs/{feature-id}/spec.md</code> bất cứ lúc nào để xem lại yêu cầu gốc.</p>
+    </div>
+    <div class="usecase-card">
+      <h4>Review đặc tả như review code</h4>
+      <p>Vì là file Markdown trong Git, có thể tạo Pull Request riêng cho thay đổi spec, để đồng nghiệp review trước khi cho Claude Code implement.</p>
+    </div>
+    <div class="usecase-card">
+      <h4>Nhiều tính năng song song</h4>
+      <p>Mỗi tính năng có thư mục <code>specs/{feature-id}/</code> riêng — theo dõi được nhiều tính năng đang ở giai đoạn khác nhau cùng lúc.</p>
+    </div>
+  </div>
+
+  <h2 class="section-heading">Thông tin bổ sung</h2>
+  <p class="body-text">
+    Ngoài 5 slash command chính ở trên, Spec-Kit có thể bổ sung thêm các lệnh phụ trợ khác theo thời gian (vd lệnh hỗ
+    trợ làm rõ yêu cầu, kiểm tra môi trường...). Gõ <code>/speckit.</code> trong Claude Code để xem danh sách lệnh
+    khả dụng thực tế trên phiên bản đang cài, hoặc tham khảo <code>github.com/github/spec-kit</code> để có thông tin
+    đầy đủ và mới nhất.
+  </p>
+
+  <script>mermaid.initialize({ startOnLoad: true, theme: 'default' });</script>
+</body>
+</html>

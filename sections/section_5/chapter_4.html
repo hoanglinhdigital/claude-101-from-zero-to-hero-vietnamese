@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tích hợp Claude Code vào pipeline CI/CD – Claude 101</title>
+  <link rel="stylesheet" href="../../styles.css" />
+  <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+  <script src="../../mermaid-config.js"></script>
+  <link rel="stylesheet" href="../../prism.css" />
+  <script src="../../prism.js"></script>
+  <script src="../../script.js"></script>
+</head>
+<body class="chapter-body">
+
+  <div class="chapter-breadcrumb">
+    <span class="section-part">5. Claude cho DevOps & Cloud Engineer</span>
+    <span class="sep">/</span>
+    <span class="chapter-part">Tích hợp Claude Code vào pipeline CI/CD</span>
+  </div>
+
+  <h2 class="section-heading">Giới thiệu</h2>
+  <p class="body-text">
+    Pipeline CI/CD (source → build → test → deploy) là nơi tự động hoá đóng vai trò trung tâm — nhưng điều đó không
+    có nghĩa nên để AI tự động hoá luôn cả quyết định deploy Production. Chương này trình bày cách dùng Claude Code
+    hỗ trợ pipeline CI/CD <strong>ở mức gợi ý</strong>: review Pull Request, phân tích lý do pipeline fail, đề xuất
+    fix build script — trong khi bước deploy Production vẫn cần con người xác nhận.
+  </p>
+
+  <h2 class="section-heading">Các tính năng chính</h2>
+  <ul class="feature-list">
+    <li><strong>Review PR</strong> — Claude Code đọc diff của Pull Request, chỉ ra rủi ro tiềm ẩn, thiếu test, hoặc vi phạm convention trước khi merge.</li>
+    <li><strong>Phân tích lý do pipeline fail</strong> — dán log build/test fail cho Claude Code, xác định bước nào fail và vì sao (lỗi dependency, lỗi test, lỗi cấu hình environment...).</li>
+    <li><strong>Đề xuất fix build script</strong> — Claude Code gợi ý sửa file pipeline (vd <code>.github/workflows/*.yml</code>, <code>Jenkinsfile</code>) dựa trên nguyên nhân đã phân tích.</li>
+    <li><strong>KHÔNG tự động hoá hoàn toàn deploy Production</strong> — dù Claude Code có thể viết script deploy, bước bấm nút/approve deploy lên Production luôn cần một người có thẩm quyền xác nhận.</li>
+    <li>Claude Code phù hợp nhất ở vai trò "người review thứ hai" trước khi merge/deploy — không thay thế quy trình approval hiện có của team.</li>
+  </ul>
+
+  <h2 class="section-heading">Mô hình kiến trúc</h2>
+  <div class="mermaid">
+  flowchart LR
+      Dev(("<img src='../../assets/svg-icon/developer.svg' style='width:26px;height:26px;'/><br/><b>Developer</b>"))
+      GH["<img src='../../assets/svg-icon/github.svg' style='width:28px;height:28px;'/><br/><b>GitHub</b><br/>Pull Request"]
+
+      subgraph Pipeline["CI/CD Pipeline"]
+          Source["📥 <b>Source</b><br/>Checkout code"]
+          Build["🔨 <b>Build</b><br/>Compile / package"]
+          Test["🧪 <b>Test</b><br/>Unit / integration test"]
+          Deploy["🚀 <b>Deploy</b><br/>⚠️ Cần approve thủ công"]
+      end
+
+      CC["<img src='../../assets/svg-icon/claude-logo.svg' style='width:28px;height:28px;'/><br/><b>Claude Code</b><br/><i>Hỗ trợ gợi ý</i>"]
+      Human(("<img src='../../assets/svg-icon/operator.svg' style='width:26px;height:26px;'/><br/><b>Con người</b><br/>Approve Production"))
+
+      Dev -->|"Mở PR"| GH --> Source --> Build --> Test --> Deploy
+      GH -.->|"Review PR"| CC
+      Build -.->|"Build fail — phân tích log"| CC
+      Test -.->|"Test fail — phân tích log"| CC
+      CC -.->|"Góp ý / đề xuất fix build script"| Dev
+      Deploy -->|"Chờ xác nhận"| Human
+      Human -->|"Approve"| Deploy
+  </div>
+  <p class="arch-caption">Claude Code hỗ trợ dạng gợi ý ở các bước Review PR, Build và Test (đường nét đứt); riêng bước Deploy lên Production luôn cần con người xác nhận (đường liền, có approval gate) — Claude Code không được đặt quyền tự động deploy.</p>
+
+  <h3 class="sub-heading">Claude Code hỗ trợ gì ở mỗi bước pipeline</h3>
+  <div class="pipeline-flow">
+    <div class="pipeline-stage source">
+      <div class="stage-icon">📥</div>
+      <div class="stage-name">Source</div>
+      <div class="stage-tool">Review PR, góp ý code</div>
+    </div>
+    <div class="pipeline-arrow">→</div>
+    <div class="pipeline-stage build">
+      <div class="stage-icon">🔨</div>
+      <div class="stage-name">Build</div>
+      <div class="stage-tool">Phân tích log fail, đề xuất fix</div>
+    </div>
+    <div class="pipeline-arrow">→</div>
+    <div class="pipeline-stage build">
+      <div class="stage-icon">🧪</div>
+      <div class="stage-name">Test</div>
+      <div class="stage-tool">Phân tích test fail, gợi ý nguyên nhân</div>
+    </div>
+    <div class="pipeline-arrow">→</div>
+    <div class="pipeline-stage deploy">
+      <div class="stage-icon">🚀</div>
+      <div class="stage-name">Deploy</div>
+      <div class="stage-tool">⚠️ Chỉ hỗ trợ soạn script — không tự deploy Production</div>
+    </div>
+  </div>
+
+  <div class="alert alert-danger">
+    <strong>Không nên:</strong> Cấu hình pipeline để tự động gọi Claude Code sửa lỗi và tự merge/deploy lên Production
+    mà không qua bước approve của con người. Rủi ro lớn nhất là Claude Code "sửa cho pipeline pass" bằng cách bỏ qua
+    hoặc làm yếu một bước kiểm tra (vd comment tạm một test đang fail) mà không ai nhận ra trước khi lên Production.
+  </div>
+
+  <h2 class="section-heading">Use Cases</h2>
+  <div class="usecase-grid">
+    <div class="usecase-card">
+      <h4>Rút ngắn thời gian debug pipeline fail</h4>
+      <p>Dán log CI fail cho Claude Code phân tích nhanh nguyên nhân, thay vì đọc thủ công hàng trăm dòng log build.</p>
+    </div>
+    <div class="usecase-card">
+      <h4>Review PR trước khi gửi team</h4>
+      <p>Claude Code review sơ bộ trước, giúp phát hiện sớm lỗi rõ ràng hoặc thiếu test trước khi PR đến tay reviewer thật.</p>
+    </div>
+    <div class="usecase-card">
+      <h4>Chuẩn hoá build script</h4>
+      <p>Claude Code đề xuất refactor file pipeline (vd tách step trùng lặp thành reusable workflow) giúp pipeline dễ maintain hơn.</p>
+    </div>
+  </div>
+
+  <h2 class="section-heading">Thông tin bổ sung</h2>
+  <p class="body-text">
+    Một cách an toàn để bắt đầu tích hợp Claude Code vào CI/CD là dùng ở dạng "trợ lý ngoài pipeline" — Engineer tự
+    copy log fail từ hệ thống CI (GitHub Actions, Jenkins, GitLab CI...) vào Claude Code để phân tích, thay vì để
+    Claude Code chạy tự động bên trong pipeline. Khi đã tin tưởng vào chất lượng gợi ý, có thể nâng cấp thành tích hợp
+    sâu hơn (vd GitHub Action tự động review PR bằng Claude), nhưng bước deploy Production vẫn nên giữ nguyên tắc
+    approval thủ công.
+  </p>
+  <div class="alert alert-info">
+    Nguyên tắc "AI hỗ trợ, con người quyết định" ở chương này nhất quán với nguyên tắc an toàn đã học ở Chapter 1 của
+    Section này — áp dụng cho toàn bộ vòng đời DevOps, không riêng gì CI/CD.
+  </div>
+
+  <script>mermaid.initialize({ startOnLoad: true, theme: 'default' });</script>
+</body>
+</html>

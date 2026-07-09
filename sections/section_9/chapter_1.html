@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Hook là gì & phân biệt với Skill/Sub-agent – Claude 101</title>
+  <link rel="stylesheet" href="../../styles.css" />
+  <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+  <script src="../../mermaid-config.js"></script>
+  <link rel="stylesheet" href="../../prism.css" />
+  <script src="../../prism.js"></script>
+  <script src="../../script.js"></script>
+</head>
+<body class="chapter-body">
+
+  <div class="chapter-breadcrumb">
+    <span class="section-part">9. Claude Code Hooks</span>
+    <span class="sep">/</span>
+    <span class="chapter-part">Hook là gì & phân biệt với Skill/Sub-agent</span>
+  </div>
+
+  <h2 class="section-heading">Giới thiệu</h2>
+  <p class="body-text">
+    <strong>Hook</strong> là cơ chế cho phép "chèn" một shell command tuỳ chỉnh vào những thời điểm cố định trong
+    vòng đời làm việc của Claude Code — ví dụ ngay trước khi một tool được gọi, ngay sau khi tool chạy xong, hoặc khi
+    một phiên làm việc kết thúc. Điểm khác biệt quan trọng nhất so với Skill và Sub-agent (đã học ở Section 3): Hook
+    <strong>chạy độc lập với model</strong> — không cần Claude Code "quyết định" có nên chạy hay không, chỉ cần điều
+    kiện khai báo trước (event + matcher) khớp là Hook tự động thực thi, giống một quy tắc cố định luôn được áp dụng.
+  </p>
+
+  <h2 class="section-heading">Các tính năng chính</h2>
+  <ul class="feature-list">
+    <li>Hook cho phép "chèn" shell command vào các thời điểm cố định trong vòng đời một phiên Claude Code (trước/sau khi gọi tool, khi nhận prompt, khi phiên kết thúc hoặc khởi động...).</li>
+    <li>Hook chạy <strong>độc lập với model</strong> — không cần Claude Code chủ động gọi, cũng không thể "quên" gọi giống như một Skill mô tả chưa đủ rõ.</li>
+    <li>Hook được khai báo trong file cấu hình <code>settings.json</code> (ở phạm vi project hoặc user), không cần viết Markdown hướng dẫn như Skill, không cần system prompt riêng như Sub-agent.</li>
+    <li>Hook nhận thông tin về sự kiện hiện tại (tool nào, input nào, session nào...) qua <strong>stdin dạng JSON</strong>, và có thể ảnh hưởng đến luồng chạy tiếp theo qua exit code/output.</li>
+    <li>Vì là shell command thông thường, Hook có thể làm bất cứ điều gì command line làm được: format code, ghi log, gửi thông báo, kiểm tra và chặn một hành động trước khi nó xảy ra.</li>
+  </ul>
+
+  <h2 class="section-heading">Mô hình kiến trúc</h2>
+  <div class="mermaid">
+  flowchart TB
+      Prompt(["👤<br/><b>Học viên gửi yêu cầu</b>"])
+      Model["<img src='../../assets/svg-icon/claude-logo.svg' style='width:30px;height:30px;'/><br/><b>Claude Code (Model)</b>"]
+
+      subgraph ModelDriven["🧠 Model tự quyết định — Skill / Sub-agent"]
+          Decide{"So khớp description<br/>với yêu cầu hiện tại"}
+          SkillRun["🧩 Nạp Skill vào context<br/>hoặc gọi Sub-agent qua Task tool"]
+      end
+
+      subgraph EventDriven["⚙️ Luôn chạy theo điều kiện cố định — Hook"]
+          ToolCall["<img src='../../assets/svg-icon/task.svg' style='width:26px;height:26px;'/><br/>Tool được gọi<br/>(Edit, Bash, Write...)"]
+          Matcher{"Matcher trong<br/>settings.json có khớp?"}
+          HookRun["<img src='../../assets/svg-icon/operator.svg' style='width:26px;height:26px;'/><br/><b>Hook command</b><br/>chạy trong process riêng"]
+      end
+
+      Prompt --> Model
+      Model -->|"Có Skill/Sub-agent khớp?"| Decide
+      Decide -->|"Có"| SkillRun --> Model
+      Model -->|"Gọi tool"| ToolCall --> Matcher
+      Matcher -->|"Khớp"| HookRun -.->|"Không cần model biết"| Model
+      Matcher -->|"Không khớp"| Model
+  </div>
+  <p class="arch-caption">Skill/Sub-agent chỉ được gọi khi <b>model tự nhận diện</b> yêu cầu khớp mô tả; Hook thì ngược lại — luôn chạy trong một process riêng biệt mỗi khi điều kiện (event + matcher) khớp, bất kể model có "muốn" hay không.</p>
+
+  <h3 class="sub-heading">So sánh Hook với Skill và Sub-agent</h3>
+  <table class="compare-table">
+    <thead>
+      <tr><th>Tiêu chí</th><th>Skill</th><th>Sub-agent</th><th>Hook</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Ai quyết định chạy?</td>
+        <td>Model tự quyết định, dựa trên việc so khớp <code>description</code> với yêu cầu hiện tại</td>
+        <td>Model (Main Agent) tự quyết định gọi qua Task tool, hoặc học viên chỉ định rõ qua <code>/agents</code></td>
+        <td>Luôn chạy khi điều kiện (event + matcher) khớp — không cần model "muốn" hay "nhớ" gọi</td>
+      </tr>
+      <tr>
+        <td>Chạy ở đâu?</td>
+        <td>Trong cùng context của Agent đang chạy — nội dung SKILL.md được nạp thêm vào ngữ cảnh</td>
+        <td>Trong context riêng của Sub-agent — tách biệt với context Agent chính</td>
+        <td>Trong một process hệ điều hành riêng biệt (shell command) — độc lập hoàn toàn với context của model</td>
+      </tr>
+      <tr>
+        <td>Dùng khi nào?</td>
+        <td>Quy trình lặp lại, cần model tự nhận diện đúng lúc để áp dụng hướng dẫn cụ thể</td>
+        <td>Việc cần tách phạm vi tool/system prompt riêng, tránh làm phình context của Agent chính</td>
+        <td>Việc cần đảm bảo <strong>luôn</strong> xảy ra mỗi khi có điều kiện, không phụ thuộc model có quyết định đúng hay không (vd: luôn format code, luôn chặn lệnh nguy hiểm)</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h2 class="section-heading">Use Cases</h2>
+  <div class="usecase-grid">
+    <div class="usecase-card">
+      <h4>Đảm bảo hành động luôn xảy ra</h4>
+      <p>Không phụ thuộc việc model có "nhớ" hay không — vd luôn format lại code ngay sau khi Claude Code sửa file, dù model không được nhắc trong prompt.</p>
+    </div>
+    <div class="usecase-card">
+      <h4>Thêm lớp kiểm soát an toàn độc lập</h4>
+      <p>Chặn một hành động nguy hiểm trước khi nó thực thi, mà không phụ thuộc vào việc model có tự nhận ra rủi ro hay không.</p>
+    </div>
+    <div class="usecase-card">
+      <h4>Tự động hoá phần "phụ trợ"</h4>
+      <p>Ghi log, gửi thông báo khi hoàn thành tác vụ — những việc không cần chiếm context hay khả năng suy luận của model.</p>
+    </div>
+  </div>
+
+  <h2 class="section-heading">Thông tin bổ sung</h2>
+  <p class="body-text">
+    Chương này chỉ giới thiệu khái niệm và điểm khác biệt cốt lõi của Hook. Danh sách chi tiết các loại event
+    (<code>PreToolUse</code>, <code>PostToolUse</code>, <code>UserPromptSubmit</code>, <code>Stop</code>,
+    <code>SessionStart</code>...) và cách khai báo cụ thể trong <code>settings.json</code> sẽ được trình bày ở
+    chương tiếp theo.
+  </p>
+  <div class="alert alert-info">
+    <strong>Lưu ý:</strong> Danh sách event, tên field trong JSON input, và quy ước exit code của Hook có thể được
+    Anthropic bổ sung hoặc thay đổi theo thời gian. Luôn tham khảo tài liệu Claude Code chính thức tại
+    <code>docs.claude.com</code> để có thông tin đầy đủ và mới nhất trước khi áp dụng vào công việc thật.
+  </div>
+
+  <script>mermaid.initialize({ startOnLoad: true, theme: 'default' });</script>
+</body>
+</html>

@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Bài tập tổng hợp cuối khoá – Claude 101</title>
+  <link rel="stylesheet" href="../../styles.css" />
+  <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+  <script src="../../mermaid-config.js"></script>
+  <link rel="stylesheet" href="../../prism.css" />
+  <script src="../../prism.js"></script>
+  <script src="../../script.js"></script>
+</head>
+<body class="chapter-body">
+
+  <div class="chapter-breadcrumb">
+    <span class="section-part">11. Tổng kết & Định hướng nâng cao</span>
+    <span class="sep">/</span>
+    <span class="chapter-part">Bài tập tổng hợp cuối khoá</span>
+  </div>
+
+  <h2 class="section-heading">Mục tiêu</h2>
+  <p class="body-text">
+    Đây là bài tập <strong>mở</strong> — không có đề bài cố định, không có command mẫu để copy-paste. Học viên tự
+    chọn một bài toán thực tế đang gặp trong công việc của mình, rồi tự thiết kế và thực hiện giải pháp bằng
+    Claude/Claude Code, có thể kết hợp thêm Skill hoặc Sub-agent đã học ở Section 3.
+  </p>
+  <ul class="feature-list">
+    <li>Tự chọn được một đề tài <strong>cụ thể, có thật</strong> trong công việc hằng ngày — không cần quá lớn, chỉ cần rõ ràng và đo lường được kết quả.</li>
+    <li>Áp dụng lại <strong>tối thiểu 2–3 công cụ</strong> đã học xuyên suốt khoá (vd Claude Code + Skill, hoặc Claude Code + MCP, hoặc Claude Desktop + Sub-agent...).</li>
+    <li>Thực hiện đúng theo một quy trình có kiểm soát — không "vibe" ngẫu nhiên — để có thể tự đánh giá lại kết quả cuối cùng.</li>
+    <li>Tự đối chiếu được kết quả đạt được với mục tiêu ban đầu đặt ra, rút ra bài học cho lần áp dụng tiếp theo.</li>
+  </ul>
+
+  <h2 class="section-heading">Mô hình kiến trúc: Quy trình gợi ý</h2>
+  <div class="mermaid">
+  flowchart LR
+      S1["1️⃣<br/><b>Chọn bài toán thực tế</b><br/>Một việc lặp lại trong công việc hằng ngày"]
+      S2["2️⃣<br/><b>Chọn công cụ phù hợp</b><br/>Dựa theo bảng quyết định ở Chapter 1"]
+      S3["3️⃣<br/><b>Explore → Plan → Code → Verify</b><br/>Thực hiện cùng Claude/Claude Code"]
+      S4["4️⃣<br/><b>Đối chiếu kết quả</b><br/>So với mục tiêu ban đầu đã đặt ra"]
+      S1 --> S2 --> S3 --> S4
+      S4 -.->|"Chưa đạt mục tiêu → điều chỉnh công cụ/cách làm"| S2
+  </div>
+  <p class="arch-caption">Quy trình này chỉ là gợi ý — có thể lặp lại vòng 2→3→4 nhiều lần cho đến khi kết quả đáp ứng đúng mục tiêu ban đầu.</p>
+
+  <h2 class="section-heading">Gợi ý đề tài mẫu theo vai trò</h2>
+  <p class="body-text">Nếu chưa nghĩ ra đề tài của riêng mình, có thể chọn tạm một trong các gợi ý sau theo vai trò công việc:</p>
+  <div class="usecase-grid">
+    <div class="usecase-card">
+      <h4>👨‍💻 Developer</h4>
+      <p>Dùng Claude Code kết hợp MCP CodeGraph để refactor một module phức tạp trong project thực tế đang làm, đối chiếu call graph trước/sau khi sửa để đảm bảo không phá vỡ phần khác.</p>
+    </div>
+    <div class="usecase-card">
+      <h4>⚙️ DevOps</h4>
+      <p>Dùng Claude Code sinh và review file Terraform cho một hạ tầng nhỏ đang thiếu, kết hợp Hook để tự động chạy kiểm tra định dạng/an toàn ngay sau mỗi lần Claude Code chỉnh sửa file <code>.tf</code>.</p>
+    </div>
+    <div class="usecase-card">
+      <h4>🧪 Tester</h4>
+      <p>Dùng Claude sinh bộ test case cho một chức năng thực tế đang thiếu test, sau đó đóng gói thành Skill để tái sử dụng, rồi dùng Claude Code viết test tự động theo bộ test case đó.</p>
+    </div>
+    <div class="usecase-card">
+      <h4>📊 Project Manager</h4>
+      <p>Dùng Claude Projects tổng hợp tiến độ từ nhiều buổi họp thực tế thành một status report, đóng gói thành Skill để tái sử dụng đúng template report đó mỗi kỳ báo cáo.</p>
+    </div>
+  </div>
+
+  <h2 class="section-heading">Khung tự đánh giá</h2>
+  <div class="verify-box">
+    <h4>✅ Checklist tự đánh giá — đối chiếu lại trước khi coi bài tập đã hoàn thành</h4>
+    <ul class="feature-list">
+      <li>☐ Đã chọn được một bài toán cụ thể, có thể mô tả rõ trong 2–3 câu (không mơ hồ, không quá rộng).</li>
+      <li>☐ Đã áp dụng tối thiểu 2 công cụ đã học trong khoá — nêu rõ tên công cụ và vì sao chọn công cụ đó (tham khảo bảng quyết định ở Chapter 1).</li>
+      <li>☐ Đã thực hiện đủ chu trình Explore → Plan → Code → Verify (hoặc quy trình tương đương phù hợp với bài toán không phải code).</li>
+      <li>☐ Đã đối chiếu lại kết quả cuối cùng với mục tiêu ban đầu — ghi nhận rõ điểm đã đạt và điểm chưa đạt.</li>
+      <li>☐ Có thể tự giải thích lại lựa chọn của mình — vì sao dùng Skill/Sub-agent/MCP/Hook/Spec-Kit ở bước đó thay vì cách khác.</li>
+    </ul>
+  </div>
+
+  <h2 class="section-heading">Gợi ý nếu chưa biết bắt đầu từ đâu</h2>
+  <div class="alert alert-tip">
+    <strong>Chưa nghĩ ra đề tài?</strong> Thử các cách sau:<br/>
+    <ul>
+      <li>Xem lại các tác vụ mình đã làm trong 1–2 tuần gần nhất — tìm việc nào lặp lại từ 2 lần trở lên.</li>
+      <li>Hỏi một đồng nghiệp khác vai trò (vd Developer hỏi Tester) xem họ đang gặp việc lặp lại gì.</li>
+      <li>Chọn tạm một đề tài mẫu theo vai trò ở phần trên, làm thử rồi điều chỉnh dần cho sát với công việc thật của mình.</li>
+      <li>Bắt đầu từ quy mô rất nhỏ (vd chỉ 1 tính năng/1 bước trong quy trình) — quan trọng là đi hết quy trình 4 bước, không phải độ lớn của đề tài.</li>
+    </ul>
+  </div>
+
+  <div class="tip-box mt-24">
+    <strong>Lời kết.</strong> Vậy là chúng ta đã đi cùng nhau qua toàn bộ chặng đường từ những bước đầu làm quen với
+    Claude, đến việc mở rộng khả năng bằng Skill, Sub-agent, MCP, Hook, và áp dụng Spec-Kit cho những tính năng cần
+    kiểm soát chặt. Công cụ và tính năng của Claude sẽ còn tiếp tục thay đổi, nhưng cách tư duy — chọn đúng công cụ
+    cho đúng bài toán, luôn review kết quả, và xây dựng thói quen sử dụng đều đặn — sẽ vẫn còn giá trị lâu dài.
+    Cảm ơn bạn đã đồng hành hết khoá học này. Chúc bạn áp dụng thành công Claude vào công việc của mình, và luôn giữ
+    sự tò mò để khám phá thêm những use case mới!
+  </div>
+
+  <script>mermaid.initialize({ startOnLoad: true, theme: 'default' });</script>
+</body>
+</html>

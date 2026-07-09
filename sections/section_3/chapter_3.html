@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Claude Agent là gì? – Claude 101</title>
+  <link rel="stylesheet" href="../../styles.css" />
+  <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+  <script src="../../mermaid-config.js"></script>
+  <link rel="stylesheet" href="../../prism.css" />
+  <script src="../../prism.js"></script>
+  <script src="../../script.js"></script>
+</head>
+<body class="chapter-body">
+
+  <div class="chapter-breadcrumb">
+    <span class="section-part">3. Claude Skills & Agent</span>
+    <span class="sep">/</span>
+    <span class="chapter-part">Claude Agent là gì?</span>
+  </div>
+
+  <h2 class="section-heading">Giới thiệu</h2>
+  <p class="body-text">
+    <strong>Sub-agent</strong> trong Claude Code là một "trợ lý con" chuyên biệt, có <strong>system prompt riêng</strong>
+    và <strong>phạm vi công cụ (tools) riêng</strong>, được Agent chính (main agent — phiên Claude Code học viên đang
+    trò chuyện trực tiếp) gọi đến để xử lý một loại việc cụ thể, rồi trả kết quả tổng hợp lại. Thay vì để một Agent
+    duy nhất phải "biết tuốt" và chia sẻ chung một context dài, mô hình Sub-agent giúp <strong>chuyên biệt hoá</strong>
+    từng phần việc, giữ context của Agent chính gọn nhẹ, và hạn chế rủi ro khi giao cho một tác vụ nhạy cảm chỉ đúng
+    những tool cần thiết.
+  </p>
+
+  <h2 class="section-heading">Các tính năng chính</h2>
+  <ul class="feature-list">
+    <li>Mỗi Sub-agent được khai báo trong một file Markdown riêng tại <code>.claude/agents/&lt;ten-agent&gt;.md</code>, với YAML frontmatter khai báo <code>name</code>, <code>description</code>, <code>tools</code> (danh sách công cụ được phép dùng) và <code>model</code> (model nào xử lý Sub-agent này).</li>
+    <li><strong>Phạm vi tool riêng biệt</strong> — Sub-agent chỉ được cấp đúng những tool cần cho công việc của nó (vd Sub-agent review code chỉ cần đọc file, không cần quyền ghi/xoá), giảm rủi ro so với việc dùng chung toàn quyền của Agent chính.</li>
+    <li><strong>System prompt riêng</strong> — Sub-agent có bộ hướng dẫn hành vi độc lập, không lẫn với system prompt của Agent chính, giúp nó tập trung đúng vai trò được giao (vd luôn phản hồi theo format checklist khi review code).</li>
+    <li>Agent chính gọi Sub-agent thông qua <strong>Agent tool</strong> (còn gọi là Task tool) — có thể tự động dựa trên <code>description</code> (tương tự cách Skill được auto-discover), hoặc gọi rõ ràng qua lệnh <code>/agents</code>.</li>
+    <li>Sub-agent chạy trong ngữ cảnh (context) riêng, không làm phình to context của Agent chính — chỉ kết quả cuối cùng được trả về, giúp phiên làm việc chính giữ được nhiều "chỗ trống" cho các bước tiếp theo.</li>
+  </ul>
+
+  <h2 class="section-heading">Mô hình kiến trúc</h2>
+  <div class="mermaid">
+  flowchart TB
+      User(("👤<br/><b>Học viên</b>"))
+      Main["<img src='../../assets/svg-icon/claude-logo.svg' style='width:32px;height:32px;'/><br/><b>Main Agent</b><br/>Claude Code — phiên chat chính"]
+
+      Route{"🔀 Định tuyến task<br/>theo description<br/>của từng Sub-agent"}
+
+      SA1["🤖 <b>code-reviewer</b><br/>tools: Read, Grep, Glob<br/><i>review chất lượng code</i>"]
+      SA2["🤖 <b>test-writer</b><br/>tools: Read, Write, Bash<br/><i>viết unit test</i>"]
+      SA3["🤖 <b>doc-writer</b><br/>tools: Read, Write<br/><i>viết tài liệu kỹ thuật</i>"]
+
+      Main -->|"Task tool: giao việc"| Route
+      Route -->|"Yêu cầu review code"| SA1
+      Route -->|"Yêu cầu viết test"| SA2
+      Route -->|"Yêu cầu viết docs"| SA3
+
+      SA1 -->|"Kết quả review"| Main
+      SA2 -->|"Test đã viết"| Main
+      SA3 -->|"Tài liệu đã viết"| Main
+
+      Main -->|"Tổng hợp & phản hồi"| User
+  </div>
+  <p class="arch-caption">Main Agent nhận yêu cầu từ học viên, dùng Task tool định tuyến từng phần việc đến đúng Sub-agent chuyên biệt (mỗi Sub-agent có system prompt & phạm vi tools riêng), sau đó tổng hợp kết quả trả về từ các Sub-agent thành phản hồi cuối cùng.</p>
+
+  <h3 class="sub-heading">Khi nào Main Agent gọi Sub-agent?</h3>
+  <table class="compare-table">
+    <thead>
+      <tr><th>Cách gọi</th><th>Cơ chế</th><th>Khi nào xảy ra</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Tự động (auto-invoke)</td><td>Main Agent so khớp yêu cầu hiện tại với <code>description</code> của từng Sub-agent, tự quyết định gọi Sub-agent phù hợp nhất</td><td>Khi description của Sub-agent viết đủ rõ trigger, khớp đúng ngữ cảnh yêu cầu của học viên</td></tr>
+      <tr><td>Gọi rõ ràng qua <code>/agents</code></td><td>Học viên tự chọn Sub-agent muốn dùng từ danh sách quản lý</td><td>Khi muốn ép dùng đúng một Sub-agent cụ thể, hoặc khi mới tạo Sub-agent cần test thử</td></tr>
+      <tr><td>Chỉ định trực tiếp trong prompt</td><td>Nhắc rõ tên Sub-agent trong câu yêu cầu (vd "dùng code-reviewer để kiểm tra file này")</td><td>Khi có nhiều Sub-agent phạm vi gần giống nhau, cần chỉ rõ để tránh Main Agent chọn nhầm</td></tr>
+    </tbody>
+  </table>
+
+  <h2 class="section-heading">Use Cases</h2>
+  <div class="usecase-grid">
+    <div class="usecase-card">
+      <h4>code-reviewer</h4>
+      <p>Sub-agent chỉ có quyền đọc code (không quyền ghi), chuyên review chất lượng, bảo mật, coding convention trước khi merge.</p>
+    </div>
+    <div class="usecase-card">
+      <h4>test-writer</h4>
+      <p>Sub-agent chuyên viết unit test/integration test cho một hàm hoặc module cụ thể theo đúng framework test của project.</p>
+    </div>
+    <div class="usecase-card">
+      <h4>doc-writer</h4>
+      <p>Sub-agent chuyên tổng hợp và viết tài liệu kỹ thuật (API docs, README) theo đúng template chuẩn của team.</p>
+    </div>
+    <div class="usecase-card">
+      <h4>Research / Explore agent</h4>
+      <p>Sub-agent chuyên tìm kiếm, đọc nhiều file trong codebase lớn để trả lời câu hỏi kiến trúc, tránh làm phình context của Main Agent.</p>
+    </div>
+  </div>
+
+  <h2 class="section-heading">Thông tin bổ sung</h2>
+  <h3 class="sub-heading">Best practice khi thiết kế Skill/Agent</h3>
+  <ul class="feature-list">
+    <li><strong>Đặt tên rõ ràng, ngắn gọn</strong> — tên Skill/Sub-agent nên phản ánh đúng chức năng (vd <code>code-reviewer</code> thay vì <code>helper1</code>), giúp cả người và Claude Code dễ nhận diện.</li>
+    <li><strong>Viết description mô tả rõ trigger</strong> — liệt kê cụ thể ngữ cảnh, từ khoá người dùng thường dùng khi cần đến Skill/Sub-agent đó, tránh mô tả chung chung khiến việc auto-invoke không chính xác.</li>
+    <li><strong>Giới hạn phạm vi tools ở mức tối thiểu cần thiết</strong> — Sub-agent chỉ nên có đúng những tool cần cho công việc (nguyên tắc least privilege), không nên mặc định cấp toàn quyền giống Agent chính.</li>
+    <li><strong>Tránh chồng chéo phạm vi</strong> — không nên có nhiều Skill/Sub-agent mô tả trùng lặp ý nghĩa, dễ gây nhầm lẫn khi Main Agent phải chọn giữa nhiều lựa chọn giống nhau.</li>
+    <li><strong>Chọn model phù hợp cho từng Sub-agent</strong> — Sub-agent xử lý việc đơn giản, lặp lại nhiều (vd review syntax cơ bản) có thể dùng model nhẹ hơn (Haiku) để tiết kiệm chi phí, giữ Sonnet/Opus cho việc cần suy luận sâu.</li>
+  </ul>
+  <div class="alert alert-info">
+    <strong>Phân biệt nhanh Skill và Sub-agent:</strong> Skill là một "quy trình đóng gói sẵn" được nạp thêm vào ngữ cảnh của cùng một Agent khi cần; Sub-agent là một "Agent độc lập khác" với context và system prompt riêng, được Main Agent giao việc rồi nhận lại kết quả. Có thể phối hợp cả hai: một Sub-agent vẫn có thể tự gọi Skill riêng của nó khi cần.
+  </div>
+
+</body>
+</html>

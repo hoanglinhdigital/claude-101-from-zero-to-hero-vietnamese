@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Các loại event Hook & cấu trúc khai báo trong settings.json – Claude 101</title>
+  <link rel="stylesheet" href="../../styles.css" />
+  <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+  <script src="../../mermaid-config.js"></script>
+  <link rel="stylesheet" href="../../prism.css" />
+  <script src="../../prism.js"></script>
+  <script src="../../script.js"></script>
+</head>
+<body class="chapter-body">
+
+  <div class="chapter-breadcrumb">
+    <span class="section-part">9. Claude Code Hooks</span>
+    <span class="sep">/</span>
+    <span class="chapter-part">Các loại event Hook & cấu trúc khai báo trong settings.json</span>
+  </div>
+
+  <h2 class="section-heading">Giới thiệu</h2>
+  <p class="body-text">
+    Claude Code kích hoạt Hook tại nhiều <strong>điểm cố định</strong> trong vòng đời một phiên làm việc — mỗi điểm
+    gọi là một <strong>event</strong>. Mỗi event được khai báo trong file <code>settings.json</code> cùng một
+    <strong>matcher</strong> (điều kiện khớp, thường theo tên tool) và danh sách command sẽ chạy khi điều kiện đó
+    xảy ra. Hiểu đúng từng event và cấu trúc khai báo là điều kiện cần trước khi tự viết một Hook cho công việc
+    thật.
+  </p>
+
+  <h2 class="section-heading">Các tính năng chính</h2>
+  <h3 class="sub-heading">Các loại event Hook chính</h3>
+  <table class="info-table">
+    <thead>
+      <tr><th>Event</th><th>Thời điểm kích hoạt</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><code>PreToolUse</code></td>
+        <td>Trước khi Claude Code thực thi một tool cụ thể (Edit, Write, Bash...) — dùng để kiểm tra hoặc chặn hành động trước khi nó thực sự xảy ra.</td>
+      </tr>
+      <tr>
+        <td><code>PostToolUse</code></td>
+        <td>Ngay sau khi một tool đã thực thi xong — phù hợp để xử lý tiếp theo dựa trên kết quả (vd format lại file vừa sửa).</td>
+      </tr>
+      <tr>
+        <td><code>UserPromptSubmit</code></td>
+        <td>Khi học viên gửi một prompt mới trong phiên làm việc — trước khi model bắt đầu xử lý prompt đó.</td>
+      </tr>
+      <tr>
+        <td><code>Stop</code></td>
+        <td>Khi Claude Code hoàn thành một tác vụ/phiên trả lời — không còn hành động tiếp theo cần thực hiện.</td>
+      </tr>
+      <tr>
+        <td><code>SessionStart</code></td>
+        <td>Khi một phiên làm việc mới của Claude Code được khởi động.</td>
+      </tr>
+    </tbody>
+  </table>
+  <div class="alert alert-info">
+    <strong>Lưu ý:</strong> Đây là các event phổ biến và ổn định nhất tại thời điểm biên soạn khoá học. Claude Code
+    có thể hỗ trợ thêm event khác hoặc điều chỉnh chi tiết theo phiên bản — tham khảo tài liệu chính thức tại
+    <code>docs.claude.com</code> để có danh sách đầy đủ và mới nhất.
+  </div>
+
+  <h3 class="sub-heading">Cấu trúc khai báo trong settings.json</h3>
+  <ul class="feature-list">
+    <li>Hook được khai báo dưới key <code>"hooks"</code> trong <code>settings.json</code> — có thể đặt ở phạm vi user (áp dụng mọi project trên máy) hoặc project (<code>.claude/settings.json</code>, chia sẻ được qua Git cho cả team).</li>
+    <li>Mỗi event (vd <code>PostToolUse</code>) là một danh sách các <strong>matcher</strong> — mỗi matcher có field <code>"matcher"</code> để khớp theo tên tool (vd <code>"Edit|Write"</code> khớp cả 2 tool) và field <code>"hooks"</code> là danh sách command sẽ chạy khi matcher đó khớp.</li>
+    <li>Mỗi command trong danh sách <code>"hooks"</code> có dạng <code>{"type": "command", "command": "..."}"</code> — chuỗi lệnh sẽ được chạy bằng shell của hệ điều hành (PowerShell/cmd trên Windows).</li>
+    <li>Một số event không gắn với tool cụ thể (vd <code>Stop</code>, <code>SessionStart</code>, <code>UserPromptSubmit</code>) nên thường không cần khai báo <code>"matcher"</code> — chỉ cần danh sách <code>"hooks"</code> chạy mỗi khi event đó xảy ra.</li>
+    <li>Hook nhận thông tin ngữ cảnh (tool nào, input nào, đường dẫn project...) qua <strong>stdin dạng JSON</strong> — command có thể đọc stdin để xử lý chi tiết hơn, hoặc bỏ qua nếu chỉ cần chạy một hành động cố định.</li>
+  </ul>
+
+  <h2 class="section-heading">Mô hình kiến trúc</h2>
+  <div class="mermaid">
+  flowchart LR
+      Start(["🚀<br/><b>SessionStart</b><br/>Claude Code khởi động"])
+      UserPrompt["<img src='../../assets/svg-icon/user.svg' style='width:26px;height:26px;'/><br/><b>UserPromptSubmit</b><br/>Học viên gửi prompt"]
+      Model["<img src='../../assets/svg-icon/claude-logo.svg' style='width:28px;height:28px;'/><br/>Model xử lý,<br/>quyết định gọi tool"]
+      PreHook["<img src='../../assets/svg-icon/operator.svg' style='width:26px;height:26px;'/><br/><b>PreToolUse</b><br/>trước khi tool chạy"]
+      ToolExec["<img src='../../assets/svg-icon/task.svg' style='width:26px;height:26px;'/><br/>Tool thực thi<br/>(Edit, Bash, Write...)"]
+      PostHook["<img src='../../assets/svg-icon/operator.svg' style='width:26px;height:26px;'/><br/><b>PostToolUse</b><br/>sau khi tool chạy"]
+      StopHook["<img src='../../assets/svg-icon/Alarm.svg' style='width:26px;height:26px;'/><br/><b>Stop</b><br/>khi phiên/tác vụ dừng"]
+
+      Start --> UserPrompt --> Model
+      Model --> PreHook --> ToolExec --> PostHook --> Model
+      Model -->|"Hoàn thành, không còn tool cần gọi"| StopHook
+  </div>
+  <p class="arch-caption">Một request có thể lặp lại nhiều vòng "gọi tool" (Model → PreToolUse → Tool → PostToolUse → Model) trước khi kết thúc bằng event <code>Stop</code>. Mỗi điểm trên vòng đời này đều có thể chèn Hook riêng.</p>
+
+  <h3 class="sub-heading">Ví dụ file settings.json khai báo nhiều Hook</h3>
+  <pre class="file-block"><span class="filename">.claude/settings.json</span>{
+  <span class="hl">"hooks"</span>: {
+    <span class="hl">"PreToolUse"</span>: [
+      {
+        <span class="hl">"matcher"</span>: <span class="str">"Bash"</span>,
+        <span class="hl">"hooks"</span>: [
+          { <span class="hl">"type"</span>: <span class="str">"command"</span>, <span class="hl">"command"</span>: <span class="str">"echo Kiem tra truoc khi chay Bash..."</span> }
+        ]
+      }
+    ],
+    <span class="hl">"PostToolUse"</span>: [
+      {
+        <span class="hl">"matcher"</span>: <span class="str">"Edit|Write"</span>,
+        <span class="hl">"hooks"</span>: [
+          { <span class="hl">"type"</span>: <span class="str">"command"</span>, <span class="hl">"command"</span>: <span class="str">"npx prettier --write ."</span> }
+        ]
+      }
+    ],
+    <span class="hl">"Stop"</span>: [
+      {
+        <span class="hl">"hooks"</span>: [
+          { <span class="hl">"type"</span>: <span class="str">"command"</span>, <span class="hl">"command"</span>: <span class="str">"powershell -NoProfile -ExecutionPolicy Bypass -File ./notify.ps1"</span> }
+        ]
+      }
+    ]
+  }
+}</pre>
+
+  <h2 class="section-heading">Use Cases</h2>
+  <div class="usecase-grid">
+    <div class="usecase-card">
+      <h4>Kết hợp Pre + Post cho một tool</h4>
+      <p>Vừa kiểm tra trước khi Bash chạy (PreToolUse), vừa xử lý kết quả sau khi Edit/Write hoàn tất (PostToolUse) — trong cùng một file cấu hình.</p>
+    </div>
+    <div class="usecase-card">
+      <h4>Ghi log toàn bộ phiên làm việc</h4>
+      <p>Dùng <code>SessionStart</code> để ghi lại thời điểm bắt đầu, <code>Stop</code> để ghi thời điểm kết thúc — phục vụ thống kê thời gian sử dụng.</p>
+    </div>
+    <div class="usecase-card">
+      <h4>Kiểm soát nội dung prompt đầu vào</h4>
+      <p><code>UserPromptSubmit</code> cho phép chạy một bước xử lý (vd log lại prompt) trước khi model bắt đầu suy luận.</p>
+    </div>
+  </div>
+
+  <h2 class="section-heading">Thông tin bổ sung</h2>
+  <p class="body-text">
+    Giá trị <code>"matcher"</code> hoạt động giống một pattern khớp tên tool — có thể khớp chính xác một tool
+    (vd <code>"Bash"</code>) hoặc nhiều tool cùng lúc bằng dấu <code>|</code> (vd <code>"Edit|Write"</code>). Nếu bỏ
+    trống hoặc không khai báo <code>"matcher"</code>, Hook thường áp dụng cho mọi trường hợp của event đó.
+  </p>
+  <div class="alert alert-warning">
+    <strong>Lưu ý:</strong> Cấu trúc JSON input qua stdin (tên field chính xác cho tool name, tool input, exit code
+    đặc biệt để chặn hành động ở <code>PreToolUse</code>...) có thể khác nhau giữa các phiên bản Claude Code. Trước
+    khi viết Hook xử lý sâu vào nội dung stdin, hãy kiểm tra lại tài liệu chính thức tại <code>docs.claude.com</code>
+    để dùng đúng field và đúng quy ước exit code hiện hành.
+  </div>
+
+  <script>mermaid.initialize({ startOnLoad: true, theme: 'default' });</script>
+</body>
+</html>

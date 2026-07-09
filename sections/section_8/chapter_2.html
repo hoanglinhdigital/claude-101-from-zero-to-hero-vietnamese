@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Kiến trúc MCP: Host – Client – Server & primitives – Claude 101</title>
+  <link rel="stylesheet" href="../../styles.css" />
+  <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+  <script src="../../mermaid-config.js"></script>
+  <link rel="stylesheet" href="../../prism.css" />
+  <script src="../../prism.js"></script>
+  <script src="../../script.js"></script>
+</head>
+<body class="chapter-body">
+
+  <div class="chapter-breadcrumb">
+    <span class="section-part">8. Model Context Protocol (MCP)</span>
+    <span class="sep">/</span>
+    <span class="chapter-part">Kiến trúc MCP: Host – Client – Server & primitives</span>
+  </div>
+
+  <h2 class="section-heading">Giới thiệu</h2>
+  <p class="body-text">
+    Một hệ thống MCP luôn gồm <strong>3 thành phần</strong> phối hợp với nhau: <strong>MCP Host</strong> — ứng dụng
+    AI mà bạn đang dùng (Claude Code, Claude Desktop), <strong>MCP Client</strong> — phần nằm bên trong Host, chịu
+    trách nhiệm quản lý kết nối và gửi/nhận thông điệp, và <strong>MCP Server</strong> — chương trình cung cấp
+    khả năng thực tế (đọc file, truy vấn database, gọi API...). Phía Server expose khả năng của mình cho Host thông
+    qua 3 loại <strong>primitive</strong> chuẩn hoá: Tools, Resources và Prompts. Chương này giải thích vai trò từng
+    thành phần và cách chúng kết nối với nhau.
+  </p>
+
+  <h2 class="section-heading">Các tính năng chính</h2>
+  <ul class="feature-list">
+    <li><strong>MCP Host</strong> — ứng dụng AI mà người dùng tương tác trực tiếp (Claude Code, Claude Desktop). Host có thể kết nối với <strong>nhiều MCP Server cùng lúc</strong>.</li>
+    <li><strong>MCP Client</strong> — thành phần nằm bên trong Host (người dùng không thấy trực tiếp), giữ một kết nối riêng tới mỗi MCP Server, gửi yêu cầu (gọi Tool, đọc Resource...) và nhận kết quả trả về cho model xử lý.</li>
+    <li><strong>MCP Server</strong> — chương trình độc lập cung cấp khả năng cụ thể, có thể do Anthropic, nhà cung cấp dịch vụ, hoặc bất kỳ ai (kể cả bạn) viết ra, chạy local hoặc remote.</li>
+    <li>Một Host có thể kết nối đồng thời với nhiều Server thuộc nhiều nhà cung cấp khác nhau — ví dụ Claude Code có thể vừa kết nối MCP Server đọc file, vừa kết nối MCP Server truy vấn database, trong cùng một phiên làm việc.</li>
+  </ul>
+
+  <h2 class="section-heading">Mô hình kiến trúc</h2>
+  <div class="mermaid">
+  flowchart LR
+      subgraph Host["MCP Host — Claude Code / Claude Desktop"]
+          direction TB
+          CCIcon["<img src='../../assets/svg-icon/claude-logo.svg' style='width:26px;height:26px;'/>"]
+          Client["🔗 <b>MCP Client</b><br/>Quản lý kết nối<br/>Gọi Tools/Resources/Prompts"]
+          CCIcon --- Client
+      end
+      S1["<img src='../../assets/svg-icon/mysql-workbench.svg' style='width:26px;height:26px;'/><br/><b>MCP Server</b><br/>Database"]
+      S2["📁 <b>MCP Server</b><br/>Filesystem"]
+      S3["<img src='../../assets/svg-icon/github.svg' style='width:26px;height:26px;'/><br/><b>MCP Server</b><br/>Git"]
+      S4["🌐 <b>MCP Server</b><br/>Remote API"]
+
+      Client -->|"JSON-RPC qua stdio"| S1
+      Client -->|"JSON-RPC qua stdio"| S2
+      Client -->|"JSON-RPC qua stdio"| S3
+      Client -->|"JSON-RPC qua HTTP/SSE"| S4
+  </div>
+  <p class="arch-caption">MCP Client nằm bên trong Host, giữ kết nối riêng tới từng MCP Server. Một Host có thể kết nối nhiều Server cùng lúc, kể cả kết hợp Server chạy local (qua stdio) và Server chạy remote (qua HTTP/SSE) — xem chi tiết ở Chapter 3.</p>
+
+  <h3 class="sub-heading">Ba primitive chính mà MCP Server cung cấp</h3>
+  <div class="capability-grid">
+    <div class="capability-card">
+      <div class="icon">🔧</div>
+      <h4>Tools</h4>
+      <p>Hành động cụ thể mà Server cho phép Host/model gọi để thực thi — ví dụ chạy một câu SQL, tạo một file, gọi một API. Model chủ động quyết định khi nào gọi Tool nào.</p>
+    </div>
+    <div class="capability-card">
+      <div class="icon">📄</div>
+      <h4>Resources</h4>
+      <p>Dữ liệu mà Server expose ra để Host đọc — ví dụ nội dung một file, một bản ghi trong database, một trang tài liệu nội bộ. Giống việc "nạp" thêm ngữ cảnh cho model.</p>
+    </div>
+    <div class="capability-card">
+      <div class="icon">📝</div>
+      <h4>Prompts</h4>
+      <p>Template prompt dựng sẵn do Server cung cấp cho một tác vụ lặp lại thường gặp (ví dụ "tóm tắt issue", "review PR") — người dùng chọn dùng lại thay vì tự soạn prompt từ đầu mỗi lần.</p>
+    </div>
+  </div>
+
+  <h2 class="section-heading">Use Cases</h2>
+  <div class="usecase-grid">
+    <div class="usecase-card">
+      <h4>Một Host, nhiều Server</h4>
+      <p>Claude Code kết nối đồng thời MCP Server filesystem, MCP Server Git và MCP Server database trong cùng một phiên làm việc, phối hợp cả 3 để hoàn thành một tác vụ.</p>
+    </div>
+    <div class="usecase-card">
+      <h4>Server nội bộ do team tự viết</h4>
+      <p>Team tự viết một MCP Server expose Tool nghiệp vụ riêng (ví dụ "tạo ticket hỗ trợ") để Claude Code gọi trực tiếp, không cần đội ngũ khác tích hợp lại từ đầu.</p>
+    </div>
+    <div class="usecase-card">
+      <h4>Resources thay cho copy-paste</h4>
+      <p>Một MCP Server expose Resource là tài liệu wiki nội bộ, giúp Claude đọc trực tiếp nội dung mới nhất thay vì người dùng phải tự copy-paste vào khung chat.</p>
+    </div>
+  </div>
+
+  <h2 class="section-heading">Thông tin bổ sung</h2>
+  <p class="body-text">
+    Không phải MCP Server nào cũng implement đủ cả 3 primitive — rất nhiều Server chỉ tập trung vào Tools vì đó là
+    dạng phổ biến và hữu ích nhất trong thực tế. Khi kết nối nhiều Server cùng lúc, số lượng Tools khả dụng cho model
+    cũng tăng lên — cần lưu ý điều này có thể làm tăng độ dài ngữ cảnh mỗi lượt gọi (model cần "biết" mô tả của mọi
+    Tool đang kết nối), vì vậy chỉ nên giữ kết nối những MCP Server thực sự cần dùng cho phiên làm việc hiện tại.
+  </p>
+
+  <script>mermaid.initialize({ startOnLoad: true, theme: 'default' });</script>
+</body>
+</html>

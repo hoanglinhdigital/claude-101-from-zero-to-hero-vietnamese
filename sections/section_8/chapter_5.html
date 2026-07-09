@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lab - Cấu hình MCP Server CodeGraph – Claude 101</title>
+  <link rel="stylesheet" href="../../styles.css" />
+  <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+  <script src="../../mermaid-config.js"></script>
+  <link rel="stylesheet" href="../../prism.css" />
+  <script src="../../prism.js"></script>
+  <script src="../../script.js"></script>
+</head>
+<body class="chapter-body">
+
+  <div class="chapter-breadcrumb">
+    <span class="section-part">8. Model Context Protocol (MCP)</span>
+    <span class="sep">/</span>
+    <span class="chapter-part">Lab - Cấu hình MCP Server CodeGraph</span>
+  </div>
+
+  <div class="alert alert-info">
+    Bài lab này dùng lại project <code>D:\lab-expense-management</code> đã tạo ở Section 4 (Chapter 4, cập nhật thêm
+    ở Chapter 6 và Chapter 7). Nếu chưa hoàn thành các Chapter đó, hãy quay lại thực hiện trước — bài lab này cần
+    project đã có sẵn <code>lib/expense-service.ts</code> với hàm <code>getMonthlySummary()</code> (được tạo ra ở
+    Chapter 7 khi refactor).
+  </div>
+
+  <div class="alert alert-warning">
+    <strong>Về tên gọi "MCP Server CodeGraph":</strong> Đây <strong>không phải tên một package cố định</strong> mà
+    là ví dụ minh hoạ cho một <strong>loại</strong> MCP Server chuyên phân tích call graph/dependency graph giữa các
+    module code. Bài lab tập trung vào <strong>kỹ năng</strong> cấu hình một MCP Server bất kỳ và cách đặt câu hỏi
+    truy vấn quan hệ code hiệu quả — kỹ năng này áp dụng được cho bất kỳ MCP Server CodeGraph cụ thể nào bạn chọn
+    dùng tại thời điểm thực hành.
+  </div>
+
+  <h2 class="section-heading">Mục tiêu</h2>
+  <ul class="feature-list">
+    <li>Biết cách thêm một MCP Server bất kỳ vào Claude Code — qua lệnh <code>claude mcp add</code> hoặc file <code>.mcp.json</code> ở gốc project.</li>
+    <li>Cấu hình một MCP Server dạng CodeGraph (ví dụ minh hoạ) cho project <code>lab-expense-management</code>.</li>
+    <li>Dùng Claude Code đặt câu hỏi truy vấn call graph/dependency giữa các module <strong>trước khi</strong> yêu cầu sửa một tính năng, để giảm rủi ro sửa sai chỗ hoặc bỏ sót nơi cần cập nhật.</li>
+    <li>Biết cách đọc và diễn giải kết quả phân tích quan hệ code trả về từ MCP Server.</li>
+  </ul>
+
+  <h2 class="section-heading">Kiến trúc tổng quan</h2>
+  <div class="mermaid">
+  flowchart LR
+      Dev(("<img src='../../assets/svg-icon/developer.svg' style='width:26px;height:26px;'/><br/><b>Developer</b>"))
+      CC["<img src='../../assets/svg-icon/claude-logo.svg' style='width:28px;height:28px;'/><br/><b>Claude Code</b>"]
+
+      subgraph MCPS["MCP Server CodeGraph (ví dụ minh hoạ)"]
+          Graph["🔍 Phân tích<br/>call graph / dependency graph"]
+      end
+
+      subgraph Project["lab-expense-management"]
+          Files["📂 app/, lib/, prisma/"]
+      end
+
+      Dev -->|"Câu hỏi truy vấn quan hệ code"| CC
+      CC -->|"Gọi Tool qua MCP"| MCPS
+      MCPS -->|"Đọc / parse source"| Files
+      MCPS -->|"Trả về danh sách file/hàm liên quan"| CC
+      CC -->|"Trả lời kèm giải thích"| Dev
+  </div>
+  <p class="arch-caption">Claude Code gọi Tool của MCP Server CodeGraph để phân tích quan hệ giữa các file trong project, sau đó diễn giải lại kết quả thô thành câu trả lời dễ hiểu cho developer.</p>
+
+  <h2 class="section-heading">Yêu cầu trước khi bắt đầu</h2>
+  <ul class="feature-list">
+    <li>Project <code>D:\lab-expense-management</code> (Section 4) vẫn còn trên máy, đầy đủ code sau Chapter 7 (đã có <code>lib/expense-service.ts</code>).</li>
+    <li>Claude Code CLI đã cài đặt và đăng nhập thành công, nên cập nhật lên bản mới nhất (<code>claude update</code> nếu có) để có đầy đủ lệnh quản lý MCP.</li>
+    <li>Node.js phiên bản 18 trở lên (hầu hết MCP Server chạy qua <code>npx</code>).</li>
+    <li>Terminal: PowerShell hoặc Windows Terminal.</li>
+  </ul>
+
+  <h2 class="section-heading">Các bước thực hành</h2>
+
+  <h3 class="sub-heading">Phần 1: Cách thêm một MCP Server vào Claude Code</h3>
+  <ol class="step-list">
+    <li>
+      <div>
+        <strong>Bước 1: Xem danh sách MCP Server hiện đang kết nối (nếu có)</strong>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">cd D:\lab-expense-management
+claude mcp list</code></pre>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 2: Hai cách thêm một MCP Server bất kỳ</strong>
+        <p>Có hai cách tương đương để khai báo một MCP Server cho Claude Code — dùng lệnh CLI, hoặc sửa trực tiếp file cấu hình. <strong>Cú pháp/flag cụ thể có thể thay đổi theo phiên bản Claude Code</strong> — luôn kiểm tra lại bằng <code>claude mcp add --help</code> hoặc tài liệu Claude Code chính thức trước khi dùng.</p>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell"># Cách 1: dùng lệnh CLI (khái quát cú pháp, tham khảo --help để có flag mới nhất)
+claude mcp add --help
+
+# Cách 2: sửa trực tiếp file .mcp.json ở gốc project — thực hiện ở Bước 4</code></pre>
+      </div>
+    </li>
+  </ol>
+
+  <h3 class="sub-heading">Phần 2: Cấu hình MCP Server CodeGraph cho project</h3>
+  <ol class="step-list">
+    <li>
+      <div>
+        <strong>Bước 3: Tìm một MCP Server phân tích code phù hợp</strong>
+        <p>Vào thời điểm thực hành, tìm trên MCP registry hoặc GitHub với từ khoá <em>"mcp server code graph"</em>, <em>"mcp server dependency analysis"</em>, ưu tiên Server hỗ trợ tốt TypeScript/JavaScript (vì project <code>lab-expense-management</code> dùng Next.js + TypeScript). Ghi lại tên package/lệnh khởi chạy của Server đã chọn để dùng ở bước tiếp theo.</p>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 4: Khai báo MCP Server trong file .mcp.json</strong>
+        <p>Tạo (hoặc sửa) file <code>.mcp.json</code> ở gốc thư mục <code>D:\lab-expense-management</code>. Đây là ví dụ cấu trúc minh hoạ — thay <code>&lt;ten-goi-mcp-codegraph&gt;</code> bằng tên package/lệnh khởi chạy thật của MCP Server bạn đã chọn ở Bước 3, và điều chỉnh <code>args</code>/<code>env</code> theo đúng README của Server đó.</p>
+        <pre class="file-block"><span class="filename">.mcp.json</span>{
+  <span class="hl">"mcpServers"</span>: {
+    <span class="hl">"codegraph"</span>: {
+      <span class="hl">"command"</span>: <span class="str">"npx"</span>,
+      <span class="hl">"args"</span>: [<span class="str">"-y"</span>, <span class="str">"&lt;ten-goi-mcp-codegraph&gt;"</span>, <span class="str">"--project"</span>, <span class="str">"D:\\lab-expense-management"</span>]
+    }
+  }
+}</pre>
+        <p>Nếu Server bạn chọn yêu cầu cấu hình khác (thêm biến môi trường, transport khác stdio...), điều chỉnh theo đúng hướng dẫn của Server đó — cấu trúc <code>mcpServers</code> ở trên chỉ là bộ khung chung.</p>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 5: Khởi động lại Claude Code và xác nhận kết nối</strong>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">cd D:\lab-expense-management
+claude</code></pre>
+        <p>Trong phiên chat, dùng slash command <code>/mcp</code> để xem nhanh trạng thái kết nối, hoặc chạy lệnh sau ngoài terminal:</p>
+        <pre class="command-line" data-prompt="PS>" data-output="2"><code class="language-powershell">claude mcp list
+codegraph: npx -y &lt;ten-goi-mcp-codegraph&gt; --project D:\lab-expense-management - ✓ Connected</code></pre>
+      </div>
+    </li>
+  </ol>
+
+  <h3 class="sub-heading">Phần 3: Đặt câu hỏi truy vấn call graph/dependency</h3>
+  <ol class="step-list">
+    <li>
+      <div>
+        <strong>Bước 6: Hỏi tổng quan dependency graph của project</strong>
+        <p>Bắt đầu bằng một câu hỏi tổng quát để hiểu bức tranh chung trước khi đi sâu vào một hàm cụ thể.</p>
+        <pre class="command-line" data-prompt=">"><code class="language-text">Dùng MCP Server CodeGraph để phân tích dependency graph tổng quan của project này. Những module chính nào trong app/ và lib/ đang phụ thuộc vào module nào? Trình bày dưới dạng danh sách dễ đọc.</code></pre>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 7: Đặt câu hỏi cụ thể trước khi sửa một hàm dùng chung</strong>
+        <p>Đây là câu hỏi giá trị nhất trong thực tế — xác định phạm vi ảnh hưởng trước khi động vào một hàm đang được nhiều nơi gọi tới, dùng đúng hàm <code>getMonthlySummary()</code> đã tạo ra ở Chapter 7.</p>
+        <pre class="command-line" data-prompt=">"><code class="language-text">Dùng MCP Server CodeGraph để phân tích: nếu tôi sửa hàm getMonthlySummary() trong lib/expense-service.ts, những file và route nào sẽ bị ảnh hưởng? Liệt kê đầy đủ các nơi gọi trực tiếp (direct caller) và các nơi phụ thuộc gián tiếp (ví dụ trang frontend đang gọi route đó).</code></pre>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 8: Yêu cầu diễn giải lại kết quả cho dễ đọc</strong>
+        <p>Nhiều MCP Server CodeGraph trả về kết quả dạng dữ liệu thô (JSON, cây quan hệ) — yêu cầu Claude Code diễn giải lại thành danh sách dễ hiểu, có phân loại mức độ ảnh hưởng.</p>
+        <pre class="command-line" data-prompt=">"><code class="language-text">Tóm tắt kết quả phân tích trên thành danh sách gạch đầu dòng, xếp theo 2 nhóm: "Ảnh hưởng trực tiếp" và "Ảnh hưởng gián tiếp". Với mỗi file, cho biết tôi có nên viết thêm test cho file đó trước khi sửa getMonthlySummary() hay không, và vì sao.</code></pre>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 9: Tiến hành yêu cầu sửa tính năng dựa trên phân tích đã có</strong>
+        <p>Sau khi đã biết rõ phạm vi ảnh hưởng, giao tác vụ sửa thực tế — ví dụ thêm tham số lọc theo danh mục cho hàm tổng hợp.</p>
+        <pre class="command-line" data-prompt=">"><code class="language-text">Dựa trên phân tích ảnh hưởng ở trên, sửa hàm getMonthlySummary() trong lib/expense-service.ts để nhận thêm tham số tuỳ chọn categoryId — nếu được truyền, chỉ tổng hợp chi tiêu thuộc category đó. Cập nhật đúng các file bị ảnh hưởng trực tiếp đã xác định ở Bước 7, và chạy lại npm test sau khi sửa xong để xác nhận không phá vỡ hành vi cũ.</code></pre>
+      </div>
+    </li>
+  </ol>
+
+  <div class="verify-box">
+    <h4>✅ Kết quả mong đợi</h4>
+    <p class="body-text">Trước khi sửa <code>getMonthlySummary()</code>, học viên đã biết chính xác những file/route nào sẽ bị ảnh hưởng nhờ MCP Server CodeGraph, thay vì tự đoán hoặc phải đọc thủ công toàn bộ project. Sau khi sửa, toàn bộ test hiện có (từ Chapter 6, Chapter 7) vẫn pass, xác nhận không bỏ sót nơi cần cập nhật.</p>
+  </div>
+
+  <h2 class="section-heading">Troubleshoot</h2>
+  <div class="alert alert-warning">
+    <strong>Lỗi:</strong> MCP Server báo "failed to start" hoặc không kết nối được sau khi cấu hình <code>.mcp.json</code>.<br/>
+    <strong>Nguyên nhân:</strong> Sai tên package trong <code>args</code>, hoặc package yêu cầu cài đặt/cấu hình bổ sung chưa thực hiện đúng.<br/>
+    <strong>Giải pháp:</strong> Chạy thử trực tiếp lệnh trong <code>command</code>/<code>args</code> ngoài terminal (ví dụ <code>npx -y &lt;ten-goi-mcp-codegraph&gt; --project D:\lab-expense-management</code>) để xem lỗi thực tế trước khi để Claude Code gọi qua MCP.
+  </div>
+  <div class="alert alert-warning">
+    <strong>Lỗi:</strong> Claude Code không thấy Tool nào từ MCP Server CodeGraph, hoặc trả lời "không có công cụ phù hợp".<br/>
+    <strong>Nguyên nhân:</strong> Server chưa expose đúng Tool phân tích code, hoặc chưa được cấu hình đúng đường dẫn project.<br/>
+    <strong>Giải pháp:</strong> Đọc lại README của Server đã chọn, xác nhận tham số chỉ định thư mục project (<code>--project</code> hoặc tương đương) đã đúng, khởi động lại Claude Code sau khi sửa.
+  </div>
+  <div class="alert alert-warning">
+    <strong>Lỗi:</strong> Kết quả phân tích thiếu file hoặc không chính xác.<br/>
+    <strong>Nguyên nhân:</strong> Nhiều MCP Server CodeGraph chỉ hỗ trợ một số ngôn ngữ nhất định, hoặc mặc định bỏ qua thư mục như <code>node_modules</code>, <code>.next</code>.<br/>
+    <strong>Giải pháp:</strong> Kiểm tra cấu hình include/exclude pattern của Server, hoặc yêu cầu Claude Code tự đọc thêm file liên quan để đối chiếu lại kết quả trước khi tin tưởng hoàn toàn.
+  </div>
+
+  <h2 class="section-heading">Dọn dẹp resource</h2>
+  <div class="alert alert-info">Bài lab này không tạo resource cloud — MCP Server CodeGraph chỉ chạy local qua <code>npx</code> trong phiên làm việc. Nếu không cần dùng tiếp, gỡ kết nối bằng lệnh sau:</div>
+  <pre class="command-line" data-prompt="PS>"><code class="language-powershell">claude mcp remove codegraph</code></pre>
+  <div class="alert alert-warning">
+    <strong>Quan trọng:</strong> Không xoá thư mục project <code>D:\lab-expense-management</code> — project này tiếp tục được dùng ở Chapter 6 (MCP Server MySQL) của Section này.
+  </div>
+
+  <script>mermaid.initialize({ startOnLoad: true, theme: 'default' });</script>
+</body>
+</html>

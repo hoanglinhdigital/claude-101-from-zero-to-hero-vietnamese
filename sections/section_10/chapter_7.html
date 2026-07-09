@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lab - Plan & Tasks – Claude 101</title>
+  <link rel="stylesheet" href="../../styles.css" />
+  <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+  <script src="../../mermaid-config.js"></script>
+  <link rel="stylesheet" href="../../prism.css" />
+  <script src="../../prism.js"></script>
+  <script src="../../script.js"></script>
+</head>
+<body class="chapter-body">
+
+  <div class="chapter-breadcrumb">
+    <span class="section-part">10. Phát triển phần mềm với Spec-Kit Framework</span>
+    <span class="sep">/</span>
+    <span class="chapter-part">Lab - Plan & Tasks</span>
+  </div>
+
+  <div class="alert alert-info">
+    Bài lab này <strong>tiếp tục dùng project <code>D:\lab-expense-management</code></strong> và bản đặc tả
+    <code>spec.md</code> của tính năng <strong>"xuất báo cáo chi tiêu theo khoảng thời gian dạng PDF/Excel"</strong>
+    đã tạo ở Chapter 6. Nếu chưa hoàn thành Chapter 6, hãy quay lại thực hiện trước.
+  </div>
+
+  <h2 class="section-heading">Mục tiêu</h2>
+  <ul class="feature-list">
+    <li>Dùng <code>/speckit.plan</code> lập kế hoạch kỹ thuật cho tính năng xuất báo cáo: chọn thư viện tạo PDF/Excel, thiết kế API route mới, xác định các file cần thêm/sửa.</li>
+    <li>Dùng <code>/speckit.tasks</code> chia kế hoạch kỹ thuật thành các task nhỏ, cụ thể, thực hiện được từng phần.</li>
+    <li>Xem lại file <code>plan.md</code> và <code>tasks.md</code> được sinh ra, đối chiếu với <code>spec.md</code> ở Chapter 6.</li>
+  </ul>
+
+  <h2 class="section-heading">Mô hình kiến trúc</h2>
+  <div class="mermaid">
+  flowchart LR
+      Dev(("<img src='../../assets/svg-icon/developer.svg' style='width:26px;height:26px;'/><br/><b>Developer</b>"))
+      CC["<img src='../../assets/svg-icon/claude-logo.svg' style='width:28px;height:28px;'/><br/><b>Claude Code</b>"]
+
+      F0["📜 constitution.md"]
+      F1["📝 spec.md<br/>(Chapter 6)"]
+
+      subgraph Step1["Bước 1"]
+          Cmd1["/speckit.plan<br/>+ định hướng kỹ thuật"]
+          F2["🗺️ plan.md<br/>Thư viện PDF/Excel,<br/>route mới, file cần sửa"]
+      end
+
+      subgraph Step2["Bước 2"]
+          Cmd2["/speckit.tasks"]
+          F3["📋 tasks.md<br/>Danh sách task nhỏ"]
+      end
+
+      Dev -->|"1."| Cmd1
+      F0 -.->|"Ngữ cảnh"| CC
+      F1 -.->|"Ngữ cảnh"| CC
+      Cmd1 --> CC --> F2
+      Dev -->|"2."| Cmd2
+      F2 -.->|"Ngữ cảnh"| CC
+      Cmd2 --> CC --> F3
+  </div>
+  <p class="arch-caption"><code>/speckit.plan</code> đọc lại <code>spec.md</code> và <code>constitution.md</code> để đảm bảo kế hoạch kỹ thuật đúng yêu cầu và tuân theo nguyên tắc chung; <code>/speckit.tasks</code> đọc lại <code>plan.md</code> vừa tạo để chia thành các task cụ thể.</p>
+
+  <h2 class="section-heading">Yêu cầu trước khi bắt đầu</h2>
+  <ul class="feature-list">
+    <li>Đã hoàn thành Chapter 6 — <code>constitution.md</code> và <code>specs/{feature-id}/spec.md</code> đã tồn tại và đúng nội dung tính năng xuất báo cáo.</li>
+    <li>Claude Code CLI đã cài đặt và đăng nhập thành công.</li>
+    <li>Terminal: PowerShell hoặc Windows Terminal.</li>
+  </ul>
+
+  <h2 class="section-heading">Các bước thực hành</h2>
+
+  <h3 class="sub-heading">Phần 1: Lập kế hoạch kỹ thuật với /speckit.plan</h3>
+  <ol class="step-list">
+    <li>
+      <div>
+        <strong>Bước 1: Vào project và khởi động Claude Code</strong>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">cd D:\lab-expense-management
+claude</code></pre>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 2: Chạy /speckit.plan với định hướng kỹ thuật cụ thể</strong>
+        <p>Nêu rõ các quyết định kỹ thuật mong muốn — chọn thư viện, đặt tên route mới — để Claude Code lập kế hoạch bám sát thực tế project (Next.js API Routes, Prisma).</p>
+        <pre class="command-line" data-prompt=">"><code class="language-text">/speckit.plan Lập kế hoạch kỹ thuật để triển khai tính năng xuất báo cáo trong spec.md. Định hướng cụ thể:
+1. Tạo API route mới app/api/reports/export/route.ts, nhận query param startDate, endDate (định dạng YYYY-MM-DD, bắt buộc) và format (giá trị "pdf" hoặc "excel", bắt buộc).
+2. Dùng thư viện exceljs để sinh file Excel (.xlsx), và một thư viện tạo PDF phù hợp với Next.js API Route (đề xuất cụ thể, ưu tiên thư viện chạy tốt trên Node.js runtime, không cần trình duyệt).
+3. Tách logic truy vấn dữ liệu + tính tổng theo danh mục ra hàm thuần trong lib/report-generator.ts, tương tự cách đã tổ chức lib/csv-export.ts và lib/expense-service.ts hiện có — không phụ thuộc Next.js request/response, để viết unit test dễ dàng.
+4. Route trả về file với Content-Type và Content-Disposition phù hợp để browser tải file xuống, đặt tên file theo mẫu bao-cao-chi-tieu_{startDate}_{endDate}.pdf hoặc .xlsx.
+5. Thêm giao diện chọn khoảng thời gian (2 ô ngày) và dropdown chọn định dạng trên trang chủ, kèm nút "Xuất báo cáo".
+6. Đảm bảo tuân theo constitution.md: validate input ngày/format, không đổi các route hiện có.</code></pre>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 3: Xem lại file plan.md được sinh ra</strong>
+        <p>Đối chiếu kế hoạch với <code>spec.md</code> ở Chapter 6 — xác nhận kế hoạch đáp ứng đủ hành vi đã đặc tả, không bỏ sót yêu cầu nào (vd trường hợp không có dữ liệu, tổng theo danh mục).</p>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">code specs\001-xuat-bao-cao-chi-tieu\plan.md</code></pre>
+      </div>
+    </li>
+  </ol>
+
+  <h3 class="sub-heading">Phần 2: Chia nhỏ kế hoạch với /speckit.tasks</h3>
+  <ol class="step-list">
+    <li>
+      <div>
+        <strong>Bước 4: Chạy /speckit.tasks để chia plan.md thành các task cụ thể</strong>
+        <pre class="command-line" data-prompt=">"><code class="language-text">/speckit.tasks Chia kế hoạch trong plan.md thành các task nhỏ, mỗi task chỉ nên tập trung vào một phần cụ thể (vd một file, một hàm, hoặc một phần giao diện), có thể thực hiện và kiểm tra độc lập theo đúng thứ tự phụ thuộc.</code></pre>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 5: Xem lại file tasks.md được sinh ra</strong>
+        <p>Kiểm tra danh sách task có hợp lý, đủ chi tiết để thực hiện từng task một cách độc lập ở bài lab tiếp theo (vd: tạo <code>lib/report-generator.ts</code>, viết unit test cho hàm sinh dữ liệu báo cáo, tạo API route, thêm UI chọn khoảng thời gian, nối UI với API).</p>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">code specs\001-xuat-bao-cao-chi-tieu\tasks.md</code></pre>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 6: Yêu cầu chia nhỏ thêm nếu task còn quá lớn</strong>
+        <p>Nếu một task trong danh sách vẫn gộp quá nhiều việc (vd vừa tạo hàm sinh PDF vừa tạo hàm sinh Excel vừa viết route trong 1 task), yêu cầu Claude Code chia nhỏ thêm trước khi sang giai đoạn Implementation.</p>
+        <pre class="command-line" data-prompt=">"><code class="language-text">Task số [X] trong tasks.md vẫn còn gộp nhiều việc khác nhau. Hãy chia nhỏ task này thành các task con cụ thể hơn, cập nhật lại tasks.md.</code></pre>
+      </div>
+    </li>
+  </ol>
+
+  <div class="verify-box">
+    <h4>✅ Kết quả mong đợi</h4>
+    <p class="body-text"><code>specs/{feature-id}/plan.md</code> nêu rõ thư viện PDF/Excel được chọn, route mới, và các file cần tạo/sửa — tuân theo <code>constitution.md</code>. <code>specs/{feature-id}/tasks.md</code> chứa danh sách task nhỏ, đủ chi tiết, đúng thứ tự phụ thuộc, sẵn sàng cho <code>/speckit.implement</code> ở Chapter 8.</p>
+  </div>
+
+  <h2 class="section-heading">Troubleshoot</h2>
+  <div class="alert alert-warning">
+    <strong>Lỗi:</strong> <code>plan.md</code> đề xuất thư viện PDF không chạy được trên Node.js runtime của Next.js API Route (yêu cầu trình duyệt hoặc binary hệ điều hành riêng).<br/>
+    <strong>Nguyên nhân:</strong> Một số thư viện PDF phổ biến được thiết kế chạy phía client (browser) hoặc cần cài thêm dependency hệ thống, không phù hợp API Route.<br/>
+    <strong>Giải pháp:</strong> Yêu cầu Claude Code chạy lại <code>/speckit.plan</code>, nêu rõ ràng buộc "chỉ dùng thư viện Node.js thuần, không phụ thuộc trình duyệt hoặc binary ngoài", để đề xuất lại thư viện phù hợp.
+  </div>
+  <div class="alert alert-warning">
+    <strong>Lỗi:</strong> <code>tasks.md</code> chỉ có 2-3 task rất lớn, không đủ chi tiết để implement từng phần.<br/>
+    <strong>Nguyên nhân:</strong> Prompt ở Bước 4 chưa nhấn đủ mạnh yêu cầu chia nhỏ.<br/>
+    <strong>Giải pháp:</strong> Dùng lại prompt ở Bước 6, chỉ định rõ số lượng task tối thiểu mong muốn hoặc phạm vi cụ thể của từng task con.
+  </div>
+
+  <h2 class="section-heading">Dọn dẹp resource</h2>
+  <div class="alert alert-info">
+    Bài lab này chỉ tạo file Markdown (<code>plan.md</code>, <code>tasks.md</code>) trong project —
+    <strong>không tạo resource nào trên Cloud</strong>, không có gì cần dọn dẹp. Giữ nguyên toàn bộ file vừa tạo để
+    tiếp tục ở Chapter 8 (Implement & đối chiếu kết quả).
+  </div>
+
+  <script>mermaid.initialize({ startOnLoad: true, theme: 'default' });</script>
+</body>
+</html>

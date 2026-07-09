@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Giới hạn, rủi ro và tích hợp Git với Claude Code – Claude 101</title>
+  <link rel="stylesheet" href="../../styles.css" />
+  <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+  <script src="../../mermaid-config.js"></script>
+  <link rel="stylesheet" href="../../prism.css" />
+  <script src="../../prism.js"></script>
+  <script src="../../script.js"></script>
+</head>
+<body class="chapter-body">
+
+  <div class="chapter-breadcrumb">
+    <span class="section-part">4. Claude Code cho Developer</span>
+    <span class="sep">/</span>
+    <span class="chapter-part">Giới hạn, rủi ro và tích hợp Git với Claude Code</span>
+  </div>
+
+  <h2 class="section-heading">Giới thiệu</h2>
+  <p class="body-text">
+    Claude Code có thể tự động hoá rất nhiều việc, nhưng không phải hành động nào cũng có mức rủi ro giống nhau.
+    Chương này giúp học viên phân biệt <strong>khi nào cần review kỹ</strong> và <strong>khi nào có thể tin tưởng
+    Claude Code tự chạy</strong>, dựa trên mức độ ảnh hưởng của hành động — từ đọc file (an toàn nhất) đến git push
+    (rủi ro cao nhất). Phần sau của chương trình bày cách tích hợp Claude Code với Git: viết commit message, PR
+    description, và hỗ trợ code review.
+  </p>
+
+  <h2 class="section-heading">Các tính năng chính</h2>
+  <ul class="feature-list">
+    <li><strong>Đọc file</strong> — rủi ro thấp nhất, không thay đổi gì, có thể luôn cho phép tự động.</li>
+    <li><strong>Sửa file cục bộ</strong> — rủi ro trung bình, nên luôn review qua <code>git diff</code> trước khi commit, đặc biệt với file cấu hình hoặc logic nghiệp vụ quan trọng.</li>
+    <li><strong>Chạy lệnh hệ thống</strong> (cài package, chạy script, thao tác database) — rủi ro cao hơn vì có thể gây tác dụng phụ ngoài phạm vi code, cần xem kỹ lệnh trước khi cho phép chạy.</li>
+    <li><strong>Git push / thao tác remote</strong> — rủi ro cao nhất vì ảnh hưởng đến người khác trong team hoặc lên môi trường thật, luôn cần xác nhận thủ công, không nên đặt vào Auto-accept mode.</li>
+    <li>Claude Code có thể hỗ trợ toàn bộ vòng đời Git: soạn commit message theo convention, viết PR description tóm tắt thay đổi, và đưa ra góp ý khi review code người khác.</li>
+  </ul>
+
+  <h2 class="section-heading">Mô hình kiến trúc</h2>
+  <div class="mermaid">
+  flowchart LR
+      CC["<img src='../../assets/svg-icon/claude-logo.svg' style='width:30px;height:30px;'/><br/><b>Claude Code</b>"]
+      Read["📖 Đọc file<br/>Rủi ro: Thấp"]
+      Edit["✏️ Sửa file cục bộ<br/>Rủi ro: Trung bình"]
+      Cmd["⚙️ Chạy lệnh hệ thống<br/>Rủi ro: Cao"]
+      Push["🚀 Git push / remote<br/>Rủi ro: Cao nhất"]
+      Dev(("👤<br/><b>Developer</b><br/>Review"))
+
+      CC --> Read
+      CC -->|"Cần review diff"| Edit
+      CC -->|"Cần xem lệnh trước khi chạy"| Cmd
+      CC -->|"Luôn cần xác nhận thủ công"| Push
+      Read -.->|"Không cần duyệt"| Dev
+      Edit -->|"Duyệt qua git diff"| Dev
+      Cmd -->|"Duyệt trước khi chạy"| Dev
+      Push -->|"Xác nhận rõ ràng trước khi push"| Dev
+      Dev -->|"Approve"| CC
+  </div>
+  <p class="arch-caption">Mức độ cần review tăng dần theo mức độ ảnh hưởng của hành động — đọc file có thể tự động hoàn toàn, git push luôn cần xác nhận thủ công của con người.</p>
+
+  <h3 class="sub-heading">Khi nào review kỹ, khi nào tin tưởng tự chạy</h3>
+  <table class="compare-table">
+    <thead>
+      <tr><th>Mức độ ảnh hưởng</th><th>Ví dụ hành động</th><th>Mức review cần thiết</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Đọc file</td><td>Đọc source code, tìm kiếm trong project, xem log</td><td class="yes">Không cần review — an toàn tuyệt đối</td></tr>
+      <tr><td>Sửa file cục bộ</td><td>Sửa component, thêm hàm, cập nhật config</td><td>Review qua <code>git diff</code> trước khi commit</td></tr>
+      <tr><td>Chạy lệnh hệ thống</td><td>Cài package (<code>npm install</code>), chạy migration, xoá file</td><td>Xem lệnh cụ thể trước khi cho phép (Accept Edits mode)</td></tr>
+      <tr><td>Thao tác Git remote</td><td><code>git push</code>, <code>git push --force</code>, tạo PR</td><td class="no">Luôn xác nhận thủ công — không đặt Auto-accept</td></tr>
+    </tbody>
+  </table>
+
+  <div class="alert alert-warning">
+    <strong>Nguyên tắc chung:</strong> Mức độ tự động hoá nên tỷ lệ nghịch với mức độ khó hoàn tác (revert) của hành động. Sửa file có thể hoàn tác dễ dàng bằng Git; xoá dữ liệu database hoặc <code>git push --force</code> lên nhánh chung thì rất khó hoặc không thể hoàn tác — luôn cần con người xác nhận rõ ràng trước khi thực thi.
+  </div>
+
+  <h2 class="section-heading">Tích hợp Claude Code với Git</h2>
+  <div class="mermaid">
+  flowchart LR
+      Dev(("👤<br/><b>Developer</b>"))
+      CC["<img src='../../assets/svg-icon/claude-logo.svg' style='width:30px;height:30px;'/><br/><b>Claude Code</b>"]
+      Stage["📂 git add<br/>Staging changes"]
+      Commit["📝 git commit<br/>Message do Claude soạn"]
+      Push["🚀 git push<br/>Lên remote branch"]
+      GH["<img src='../../assets/svg-icon/github.svg' style='width:28px;height:28px;'/><br/><b>GitHub</b>"]
+      PR["📋 gh pr create<br/>PR description do Claude soạn"]
+      Review["🔍 Code review<br/>Claude gợi ý góp ý"]
+
+      Dev -->|"Yêu cầu commit"| CC
+      CC --> Stage --> Commit --> Push --> GH
+      Dev -->|"Yêu cầu tạo PR"| CC
+      CC --> PR --> GH
+      GH --> Review
+      Review -->|"Góp ý"| Dev
+  </div>
+  <p class="arch-caption">Claude Code hỗ trợ toàn bộ luồng Git từ staging, soạn commit message, push, đến tạo PR qua GitHub CLI (<code>gh</code>) và hỗ trợ review — nhưng bước push/tạo PR vẫn cần Developer xác nhận.</p>
+
+  <h3 class="sub-heading">3 việc Claude Code hỗ trợ tốt trong quy trình Git</h3>
+  <div class="capability-grid">
+    <div class="capability-card">
+      <div class="icon">📝</div>
+      <h4>Viết commit message</h4>
+      <p>Đọc <code>git diff</code> đã staged, tự soạn message theo convention (vd Conventional Commits: <code>feat:</code>, <code>fix:</code>).</p>
+    </div>
+    <div class="capability-card">
+      <div class="icon">📋</div>
+      <h4>Viết PR description</h4>
+      <p>Tóm tắt thay đổi giữa branch hiện tại và branch đích, liệt kê rõ mục đích, phạm vi ảnh hưởng, cách test.</p>
+    </div>
+    <div class="capability-card">
+      <div class="icon">🔍</div>
+      <h4>Hỗ trợ code review</h4>
+      <p>Đọc diff của PR, chỉ ra rủi ro tiềm ẩn, gợi ý cải thiện — hỗ trợ người review, không thay thế hoàn toàn.</p>
+    </div>
+  </div>
+
+  <h2 class="section-heading">Use Cases</h2>
+  <div class="usecase-grid">
+    <div class="usecase-card">
+      <h4>Chuẩn hoá commit message</h4>
+      <p>Team dùng Claude Code để soạn commit message nhất quán theo Conventional Commits, dễ sinh changelog tự động sau này.</p>
+    </div>
+    <div class="usecase-card">
+      <h4>Tăng tốc mở PR</h4>
+      <p>Claude Code tự viết PR description đầy đủ (mục đích, thay đổi chính, cách test) từ diff thực tế, tiết kiệm thời gian soạn thảo.</p>
+    </div>
+    <div class="usecase-card">
+      <h4>Review sơ bộ trước khi gửi người khác</h4>
+      <p>Dùng Claude Code review lại code của mình trước khi gửi PR cho đồng nghiệp, phát hiện sớm lỗi rõ ràng hoặc thiếu test.</p>
+    </div>
+  </div>
+
+  <h2 class="section-heading">Thông tin bổ sung</h2>
+  <p class="body-text">
+    Claude Code không có khả năng "hiểu" toàn bộ ngữ cảnh nghiệp vụ hoặc lịch sử quyết định kỹ thuật của team — vì
+    vậy commit message hoặc PR description do Claude Code soạn nên được xem là <strong>bản nháp tốt</strong>, không
+    phải bản cuối cùng. Với các thay đổi ảnh hưởng đến production hoặc dữ liệu người dùng thật, luôn cần một người
+    có thẩm quyền review và approve trước khi merge, bất kể Claude Code đã tự tin đến đâu.
+  </p>
+  <div class="alert alert-danger">
+    <strong>Không nên:</strong> Đặt Claude Code ở Auto-accept mode rồi để tự chạy <code>git push --force</code>,
+    xoá branch, hoặc thao tác trực tiếp trên nhánh <code>main</code>/<code>production</code>. Những hành động này
+    khó hoặc không thể hoàn tác — luôn giữ ở chế độ cần xác nhận thủ công.
+  </div>
+
+  <script>mermaid.initialize({ startOnLoad: true, theme: 'default' });</script>
+</body>
+</html>

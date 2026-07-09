@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tổng hợp công cụ đã học & khi nào dùng cái gì – Claude 101</title>
+  <link rel="stylesheet" href="../../styles.css" />
+  <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+  <script src="../../mermaid-config.js"></script>
+  <link rel="stylesheet" href="../../prism.css" />
+  <script src="../../prism.js"></script>
+  <script src="../../script.js"></script>
+</head>
+<body class="chapter-body">
+
+  <div class="chapter-breadcrumb">
+    <span class="section-part">11. Tổng kết & Định hướng nâng cao</span>
+    <span class="sep">/</span>
+    <span class="chapter-part">Tổng hợp công cụ đã học & khi nào dùng cái gì</span>
+  </div>
+
+  <h2 class="section-heading">Giới thiệu</h2>
+  <p class="body-text">
+    Xuyên suốt 10 Section vừa qua, chúng ta đã đi từ giao diện chat cơ bản đến những cơ chế mở rộng khả năng của
+    Claude ở mức sâu hơn: Skill, Sub-agent, MCP, Hook, và Spec-Kit. Mỗi công cụ giải quyết một loại vấn đề khác nhau,
+    và trong công việc thực tế rất hiếm khi chỉ dùng đúng một công cụ — thường là kết hợp vài công cụ với nhau tuỳ
+    theo tình huống. Chương này hệ thống hoá lại toàn bộ các công cụ đã học và cung cấp một sơ đồ quyết định nhanh để
+    trả lời câu hỏi thường gặp nhất: <strong>"Với việc này, tôi nên dùng cái gì?"</strong>
+  </p>
+
+  <h2 class="section-heading">Các công cụ đã học trong khoá</h2>
+  <div class="capability-grid">
+    <div class="capability-card">
+      <div class="icon">💬</div>
+      <h4>Claude Desktop App / Claude.ai</h4>
+      <p>Section 2 — Giao diện chat trực tiếp, có Projects và Artifacts. Phù hợp hỏi đáp, soạn thảo nhanh, không cần thao tác trực tiếp trên file/project.</p>
+    </div>
+    <div class="capability-card">
+      <div class="icon">⌨️</div>
+      <h4>Claude Code</h4>
+      <p>Section 2, 4–7 — Trợ lý dòng lệnh (CLI), đọc/sửa file trực tiếp, chạy lệnh, giữ ngữ cảnh project qua <code>CLAUDE.md</code>.</p>
+    </div>
+    <div class="capability-card">
+      <div class="icon">🧩</div>
+      <h4>Claude Skill</h4>
+      <p>Section 3 — Đóng gói một quy trình/hướng dẫn hay lặp lại thành tài nguyên tái sử dụng, Claude tự nhận diện khi cần dùng.</p>
+    </div>
+    <div class="capability-card">
+      <div class="icon">🤖</div>
+      <h4>Sub-agent</h4>
+      <p>Section 3 — Tác vụ chuyên biệt hoá, có phạm vi tool/system prompt riêng, chạy trong context tách biệt với Agent chính.</p>
+    </div>
+    <div class="capability-card">
+      <div class="icon">🔌</div>
+      <h4>MCP</h4>
+      <p>Section 8 — Chuẩn giao tiếp giúp Claude Code kết nối với hệ thống bên ngoài phạm vi file local: codebase (CodeGraph), database (MySQL)...</p>
+    </div>
+    <div class="capability-card">
+      <div class="icon">⚙️</div>
+      <h4>Hook</h4>
+      <p>Section 9 — Chèn shell command vào vòng đời làm việc của Claude Code, chạy độc lập với model theo event + matcher cố định.</p>
+    </div>
+    <div class="capability-card">
+      <div class="icon">📜</div>
+      <h4>Spec-Kit</h4>
+      <p>Section 10 — Framework Spec-Driven Development, kết hợp Claude Code để phát triển tính năng có kiểm soát từ đặc tả đến code.</p>
+    </div>
+  </div>
+
+  <h2 class="section-heading">Mô hình kiến trúc: Sơ đồ quyết định "khi nào dùng cái gì"</h2>
+  <div class="mermaid">
+  flowchart TD
+      Start(["❓ Bạn đang cần làm gì?"])
+      Q1{"Chỉ hỏi/nhờ 1 lần,<br/>không cần đọc/sửa file,<br/>không lặp lại?"}
+      ChatTool["💬<br/><b>Claude Desktop App / Claude.ai</b><br/>Chat thường"]
+      Q2{"Cần đọc/sửa file,<br/>lặp lại nhiều lần<br/>trong 1 project?"}
+      CodeTool["<img src='../../assets/svg-icon/claude-logo.svg' style='width:26px;height:26px;'/><br/><b>Claude Code</b>"]
+      Q3{"Tác vụ chuyên biệt cần tool/<br/>system prompt riêng,<br/>tránh phình context chính?"}
+      AgentTool["🧩<br/><b>Skill hoặc Sub-agent</b>"]
+      Q4{"Cần kết nối hệ thống ngoài<br/>(database, code graph,<br/>API nội bộ)?"}
+      McpTool["🔌<br/><b>MCP</b>"]
+      Q5{"Cần tự động hoá theo<br/>điều kiện cố định,<br/>không cần model quyết định?"}
+      HookTool["⚙️<br/><b>Hook</b>"]
+      Q6{"Cần phát triển tính năng<br/>có kiểm soát chặt<br/>từ đặc tả?"}
+      SpecTool["📜<br/><b>Spec-Kit</b>"]
+
+      Start --> Q1
+      Q1 -->|"Đúng"| ChatTool
+      Q1 -->|"Không"| Q2
+      Q2 -->|"Đúng"| CodeTool
+      Q2 -->|"Không"| Q3
+      Q3 -->|"Đúng"| AgentTool
+      Q3 -->|"Không"| Q4
+      Q4 -->|"Đúng"| McpTool
+      Q4 -->|"Không"| Q5
+      Q5 -->|"Đúng"| HookTool
+      Q5 -->|"Không"| Q6
+      Q6 -->|"Đúng"| SpecTool
+  </div>
+  <p class="arch-caption">Sơ đồ chỉ là gợi ý để chọn nhanh — trong thực tế các công cụ thường kết hợp với nhau (vd Claude Code + MCP, hoặc Spec-Kit + Sub-agent) chứ không loại trừ lẫn nhau.</p>
+
+  <h3 class="sub-heading">Bảng tổng hợp nhanh theo tình huống</h3>
+  <table class="compare-table">
+    <thead>
+      <tr><th>Tình huống thực tế</th><th>Công cụ nên dùng</th><th>Vì sao</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Hỏi nhanh 1 câu, không liên quan đến file/project cụ thể</td>
+        <td>Claude Desktop App / Claude.ai</td>
+        <td>Không cần thao tác file hay giữ ngữ cảnh dài hạn, chỉ cần trả lời ngay</td>
+      </tr>
+      <tr>
+        <td>Sửa code, review PR, refactor trong project đang làm</td>
+        <td>Claude Code</td>
+        <td>Truy cập trực tiếp file/terminal, giữ ngữ cảnh project qua <code>CLAUDE.md</code></td>
+      </tr>
+      <tr>
+        <td>Một quy trình nhỏ hay lặp lại (vd viết changelog, format báo cáo)</td>
+        <td>Skill</td>
+        <td>Đóng gói hướng dẫn tái sử dụng, model tự nhận diện đúng lúc cần áp dụng</td>
+      </tr>
+      <tr>
+        <td>Tác vụ cần phạm vi tool riêng, tránh phình context (vd chuyên review code)</td>
+        <td>Sub-agent</td>
+        <td>Chạy trong context tách biệt, có system prompt/tool riêng cho tác vụ chuyên biệt</td>
+      </tr>
+      <tr>
+        <td>Cần Claude đọc/thao tác dữ liệu trong hệ thống ngoài (DB, code graph)</td>
+        <td>MCP</td>
+        <td>Chuẩn kết nối Claude Code với hệ thống bên ngoài phạm vi file local</td>
+      </tr>
+      <tr>
+        <td>Cần đảm bảo một hành động luôn xảy ra, không phụ thuộc model quyết định</td>
+        <td>Hook</td>
+        <td>Chạy độc lập với model theo event cố định, không cần model "nhớ" gọi</td>
+      </tr>
+      <tr>
+        <td>Phát triển tính năng lớn, cần kiểm soát chặt từ đặc tả đến code</td>
+        <td>Spec-Kit</td>
+        <td>Giữ spec làm nguồn chân lý, giảm rủi ro "vibe coding" khi tính năng phức tạp</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h2 class="section-heading">Use Cases</h2>
+  <div class="usecase-grid">
+    <div class="usecase-card">
+      <h4>Developer (Section 4, 8)</h4>
+      <p>Dùng Claude Code làm công cụ chính, kết hợp MCP CodeGraph để hiểu quan hệ giữa các module trước khi sửa tính năng lớn.</p>
+    </div>
+    <div class="usecase-card">
+      <h4>DevOps/Cloud Engineer (Section 5, 9)</h4>
+      <p>Dùng Claude Code sinh/review Terraform, kết hợp Hook để tự động chạy kiểm tra an toàn sau mỗi lần chỉnh sửa hạ tầng.</p>
+    </div>
+    <div class="usecase-card">
+      <h4>Tester/QA (Section 6, 3)</h4>
+      <p>Dùng Claude sinh test case từ requirement, đóng gói thành Skill để tái sử dụng cho các requirement tương tự về sau.</p>
+    </div>
+    <div class="usecase-card">
+      <h4>Project Manager (Section 7)</h4>
+      <p>Dùng Claude Desktop App/Claude Projects để soạn tài liệu, tóm tắt họp, giữ ngữ cảnh dự án xuyên suốt nhiều buổi làm việc.</p>
+    </div>
+  </div>
+
+  <h2 class="section-heading">Thông tin bổ sung</h2>
+  <p class="body-text">
+    Sơ đồ và bảng quyết định ở trên chỉ mang tính gợi ý để chọn nhanh — ranh giới giữa các công cụ không tuyệt đối,
+    và phần lớn công việc thực tế sẽ cần kết hợp nhiều hơn một công cụ cùng lúc (ví dụ Claude Code làm nền, MCP để
+    kết nối dữ liệu, Hook để tự động hoá phần phụ trợ). Bảng này sẽ được dùng lại ở Chapter 3 khi thực hiện bài tập
+    tổng hợp cuối khoá — hãy dùng nó như điểm khởi đầu để tự quyết định công cụ phù hợp cho bài toán của riêng bạn.
+  </p>
+
+  <script>mermaid.initialize({ startOnLoad: true, theme: 'default' });</script>
+</body>
+</html>

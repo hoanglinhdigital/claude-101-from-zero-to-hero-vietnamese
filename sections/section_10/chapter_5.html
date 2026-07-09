@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lab - Cài đặt & khởi tạo project với specify init – Claude 101</title>
+  <link rel="stylesheet" href="../../styles.css" />
+  <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+  <script src="../../mermaid-config.js"></script>
+  <link rel="stylesheet" href="../../prism.css" />
+  <script src="../../prism.js"></script>
+  <script src="../../script.js"></script>
+</head>
+<body class="chapter-body">
+
+  <div class="chapter-breadcrumb">
+    <span class="section-part">10. Phát triển phần mềm với Spec-Kit Framework</span>
+    <span class="sep">/</span>
+    <span class="chapter-part">Lab - Cài đặt & khởi tạo project với specify init</span>
+  </div>
+
+  <div class="alert alert-info">
+    Bài lab này <strong>dùng lại project <code>D:\lab-expense-management</code></strong> đã tạo ở Section 4 (Next.js
+    + Prisma + MySQL). Không tạo project mới — Spec-Kit sẽ được khởi tạo trực tiếp vào project đã tồn tại này, vì đây
+    là áp dụng SDD cho một tính năng <strong>mới</strong> trên codebase đã có sẵn. Cả 4 bài lab của Section 10 (Chapter
+    5-8) dùng chung một tính năng duy nhất: <strong>xuất báo cáo chi tiêu theo khoảng thời gian dạng PDF/Excel</strong>.
+  </div>
+
+  <h2 class="section-heading">Mục tiêu</h2>
+  <ul class="feature-list">
+    <li>Cài đặt Python 3.11+ (nếu máy chưa có), cài <code>uv</code> và <code>specify</code> CLI.</li>
+    <li>Chạy <code>specify init</code> để khởi tạo Spec-Kit ngay trong project <code>D:\lab-expense-management</code> đã có sẵn.</li>
+    <li>Kiểm tra cấu trúc <code>.specify/</code> được tạo ra đúng vị trí.</li>
+    <li>Xác nhận các slash command <code>/speckit.*</code> xuất hiện và dùng được trong Claude Code.</li>
+  </ul>
+
+  <h2 class="section-heading">Mô hình kiến trúc</h2>
+  <div class="mermaid">
+  flowchart LR
+      Dev(("<img src='../../assets/svg-icon/developer.svg' style='width:26px;height:26px;'/><br/><b>Developer</b>"))
+      UV["🐍 <b>uv</b>"]
+      CLI["⚙️ <b>specify CLI</b>"]
+      GH["<img src='../../assets/svg-icon/github.svg' style='width:26px;height:26px;'/><br/>github.com/github/spec-kit"]
+
+      subgraph Project["📁 D:\\lab-expense-management (project có sẵn)"]
+          Existing["<img src='../../assets/svg-icon/ide.svg' style='width:24px;height:24px;'/><br/>Code hiện có<br/>(app/, prisma/, lib/...)"]
+          SpecifyDir["📁 .specify/ + slash command<br/>được sinh thêm vào"]
+      end
+
+      CC["<img src='../../assets/svg-icon/claude-logo.svg' style='width:26px;height:26px;'/><br/><b>Claude Code</b>"]
+
+      Dev -->|"1. Cài đặt"| UV --> CLI
+      CLI -.->|"Tải template"| GH
+      Dev -->|"2. specify init"| CLI
+      CLI -->|"Sinh thêm vào project hiện có"| SpecifyDir
+      Existing --- SpecifyDir
+      Dev -->|"3. Mở Claude Code trong project"| CC
+      SpecifyDir -->|"Nhận diện /speckit.*"| CC
+  </div>
+  <p class="arch-caption">Spec-Kit không tạo project mới — chỉ thêm thư mục <code>.specify/</code> và slash command vào project Next.js đã tồn tại, giữ nguyên toàn bộ code hiện có.</p>
+
+  <h2 class="section-heading">Yêu cầu trước khi bắt đầu</h2>
+  <ul class="feature-list">
+    <li>Đã hoàn thành Section 4 — project <code>D:\lab-expense-management</code> tồn tại và chạy được (<code>npm run dev</code>).</li>
+    <li>Claude Code CLI đã cài đặt và đăng nhập thành công.</li>
+    <li>Git đã cài đặt — kiểm tra bằng <code>git --version</code>.</li>
+    <li>Python 3.11 trở lên đã cài đặt hoặc sẽ được cài ở Bước 1.</li>
+    <li>Terminal: PowerShell hoặc Windows Terminal.</li>
+    <li>Kết nối Internet ổn định để <code>uv</code>/<code>specify</code> tải package và template từ GitHub.</li>
+  </ul>
+
+  <h2 class="section-heading">Các bước thực hành</h2>
+
+  <h3 class="sub-heading">Phần 1: Cài đặt Python, uv và specify CLI</h3>
+  <ol class="step-list">
+    <li>
+      <div>
+        <strong>Bước 1: Kiểm tra phiên bản Python hiện có</strong>
+        <p>Spec-Kit yêu cầu Python 3.11 trở lên. Kiểm tra trước khi cài thêm.</p>
+        <pre class="command-line" data-prompt="PS>" data-output="2"><code class="language-powershell">python --version
+Python 3.12.4</code></pre>
+        <p>Nếu chưa có Python hoặc phiên bản thấp hơn 3.11, tải bản mới nhất tại <code>python.org/downloads</code> và cài đặt trước khi tiếp tục.</p>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 2: Cài đặt uv (Python package/tool manager)</strong>
+        <p>Chạy lệnh cài đặt chính thức của <code>uv</code> cho Windows qua PowerShell.</p>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"</code></pre>
+        <p>Mở lại terminal mới (để PATH được nạp lại), sau đó kiểm tra <code>uv</code> đã cài thành công.</p>
+        <pre class="command-line" data-prompt="PS>" data-output="2"><code class="language-powershell">uv --version
+uv 0.5.11</code></pre>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 3: Cài đặt specify CLI từ repository Spec-Kit</strong>
+        <p>Dùng <code>uv tool install</code> để cài <code>specify</code> như một CLI cố định, dùng lại được cho các project khác sau này.</p>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">uv tool install specify-cli --from git+https://github.com/github/spec-kit.git</code></pre>
+        <p>Kiểm tra CLI đã cài thành công và xem danh sách tuỳ chọn hiện có.</p>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">specify --help</code></pre>
+      </div>
+    </li>
+  </ol>
+
+  <h3 class="sub-heading">Phần 2: Khởi tạo Spec-Kit vào project lab-expense-management</h3>
+  <ol class="step-list">
+    <li>
+      <div>
+        <strong>Bước 4: Vào thư mục project đã có sẵn</strong>
+        <p>Không tạo thư mục mới — vào đúng project đã tạo ở Section 4.</p>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">cd D:\lab-expense-management</code></pre>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 5: Chạy specify init để khởi tạo Spec-Kit vào project hiện tại</strong>
+        <p>Chỉ định AI agent đích là Claude Code và khởi tạo ngay trong thư mục hiện tại (không tạo thư mục project mới).</p>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">specify init --here --ai claude</code></pre>
+        <div class="alert alert-warning">
+          <strong>Lưu ý:</strong> Tên flag chính xác (<code>--here</code>, <code>--ai</code>...) có thể thay đổi theo
+          phiên bản Spec-Kit mới nhất. Nếu lệnh trên báo lỗi flag không hợp lệ, chạy <code>specify init --help</code>
+          để xem đúng tên tuỳ chọn hiện hành cho "khởi tạo vào thư mục hiện có" và "chọn AI agent là Claude Code".
+        </div>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 6: Xác nhận các bước khởi tạo (nếu CLI hỏi)</strong>
+        <p><code>specify init</code> có thể hỏi xác nhận trước khi ghi file vào project đã có sẵn (để tránh ghi đè file không mong muốn). Đọc kỹ và xác nhận đồng ý.</p>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 7: Kiểm tra cấu trúc .specify/ vừa được tạo</strong>
+        <p>Xác nhận thư mục <code>.specify/</code> đã xuất hiện, không ảnh hưởng đến code Next.js hiện có (<code>app/</code>, <code>prisma/</code>, <code>lib/</code>...).</p>
+        <pre class="command-line" data-prompt="PS>" data-output="2, 3, 4, 5, 6, 7"><code class="language-powershell">dir
+.specify
+app
+prisma
+lib
+docker-compose.yml
+package.json</code></pre>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 8: Mở Claude Code và xác nhận slash command /speckit.* xuất hiện</strong>
+        <p>Khởi động Claude Code trong đúng project vừa khởi tạo, gõ dấu <code>/</code> kèm <code>speckit</code> để xem danh sách slash command khả dụng.</p>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">claude</code></pre>
+        <pre class="command-line" data-prompt=">"><code class="language-text">/speckit.</code></pre>
+        <p>Danh sách gợi ý hiện ra nên có đủ <code>/speckit.constitution</code>, <code>/speckit.specify</code>, <code>/speckit.plan</code>, <code>/speckit.tasks</code>, <code>/speckit.implement</code>.</p>
+      </div>
+    </li>
+  </ol>
+
+  <div class="verify-box">
+    <h4>✅ Kết quả mong đợi</h4>
+    <p class="body-text">Thư mục <code>D:\lab-expense-management</code> có thêm <code>.specify/</code> bên cạnh code Next.js hiện có, không file nào của tính năng cũ (CRUD expense, xuất CSV) bị thay đổi. Trong Claude Code, gõ <code>/speckit.</code> hiện ra đủ 5 slash command chính, sẵn sàng dùng cho bài lab tiếp theo.</p>
+  </div>
+
+  <h2 class="section-heading">Troubleshoot</h2>
+  <div class="alert alert-warning">
+    <strong>Lỗi:</strong> Terminal báo <code>uv</code> hoặc <code>specify</code> không phải lệnh nhận diện được (not recognized).<br/>
+    <strong>Nguyên nhân:</strong> PATH chưa được nạp lại sau khi cài — terminal đang mở là session cũ trước khi cài đặt.<br/>
+    <strong>Giải pháp:</strong> Đóng hẳn terminal đang dùng, mở terminal mới rồi chạy lại lệnh kiểm tra phiên bản.
+  </div>
+  <div class="alert alert-warning">
+    <strong>Lỗi:</strong> <code>specify init</code> báo lỗi liên quan phiên bản Python quá thấp.<br/>
+    <strong>Nguyên nhân:</strong> Máy có nhiều phiên bản Python, terminal đang trỏ vào bản cũ hơn 3.11.<br/>
+    <strong>Giải pháp:</strong> Kiểm tra lại bằng <code>python --version</code>, cài đè bản Python 3.11+ mới hoặc dùng <code>py -3.12</code> để chỉ định rõ phiên bản khi cần.
+  </div>
+  <div class="alert alert-warning">
+    <strong>Lỗi:</strong> Trong Claude Code, gõ <code>/speckit.</code> không thấy gợi ý slash command nào.<br/>
+    <strong>Nguyên nhân:</strong> Claude Code đang chạy phiên làm việc mở từ trước khi <code>specify init</code> hoàn tất, chưa quét lại slash command mới.<br/>
+    <strong>Giải pháp:</strong> Thoát phiên Claude Code hiện tại (<code>/exit</code> hoặc <code>Ctrl+C</code>) và chạy lại <code>claude</code> trong đúng thư mục project.
+  </div>
+
+  <h2 class="section-heading">Dọn dẹp resource</h2>
+  <div class="alert alert-info">
+    Bài lab này chỉ cài công cụ trên máy local và thêm file cấu hình vào project — <strong>không tạo resource nào
+    trên Cloud</strong>, không có gì cần dọn dẹp. Giữ nguyên project <code>D:\lab-expense-management</code> (bao gồm
+    thư mục <code>.specify/</code> vừa tạo) để tiếp tục dùng ở Chapter 6, 7, 8.
+  </div>
+
+  <script>mermaid.initialize({ startOnLoad: true, theme: 'default' });</script>
+</body>
+</html>

@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lab - Viết script tự động hoá tác vụ vận hành – Claude 101</title>
+  <link rel="stylesheet" href="../../styles.css" />
+  <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+  <script src="../../mermaid-config.js"></script>
+  <link rel="stylesheet" href="../../prism.css" />
+  <script src="../../prism.js"></script>
+  <script src="../../script.js"></script>
+</head>
+<body class="chapter-body">
+
+  <div class="chapter-breadcrumb">
+    <span class="section-part">5. Claude cho DevOps & Cloud Engineer</span>
+    <span class="sep">/</span>
+    <span class="chapter-part">Lab - Viết script tự động hoá tác vụ vận hành</span>
+  </div>
+
+  <h2 class="section-heading">Mục tiêu</h2>
+  <ul class="feature-list">
+    <li>Dùng Claude Code viết một script PowerShell tự động hoá tác vụ vận hành lặp lại: <strong>backup thư mục log và xoá log cũ hơn N ngày</strong>.</li>
+    <li>Test chạy thử script với dữ liệu log mẫu, xác nhận đúng hành vi trước khi đưa vào lịch chạy tự động.</li>
+    <li>Lên lịch chạy script tự động bằng <strong>Windows Task Scheduler</strong> (<code>schtasks</code>).</li>
+  </ul>
+
+  <h2 class="section-heading">Kiến trúc tổng quan</h2>
+  <div class="mermaid">
+  flowchart LR
+      Eng(("<img src='../../assets/svg-icon/operator.svg' style='width:26px;height:26px;'/><br/><b>DevOps Engineer</b>"))
+      CC["<img src='../../assets/svg-icon/claude-logo.svg' style='width:28px;height:28px;'/><br/><b>Claude Code</b>"]
+      Script["📄 <b>backup-and-cleanup-logs.ps1</b>"]
+      Test["🧪 <b>Test chạy tay</b><br/>Với log mẫu"]
+
+      subgraph Windows["🖥️ Windows — Task Scheduler"]
+          Task["<img src='../../assets/svg-icon/task.svg' style='width:26px;height:26px;'/><br/><b>Scheduled Task</b><br/>schtasks /create"]
+      end
+
+      LogDir["📁 <b>LogPath</b><br/>D:\\App\\logs"]
+      BackupDir["🗄️ <b>BackupPath</b><br/>D:\\App\\log-backups\\yyyyMMdd_HHmmss"]
+
+      Eng -->|"Yêu cầu bằng prompt"| CC
+      CC -->|"Sinh script"| Script
+      Script -->|"Chạy thử"| Test
+      Test -->|"Đạt yêu cầu"| Eng
+      Eng -->|"Đăng ký lịch chạy"| Task
+      Task -->|"Chạy định kỳ"| Script
+      Script -->|"Copy log mới hơn N ngày"| BackupDir
+      Script -->|"Xoá log cũ hơn N ngày"| LogDir
+  </div>
+  <p class="arch-caption">Claude Code sinh script PowerShell, Engineer test chạy tay trước để xác nhận hành vi đúng, sau đó mới đăng ký vào Task Scheduler để chạy tự động định kỳ — không đưa script chưa test vào lịch chạy tự động.</p>
+
+  <h2 class="section-heading">Yêu cầu trước khi bắt đầu</h2>
+  <ul class="feature-list">
+    <li>Máy Windows với PowerShell 5.1 trở lên (mặc định có sẵn trên Windows 10/11).</li>
+    <li>Claude Code CLI đã cài đặt và đăng nhập thành công (xem lại Section 2).</li>
+    <li>Quyền chạy script PowerShell trên máy (không bị chặn bởi Execution Policy — xem phần Troubleshoot nếu gặp lỗi).</li>
+    <li>Terminal: PowerShell hoặc Windows Terminal, chạy với quyền phù hợp để tạo Scheduled Task.</li>
+  </ul>
+
+  <h2 class="section-heading">Các bước thực hành</h2>
+
+  <h3 class="sub-heading">Phần 1: Chuẩn bị dữ liệu log mẫu</h3>
+  <ol class="step-list">
+    <li>
+      <div>
+        <strong>Bước 1: Tạo thư mục log mẫu và một số file log giả để test</strong>
+        <p>Tạo vài file log với thời gian sửa đổi (<code>LastWriteTime</code>) khác nhau để kiểm chứng đúng logic lọc theo số ngày.</p>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">mkdir D:\App\logs
+mkdir D:\App\log-backups
+
+"log moi nhat" | Out-File D:\App\logs\app-2026-07-08.log
+"log 10 ngay truoc" | Out-File D:\App\logs\app-2026-06-29.log
+(Get-Item D:\App\logs\app-2026-06-29.log).LastWriteTime = (Get-Date).AddDays(-10)
+
+"log 40 ngay truoc" | Out-File D:\App\logs\app-2026-05-30.log
+(Get-Item D:\App\logs\app-2026-05-30.log).LastWriteTime = (Get-Date).AddDays(-40)</code></pre>
+        <p>File <code>app-2026-05-30.log</code> (40 ngày trước) sẽ dùng để kiểm chứng logic xoá log cũ hơn <code>RetentionDays</code> mặc định (30 ngày).</p>
+      </div>
+    </li>
+  </ol>
+
+  <h3 class="sub-heading">Phần 2: Yêu cầu Claude Code viết script</h3>
+  <ol class="step-list">
+    <li>
+      <div>
+        <strong>Bước 2: Tạo thư mục project và khởi động Claude Code</strong>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">mkdir D:\lab-script-tu-dong-hoa
+cd D:\lab-script-tu-dong-hoa
+claude</code></pre>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 3: Giao yêu cầu viết script — nêu rõ hành vi, tham số, và yêu cầu xử lý lỗi</strong>
+        <pre class="command-line" data-prompt=">"><code class="language-text">Viết một script PowerShell tên backup-and-cleanup-logs.ps1 tự động hoá tác vụ backup và dọn log. Yêu cầu cụ thể:
+1. Tham số: -LogPath (bắt buộc, đường dẫn thư mục chứa log), -BackupPath (bắt buộc, đường dẫn thư mục gốc lưu backup), -RetentionDays (không bắt buộc, mặc định 30).
+2. Kiểm tra LogPath phải tồn tại và là thư mục, nếu không thì in lỗi rõ ràng và exit 1. Nếu BackupPath chưa tồn tại thì tự tạo mới.
+3. Copy toàn bộ file log hiện có trong LogPath sang một thư mục con mới trong BackupPath, đặt tên thư mục con theo timestamp hiện tại (định dạng yyyyMMdd_HHmmss).
+4. Sau khi backup xong, xoá các file trong LogPath có LastWriteTime cũ hơn RetentionDays ngày.
+5. In log ra console rõ ràng theo từng bước (có timestamp, level INFO/WARN/ERROR), báo rõ số file đã backup và số file đã xoá ở cuối.
+6. Bọc các lệnh copy/xoá file trong try/catch để xử lý lỗi cơ bản, không dừng toàn bộ script nếu một file lỗi.</code></pre>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 4: Duyệt và xác nhận Claude Code tạo file script</strong>
+        <p>Đọc qua nội dung script trước khi cho phép ghi file — đặc biệt kiểm tra phần xoá file (<code>Remove-Item</code>) chỉ tác động đúng phạm vi <code>LogPath</code>, không có lệnh xoá rộng hơn dự kiến.</p>
+      </div>
+    </li>
+  </ol>
+
+  <h3 class="sub-heading">Phần 3: Tham khảo nội dung script (đối chiếu với kết quả Claude Code sinh ra)</h3>
+  <p class="body-text">Nội dung dưới đây là ví dụ tham khảo cho script Claude Code nên sinh ra ở Bước 3 — dùng để đối chiếu khi review, không cần gõ tay lại toàn bộ.</p>
+  <pre class="file-block"><span class="filename">backup-and-cleanup-logs.ps1</span><span class="cmt">&lt;#
+.SYNOPSIS
+    Backup file log moi va don dep (xoa) file log qua cu.
+#&gt;</span>
+
+[CmdletBinding()]
+param(
+    [Parameter(Mandatory = $true)]
+    [string]$LogPath,
+
+    [Parameter(Mandatory = $true)]
+    [string]$BackupPath,
+
+    [Parameter(Mandatory = $false)]
+    [int]$RetentionDays = 30
+)
+
+<span class="hl">function Write-Log</span> {
+    param([string]$Message, [string]$Level = <span class="str">"INFO"</span>)
+    $timestamp = Get-Date -Format <span class="str">"yyyy-MM-dd HH:mm:ss"</span>
+    Write-Host <span class="str">"[$timestamp] [$Level] $Message"</span>
+}
+
+<span class="cmt"># Kiểm tra LogPath tồn tại, tạo BackupPath nếu chưa có...</span>
+<span class="cmt"># Bước 1: copy log vào thư mục con theo timestamp...</span>
+<span class="cmt"># Bước 2: xoá log trong LogPath cũ hơn RetentionDays...</span></pre>
+  <p class="note-text">Toàn bộ script đầy đủ được lưu tại <code>sourcecode/section_5/lab_script_tu_dong_hoa/backup-and-cleanup-logs.ps1</code> trong repository của khoá học.</p>
+
+  <h3 class="sub-heading">Phần 4: Test chạy thử script bằng tay</h3>
+  <ol class="step-list">
+    <li>
+      <div>
+        <strong>Bước 5: Chạy thử script với dữ liệu log mẫu đã tạo ở Phần 1</strong>
+        <p>Luôn test chạy tay trước khi đưa vào lịch chạy tự động — không tin tưởng script chỉ vì Claude Code báo "đã viết xong".</p>
+        <pre class="command-line" data-prompt="PS>" data-output="2, 3, 4, 5, 6, 7"><code class="language-powershell">.\backup-and-cleanup-logs.ps1 -LogPath "D:\App\logs" -BackupPath "D:\App\log-backups" -RetentionDays 30
+[2026-07-09 09:00:00] [INFO] ===== Bat dau backup-and-cleanup-logs =====
+[2026-07-09 09:00:00] [INFO] Cutoff date (log cu hon moc nay se bi xoa sau khi backup): 06/09/2026 09:00:00
+[2026-07-09 09:00:00] [INFO] Da backup 3 file log vao: D:\App\log-backups\20260709_090000
+[2026-07-09 09:00:00] [INFO] Da xoa: D:\App\logs\app-2026-05-30.log (LastWriteTime: 05/30/2026 09:00:00)
+[2026-07-09 09:00:00] [INFO] Tong so file log da xoa: 1
+[2026-07-09 09:00:00] [INFO] ===== Hoan thanh backup-and-cleanup-logs =====</code></pre>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 6: Xác nhận kết quả</strong>
+        <p>Kiểm tra thư mục backup có đủ 3 file log (bản backup trước khi xoá), và thư mục <code>LogPath</code> chỉ còn lại 2 file log gần đây (file 40 ngày trước đã bị xoá đúng như kỳ vọng với <code>RetentionDays = 30</code>).</p>
+        <pre class="command-line" data-prompt="PS>" data-output="2, 3"><code class="language-powershell">dir D:\App\logs
+app-2026-07-08.log
+app-2026-06-29.log</code></pre>
+      </div>
+    </li>
+  </ol>
+
+  <h3 class="sub-heading">Phần 5: Lên lịch chạy tự động bằng Windows Task Scheduler</h3>
+  <ol class="step-list">
+    <li>
+      <div>
+        <strong>Bước 7: Tạo Scheduled Task chạy script mỗi ngày lúc 2:00 sáng</strong>
+        <p>Dùng <code>schtasks /create</code> để đăng ký task, gọi <code>powershell.exe</code> kèm đủ tham số như đã test ở Bước 5.</p>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">schtasks /create /tn "ClaudeLab-BackupCleanupLogs" /tr "powershell.exe -NoProfile -ExecutionPolicy Bypass -File D:\lab-script-tu-dong-hoa\backup-and-cleanup-logs.ps1 -LogPath D:\App\logs -BackupPath D:\App\log-backups -RetentionDays 30" /sc daily /st 02:00</code></pre>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 8: Kiểm tra task đã được tạo đúng</strong>
+        <pre class="command-line" data-prompt="PS>" data-output="2, 3, 4"><code class="language-powershell">schtasks /query /tn "ClaudeLab-BackupCleanupLogs"
+TaskName                          Next Run Time         Status
+==================================  ====================  ========
+ClaudeLab-BackupCleanupLogs        7/10/2026 2:00:00 AM   Ready</code></pre>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 9: Chạy thử task ngay lập tức (không chờ đến 2:00 sáng) để xác nhận</strong>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">schtasks /run /tn "ClaudeLab-BackupCleanupLogs"</code></pre>
+        <p>Sau vài giây, kiểm tra lại thư mục <code>D:\App\log-backups</code> — nếu có thêm một thư mục con mới theo timestamp, task đã chạy thành công qua Task Scheduler.</p>
+      </div>
+    </li>
+  </ol>
+
+  <div class="verify-box">
+    <h4>✅ Kết quả mong đợi</h4>
+    <p class="body-text">Script chạy tay ở Bước 5 in log rõ ràng, backup đúng số file và xoá đúng file cũ hơn <code>RetentionDays</code>. Scheduled Task <code>ClaudeLab-BackupCleanupLogs</code> xuất hiện trong Task Scheduler với trạng thái <code>Ready</code>, và khi chạy thử bằng <code>schtasks /run</code> tạo thêm được một thư mục backup mới — xác nhận việc tự động hoá hoạt động đúng.</p>
+  </div>
+
+  <h2 class="section-heading">Troubleshoot</h2>
+  <div class="alert alert-warning">
+    <strong>Lỗi:</strong> Chạy script báo <code>...cannot be loaded because running scripts is disabled on this system</code>.<br/>
+    <strong>Nguyên nhân:</strong> Execution Policy của PowerShell đang chặn chạy file <code>.ps1</code> chưa được ký (mặc định trên nhiều máy Windows là <code>Restricted</code>).<br/>
+    <strong>Giải pháp:</strong> Chạy PowerShell với quyền Administrator và nới policy cho user hiện tại: <code>Set-ExecutionPolicy -Scope CurrentUser RemoteSigned</code>, hoặc chạy trực tiếp bằng <code>powershell -ExecutionPolicy Bypass -File .\backup-and-cleanup-logs.ps1 ...</code> như đã dùng trong lệnh <code>schtasks /create</code> ở Bước 7.
+  </div>
+  <div class="alert alert-warning">
+    <strong>Lỗi:</strong> Scheduled Task hiển thị <code>Ready</code> nhưng đến giờ không tự chạy, hoặc <code>Last Run Result</code> khác 0.<br/>
+    <strong>Nguyên nhân:</strong> Task được tạo ở chế độ chỉ chạy khi user đã đăng nhập (<code>Run only when user is logged on</code>) nhưng máy đang khoá màn hình/đăng xuất; hoặc đường dẫn script/tham số trong <code>/tr</code> bị sai.<br/>
+    <strong>Giải pháp:</strong> Mở Task Scheduler (GUI), vào Properties của task, chọn <code>Run whether user is logged on or not</code> nếu cần chạy cả khi không đăng nhập; kiểm tra lại chính xác đường dẫn script trong câu lệnh <code>/tr</code>.
+  </div>
+  <div class="alert alert-warning">
+    <strong>Lỗi:</strong> Script báo lỗi <code>LogPath khong ton tai</code> dù thư mục có vẻ đã tồn tại.<br/>
+    <strong>Nguyên nhân:</strong> Đường dẫn truyền vào có dấu cách hoặc ký tự đặc biệt chưa được đặt trong dấu ngoặc kép, hoặc gõ sai ổ đĩa/tên thư mục.<br/>
+    <strong>Giải pháp:</strong> Luôn đặt đường dẫn trong dấu ngoặc kép (vd <code>-LogPath "D:\App\logs"</code>), kiểm tra lại bằng <code>Test-Path "D:\App\logs"</code> trước khi chạy script.
+  </div>
+
+  <h2 class="section-heading">Dọn dẹp resource</h2>
+  <div class="alert alert-info">
+    Bài lab này <strong>không tạo resource Cloud</strong> nào — chỉ tạo Scheduled Task và thư mục cục bộ trên máy Windows. Nếu không muốn giữ lại task chạy định kỳ, xoá bằng lệnh sau.
+  </div>
+  <pre class="command-line" data-prompt="PS>"><code class="language-powershell">schtasks /delete /tn "ClaudeLab-BackupCleanupLogs" /f</code></pre>
+  <p class="note-text">Có thể giữ lại thư mục <code>D:\App\logs</code>, <code>D:\App\log-backups</code> và <code>D:\lab-script-tu-dong-hoa</code> để tham khảo lại script, hoặc xoá bằng <code>Remove-Item -Recurse -Force</code> nếu không cần dùng nữa.</p>
+
+  <script>mermaid.initialize({ startOnLoad: true, theme: 'default' });</script>
+</body>
+</html>

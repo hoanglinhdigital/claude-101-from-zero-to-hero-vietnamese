@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lab - Viết bug report hoàn chỉnh – Claude 101</title>
+  <link rel="stylesheet" href="../../styles.css" />
+  <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+  <script src="../../mermaid-config.js"></script>
+  <link rel="stylesheet" href="../../prism.css" />
+  <script src="../../prism.js"></script>
+  <script src="../../script.js"></script>
+</head>
+<body class="chapter-body">
+
+  <div class="chapter-breadcrumb">
+    <span class="section-part">6. Claude cho Tester / QA</span>
+    <span class="sep">/</span>
+    <span class="chapter-part">Lab - Viết bug report hoàn chỉnh</span>
+  </div>
+
+  <div class="alert alert-info">
+    Bài lab này dùng lại đúng bug đã phát hiện qua test tự động ở Chapter 5 (<code>amount &lt;= 0</code> vẫn được lưu)
+    làm ví dụ thực hành. Nếu bạn chưa làm Chapter 5, vẫn có thể thực hành bình thường với mô tả lỗi mẫu dưới đây.
+  </div>
+
+  <h2 class="section-heading">Mục tiêu</h2>
+  <ul class="feature-list">
+    <li>Biết cách đưa một mô tả lỗi ngắn gọn, thô cho Claude và yêu cầu soạn bug report đầy đủ theo cấu trúc chuẩn đã học ở Chapter 3.</li>
+    <li>Đối chiếu input thô ban đầu với output bug report hoàn chỉnh để thấy rõ giá trị Claude thêm vào.</li>
+    <li>Biết tự chỉnh sửa, bổ sung những phần Claude còn thiếu hoặc suy diễn sai (đặc biệt là mức độ ưu tiên/severity).</li>
+  </ul>
+
+  <h2 class="section-heading">Kiến trúc tổng quan</h2>
+  <div class="mermaid">
+  flowchart LR
+      Tester(("<img src='../../assets/svg-icon/user.svg' style='width:26px;height:26px;'/><br/><b>Tester</b>"))
+      Raw["💬 <b>Mô tả lỗi thô</b><br/>1-2 câu"]
+      CC["<img src='../../assets/svg-icon/claude-logo.svg' style='width:28px;height:28px;'/><br/><b>Claude</b>"]
+      Report["📝 <b>Bug report</b><br/>chuẩn hoá, đủ 8 trường"]
+      Jira["<img src='../../assets/svg-icon/jira.svg' style='width:26px;height:26px;'/><br/><b>Bug tracker</b><br/>(Jira/Backlog...)"]
+      Dev(("<img src='../../assets/svg-icon/developer.svg' style='width:26px;height:26px;'/><br/><b>Developer</b>"))
+
+      Tester --> Raw --> CC --> Report --> Jira --> Dev
+  </div>
+  <p class="arch-caption">Từ một câu mô tả lỗi ngắn gọn, Claude chuẩn hoá thành bug report đầy đủ theo cấu trúc chuẩn đã học ở Chapter 3, sẵn sàng đưa vào bug tracker để Developer tiếp nhận.</p>
+
+  <h2 class="section-heading">Yêu cầu trước khi bắt đầu</h2>
+  <ul class="feature-list">
+    <li>Claude.ai hoặc Claude Code CLI đã cài đặt, đăng nhập thành công.</li>
+    <li>Đã đọc Chapter 3 — cấu trúc bug report chuẩn (Tiêu đề, Mô tả, Môi trường, Bước tái hiện, Kết quả mong đợi, Kết quả thực tế, Severity, Ghi chú bổ sung).</li>
+    <li>(Khuyến nghị) Đã hoàn thành Chapter 5 để có ngữ cảnh thật từ chính bug vừa phát hiện.</li>
+  </ul>
+
+  <h2 class="section-heading">Các bước thực hành</h2>
+
+  <h3 class="sub-heading">Phần 1: Chuẩn bị mô tả lỗi thô</h3>
+  <ol class="step-list">
+    <li>
+      <div>
+        <strong>Bước 1: Viết mô tả lỗi ngắn gọn như một Tester thực tế thường ghi chú nhanh</strong>
+        <p>Mô tả mẫu dùng cho bài lab này — đúng bug đã thấy ở Chapter 5 khi test API <code>POST /api/expenses</code>:</p>
+        <pre class="command-line" data-prompt=">"><code class="language-text">tạo chi tiêu số âm mà vẫn lưu được</code></pre>
+      </div>
+    </li>
+  </ol>
+
+  <h3 class="sub-heading">Phần 2: Yêu cầu Claude soạn bug report đầy đủ</h3>
+  <ol class="step-list">
+    <li>
+      <div>
+        <strong>Bước 2: Gõ prompt đưa mô tả thô kèm bối cảnh, yêu cầu soạn bug report theo đúng cấu trúc chuẩn</strong>
+        <pre class="command-line" data-prompt=">"><code class="language-text">Tôi vừa phát hiện lỗi sau khi test app Quản lý chi tiêu (Expense Management):
+"tạo chi tiêu số âm mà vẫn lưu được"
+
+Bối cảnh thêm: lỗi xảy ra khi gọi API POST /api/expenses (Next.js), môi trường local (Windows 11, Node.js 18, MySQL 8.0 qua Docker container). Tôi gửi request với amount = -100000, các field khác hợp lệ (title, categoryId, spentAt), server trả về status 200/201 và lưu bản ghi vào database thay vì từ chối.
+
+Hãy soạn giúp tôi một bug report đầy đủ theo cấu trúc chuẩn: Tiêu đề, Mô tả, Môi trường, Bước tái hiện, Kết quả mong đợi, Kết quả thực tế, Mức độ ưu tiên/Severity (kèm giải thích ngắn vì sao chọn mức đó), Ghi chú bổ sung.</code></pre>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 3: Đọc và đối chiếu bug report Claude soạn ra</strong>
+        <p>Bảng dưới đây là ví dụ tham khảo cho output đầy đủ Claude nên soạn ra ở Bước 2 — dùng để đối chiếu với kết quả thực tế của bạn.</p>
+        <table class="info-table">
+          <thead><tr><th>Trường</th><th>Nội dung</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Tiêu đề</strong></td><td>API <code>POST /api/expenses</code> chấp nhận <code>amount</code> âm, không validate trước khi lưu database</td></tr>
+            <tr><td><strong>Mô tả</strong></td><td>Khi gửi request tạo khoản chi tiêu với số tiền âm, hệ thống vẫn lưu thành công vào database thay vì từ chối theo đúng requirement (số tiền phải &gt; 0). Điều này khiến số liệu tổng chi tiêu hiển thị cho người dùng bị sai lệch.</td></tr>
+            <tr><td><strong>Môi trường</strong></td><td>Windows 11, Node.js 18.x, Next.js (App Router), MySQL 8.0 (Docker container <code>expense-mysql</code>), dev server local <code>http://localhost:3000</code>.</td></tr>
+            <tr><td><strong>Bước tái hiện</strong></td><td>
+              1. Khởi động dev server (<code>npm run dev</code>).<br/>
+              2. Gửi <code>POST http://localhost:3000/api/expenses</code> với body <code>{ "title": "Test", "amount": -100000, "categoryId": 1, "spentAt": "2026-07-09" }</code>.<br/>
+              3. Quan sát response và kiểm tra dữ liệu trong bảng <code>Expense</code>.
+            </td></tr>
+            <tr><td><strong>Kết quả mong đợi</strong></td><td>Server trả về status 400 kèm message lỗi rõ ràng ("Số tiền phải lớn hơn 0"), không tạo bản ghi mới.</td></tr>
+            <tr><td><strong>Kết quả thực tế</strong></td><td>Server trả về status 200/201, bản ghi được lưu vào bảng <code>Expense</code> với <code>amount = -100000</code>.</td></tr>
+            <tr><td><strong>Mức độ ưu tiên/Severity</strong></td><td><span class="tag tag-orange">High</span> — ảnh hưởng trực tiếp đến tính đúng đắn của số liệu tài chính hiển thị (dashboard tổng chi tiêu sẽ sai), nhưng chưa phải Critical vì không gây crash hệ thống hay mất dữ liệu người dùng đã có.</td></tr>
+            <tr><td><strong>Ghi chú bổ sung</strong></td><td>Phát hiện qua bộ test tự động (xem Chapter 5). Gợi ý hướng fix: thêm validate <code>amount &gt; 0</code> tại API route <code>app/api/expenses/route.ts</code> trước khi gọi Prisma <code>create</code>.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </li>
+  </ol>
+
+  <h3 class="sub-heading">Phần 3: Đối chiếu giá trị Claude thêm vào</h3>
+  <div class="usecase-grid">
+    <div class="usecase-card">
+      <h4>Input thô (1 câu)</h4>
+      <p class="card-body-text">"tạo chi tiêu số âm mà vẫn lưu được"</p>
+      <p class="card-footnote">Không có bước tái hiện, không có môi trường, không có mức độ ưu tiên — chưa đủ để Developer bắt tay vào fix ngay.</p>
+    </div>
+    <div class="usecase-card">
+      <h4>Output bug report (8 trường)</h4>
+      <p class="card-body-text">Tiêu đề rõ nghĩa · Mô tả đầy đủ · Môi trường cụ thể · 3 bước tái hiện · Kết quả mong đợi vs thực tế · Severity kèm lý do · Ghi chú hướng fix.</p>
+      <p class="card-footnote">Developer có thể tái hiện và bắt đầu fix ngay, không cần hỏi lại Tester.</p>
+    </div>
+  </div>
+
+  <div class="verify-box">
+    <h4>✅ Kết quả mong đợi</h4>
+    <p class="body-text">Bug report do Claude soạn có đủ 8 trường chuẩn, đủ chi tiết để một Developer chưa từng thấy lỗi này có thể tái hiện và bắt đầu fix mà không cần hỏi lại Tester.</p>
+  </div>
+
+  <h2 class="section-heading">Troubleshoot</h2>
+  <div class="alert alert-warning">
+    <strong>Lỗi:</strong> Claude tự suy diễn sai môi trường hoặc phiên bản phần mềm.<br/>
+    <strong>Nguyên nhân:</strong> Input ban đầu không cung cấp đủ bối cảnh, Claude phải tự đoán để điền vào trường "Môi trường".<br/>
+    <strong>Giải pháp:</strong> Luôn bổ sung bối cảnh thật (OS, version, môi trường local/staging/production) ngay trong prompt như ví dụ ở Bước 2, không để Claude tự đoán.
+  </div>
+  <div class="alert alert-warning">
+    <strong>Lỗi:</strong> Mức độ ưu tiên/Severity Claude đề xuất không khớp với đánh giá thực tế của team.<br/>
+    <strong>Nguyên nhân:</strong> Claude không biết đầy đủ tác động nghiệp vụ hoặc ưu tiên hiện tại của dự án.<br/>
+    <strong>Giải pháp:</strong> Luôn coi severity Claude đề xuất là gợi ý — Tester/Lead QA là người quyết định mức cuối cùng trước khi gửi bug tracker.
+  </div>
+  <div class="alert alert-warning">
+    <strong>Lỗi:</strong> Bug report thiếu bước tái hiện cụ thể, chỉ mô tả chung.<br/>
+    <strong>Nguyên nhân:</strong> Input ban đầu không có request/response mẫu.<br/>
+    <strong>Giải pháp:</strong> Bổ sung ví dụ body request (JSON) và response thực tế nhận được vào prompt, như đã làm ở Bước 2.
+  </div>
+
+  <h2 class="section-heading">Dọn dẹp resource</h2>
+  <div class="alert alert-info">Bài lab này chỉ soạn văn bản bug report — không tạo resource nào cần dọn dẹp. Nếu vẫn đang mở project từ Chapter 5, có thể dừng container MySQL khi tạm nghỉ.</div>
+  <pre class="command-line" data-prompt="PS>"><code class="language-powershell">cd D:\lab-expense-management
+docker compose down</code></pre>
+
+  <script>mermaid.initialize({ startOnLoad: true, theme: 'default' });</script>
+</body>
+</html>

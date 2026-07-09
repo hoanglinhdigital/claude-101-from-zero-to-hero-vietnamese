@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lab - Tạo một Claude Skill – Claude 101</title>
+  <link rel="stylesheet" href="../../styles.css" />
+  <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+  <script src="../../mermaid-config.js"></script>
+  <link rel="stylesheet" href="../../prism.css" />
+  <script src="../../prism.js"></script>
+  <script src="../../script.js"></script>
+</head>
+<body class="chapter-body">
+
+  <div class="chapter-breadcrumb">
+    <span class="section-part">3. Claude Skills & Agent</span>
+    <span class="sep">/</span>
+    <span class="chapter-part">Lab - Tạo một Claude Skill</span>
+  </div>
+
+  <h2 class="section-heading">Mục tiêu</h2>
+  <ul class="feature-list">
+    <li>Tự tạo một Claude Skill hoàn chỉnh — <strong>changelog-generator</strong> — giúp Claude Code tự sinh file <code>CHANGELOG.md</code> từ lịch sử commit Git.</li>
+    <li>Hiểu cách viết YAML frontmatter (<code>name</code>, <code>description</code>) sao cho Claude Code phát hiện và gọi đúng Skill khi cần.</li>
+    <li>Biết cách kiểm tra (verify) Skill đã được Claude Code gọi đúng thay vì tự trả lời theo cách thông thường.</li>
+  </ul>
+
+  <h2 class="section-heading">Kiến trúc tổng quan</h2>
+  <div class="mermaid">
+  flowchart LR
+      User(("👤<br/><b>Học viên</b>"))
+      Term["<img src='../../assets/svg-icon/ide.svg' style='width:30px;height:30px;'/><br/><b>Terminal</b><br/>claude"]
+      CC["<img src='../../assets/svg-icon/claude-logo.svg' style='width:30px;height:30px;'/><br/><b>Claude Code</b>"]
+      Dir["📂 <b>.claude/skills/</b><br/>changelog-generator/<br/>SKILL.md"]
+      Git["<img src='../../assets/svg-icon/github.svg' style='width:28px;height:28px;'/><br/><b>Git log</b><br/>Lịch sử commit"]
+      Out["📄 <b>CHANGELOG.md</b><br/>File kết quả"]
+
+      User -->|"Gõ prompt: 'tạo changelog cho project'"| Term
+      Term --> CC
+      CC -->|"Quét & đọc description"| Dir
+      Dir -->|"Description khớp prompt"| CC
+      CC -->|"Nạp nội dung SKILL.md, thực thi quy trình"| Git
+      Git -->|"Danh sách commit"| CC
+      CC -->|"Ghi kết quả"| Out
+      Out -->|"Hiển thị lại"| User
+  </div>
+  <p class="arch-caption">Khi prompt của học viên khớp với description của Skill, Claude Code nạp toàn bộ SKILL.md, thực thi quy trình (đọc git log, phân loại commit) và ghi kết quả ra CHANGELOG.md.</p>
+
+  <h2 class="section-heading">Yêu cầu trước khi bắt đầu</h2>
+  <ul class="feature-list">
+    <li>Claude Code CLI đã cài đặt và đăng nhập thành công (xem lại Section 2).</li>
+    <li>Git đã được cài đặt trên máy (<code>git --version</code> chạy được).</li>
+    <li>Terminal: PowerShell hoặc Windows Terminal.</li>
+  </ul>
+
+  <h2 class="section-heading">Các bước thực hành</h2>
+
+  <h3 class="sub-heading">Phần 1: Chuẩn bị project mẫu có lịch sử commit</h3>
+  <ol class="step-list">
+    <li>
+      <div>
+        <strong>Bước 1: Tạo thư mục project và khởi tạo Git</strong>
+        <p>Tạo một project trống dùng để thực hành, khởi tạo Git repository cho project này.</p>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">mkdir D:\lab-claude-skill
+cd D:\lab-claude-skill
+git init
+git config user.email "hocvien@example.com"
+git config user.name "Hoc Vien"</code></pre>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 2: Tạo vài commit mẫu theo quy ước prefix</strong>
+        <p>Tạo một vài file giả lập và commit theo quy ước <code>feat:</code>, <code>fix:</code>, <code>chore:</code> — đây là dữ liệu đầu vào để Skill đọc và phân loại khi sinh changelog.</p>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">"# Expense App" | Out-File -Encoding utf8 README.md
+git add README.md
+git commit -m "chore: khoi tao project"
+
+"function addExpense() {}" | Out-File -Encoding utf8 expense.js
+git add expense.js
+git commit -m "feat: them chuc nang tao khoan chi tieu moi"
+
+"function validateAmount() {}" | Out-File -Encoding utf8 validate.js
+git add validate.js
+git commit -m "fix: sua loi validate so tien am"
+
+"function exportReport() {}" | Out-File -Encoding utf8 report.js
+git add report.js
+git commit -m "feat: them chuc nang xuat bao cao chi tieu"</code></pre>
+      </div>
+    </li>
+  </ol>
+
+  <h3 class="sub-heading">Phần 2: Tạo Skill changelog-generator</h3>
+  <ol class="step-list">
+    <li>
+      <div>
+        <strong>Bước 3: Tạo thư mục Skill</strong>
+        <p>Mỗi Skill nằm trong một thư mục riêng bên trong <code>.claude/skills/</code>. Tên thư mục nên viết liền, dùng dấu gạch ngang, mô tả đúng chức năng.</p>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">mkdir .claude\skills\changelog-generator</code></pre>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 4: Viết file SKILL.md</strong>
+        <p>Tạo file <code>SKILL.md</code> bên trong thư mục Skill vừa tạo. Có thể dùng Notepad hoặc yêu cầu Claude Code tạo giúp — nội dung mẫu đầy đủ như sau, copy toàn bộ vào file <code>.claude\skills\changelog-generator\SKILL.md</code>:</p>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">notepad .claude\skills\changelog-generator\SKILL.md</code></pre>
+        <p>Dán nội dung sau vào file rồi lưu (Ctrl+S):</p>
+        <pre class="file-block"><span class="filename">.claude/skills/changelog-generator/SKILL.md</span><span class="hl">---
+name</span>: changelog-generator
+<span class="hl">description</span>: <span class="str">Sinh hoặc cập nhật file CHANGELOG.md từ lịch sử commit Git của project. Dùng Skill này khi người dùng yêu cầu "tạo changelog", "sinh changelog", "cập nhật changelog", hoặc "tóm tắt các thay đổi gần đây từ git log" theo định dạng phiên bản (release notes).</span>
+<span class="hl">---</span>
+
+<span class="cmt"># Changelog Generator</span>
+
+<span class="cmt">## Quy trình thực hiện</span>
+1. Chạy `git log --pretty=format:"%s"` để lấy danh sách message của toàn bộ commit
+   (hoặc từ tag gần nhất nếu project đã có tag).
+2. Phân loại từng commit theo prefix quy ước:
+   - `feat:` &rarr; nhóm **Added**
+   - `fix:` &rarr; nhóm **Fixed**
+   - `chore:`, `docs:`, `refactor:` &rarr; nhóm **Changed**
+3. Sinh nội dung theo định dạng Keep a Changelog, mục mới nhất luôn ở đầu file.
+4. Nếu file `CHANGELOG.md` đã tồn tại, thêm mục mới vào đầu file, giữ nguyên nội dung cũ
+   phía dưới. Nếu chưa tồn tại, tạo file mới.
+
+<span class="cmt">## Định dạng output mẫu</span>
+```
+## [Unreleased] - <span class="tag">ngay-thang-nam</span>
+### Added
+- Them chuc nang tao khoan chi tieu moi
+- Them chuc nang xuat bao cao chi tieu
+
+### Fixed
+- Sua loi validate so tien am
+
+### Changed
+- Khoi tao project
+```</pre>
+      </div>
+    </li>
+  </ol>
+
+  <div class="alert alert-tip">
+    <strong>Vì sao description phải viết chi tiết?</strong> Claude Code chỉ đọc phần <code>description</code> này khi quét Skill lúc khởi động — nó là "chìa khoá" duy nhất để quyết định có gọi Skill hay không. Description nên liệt kê rõ các cụm từ/ngữ cảnh người dùng thường dùng khi cần tác vụ đó, tương tự cách viết trong ví dụ trên.
+  </div>
+
+  <h3 class="sub-heading">Phần 3: Test Skill trong Claude Code</h3>
+  <ol class="step-list">
+    <li>
+      <div>
+        <strong>Bước 5: Khởi động Claude Code trong project</strong>
+        <p>Vào đúng thư mục project (nơi có thư mục <code>.claude/skills/</code> vừa tạo) rồi khởi động phiên làm việc.</p>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">cd D:\lab-claude-skill
+claude</code></pre>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 6: Gõ prompt kích hoạt Skill</strong>
+        <p>Trong khung nhập lệnh của Claude Code, gõ một yêu cầu có ngữ cảnh khớp với description đã viết ở Bước 4.</p>
+        <pre class="command-line" data-prompt=">"><code class="language-text">Tạo changelog cho project này dựa trên lịch sử commit hiện có.</code></pre>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 7: Xác nhận Skill đã được gọi đúng</strong>
+        <p>Quan sát phần đầu phản hồi của Claude Code — khi một Skill được gọi, Claude Code thường hiển thị dòng thông báo dạng <code>Skill: changelog-generator</code> (hoặc tương đương) trước khi thực thi các bước. Đây là dấu hiệu xác nhận Skill đã được phát hiện và nạp đúng, không phải Claude tự trả lời theo cách thông thường.</p>
+        <p>Sau khi hoàn tất, kiểm tra file <code>CHANGELOG.md</code> vừa được sinh ra:</p>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">notepad CHANGELOG.md</code></pre>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 8 (tuỳ chọn): Kiểm chứng Skill thật sự được dùng qua /context</strong>
+        <p>Có thể dùng slash command <code>/context</code> ngay sau khi Skill chạy xong để xem phần nội dung Skill có xuất hiện trong context đã nạp hay không, giúp xác nhận chắc chắn hơn.</p>
+        <pre class="command-line" data-prompt=">"><code class="language-text">/context</code></pre>
+      </div>
+    </li>
+  </ol>
+
+  <div class="verify-box">
+    <h4>✅ Kết quả mong đợi</h4>
+    <p class="body-text">File <code>CHANGELOG.md</code> được sinh ra với 3 nhóm <strong>Added</strong>, <strong>Fixed</strong>, <strong>Changed</strong> tương ứng đúng với 4 commit mẫu đã tạo ở Bước 2, đúng định dạng đã khai báo trong SKILL.md.</p>
+  </div>
+
+  <h2 class="section-heading">Troubleshoot</h2>
+  <div class="alert alert-warning">
+    <strong>Lỗi:</strong> Claude Code không gọi Skill, tự trả lời hoặc tự chạy <code>git log</code> theo cách khác không đúng định dạng mong muốn.<br/>
+    <strong>Nguyên nhân:</strong> Description trong SKILL.md viết quá ngắn/mơ hồ, hoặc prompt của học viên dùng từ ngữ khác quá xa so với description.<br/>
+    <strong>Giải pháp:</strong> Viết lại description chi tiết hơn, liệt kê thêm các cách diễn đạt khác nhau mà người dùng có thể gõ (vd thêm "sinh release notes", "tổng hợp thay đổi phiên bản mới").
+  </div>
+  <div class="alert alert-warning">
+    <strong>Lỗi:</strong> Claude Code báo không tìm thấy Skill nào, hoặc Skill không xuất hiện.<br/>
+    <strong>Nguyên nhân:</strong> Thư mục Skill đặt sai vị trí (không nằm trong <code>.claude/skills/</code> ở gốc project), hoặc tên file sai (phải là <code>SKILL.md</code> viết hoa đúng như vậy), hoặc Claude Code đã khởi động từ trước khi Skill được tạo.<br/>
+    <strong>Giải pháp:</strong> Kiểm tra lại đường dẫn bằng <code>dir .claude\skills\changelog-generator</code>, đảm bảo tên file đúng, sau đó khởi động lại phiên Claude Code (gõ <code>/clear</code> hoặc mở lại terminal).
+  </div>
+  <div class="alert alert-warning">
+    <strong>Lỗi:</strong> File CHANGELOG.md sinh ra rỗng hoặc thiếu commit.<br/>
+    <strong>Nguyên nhân:</strong> Project chưa có commit nào (bỏ qua Bước 2), hoặc lệnh <code>git log</code> chạy trong thư mục không phải gốc repository.<br/>
+    <strong>Giải pháp:</strong> Chạy <code>git log --oneline</code> để kiểm tra đã có commit chưa, đảm bảo đang ở đúng thư mục project khi khởi động Claude Code.
+  </div>
+
+  <h2 class="section-heading">Dọn dẹp resource</h2>
+  <div class="alert alert-info">Bài lab này chỉ tạo file và thư mục trên máy local (project Git mẫu + Skill), không tạo ra resource cloud nào và không phát sinh chi phí ngoài usage theo gói cước Claude đang sử dụng. Có thể giữ lại project <code>D:\lab-claude-skill</code> để tiếp tục thực hành ở các bài Lab sau, hoặc xoá đi nếu không cần dùng nữa:</div>
+  <pre class="command-line" data-prompt="PS>"><code class="language-powershell">Remove-Item -Recurse -Force D:\lab-claude-skill</code></pre>
+
+  <script>mermaid.initialize({ startOnLoad: true, theme: 'default' });</script>
+</body>
+</html>

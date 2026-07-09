@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Các giai đoạn trong quy trình SDD – Claude 101</title>
+  <link rel="stylesheet" href="../../styles.css" />
+  <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+  <script src="../../mermaid-config.js"></script>
+  <link rel="stylesheet" href="../../prism.css" />
+  <script src="../../prism.js"></script>
+  <script src="../../script.js"></script>
+</head>
+<body class="chapter-body">
+
+  <div class="chapter-breadcrumb">
+    <span class="section-part">10. Phát triển phần mềm với Spec-Kit Framework</span>
+    <span class="sep">/</span>
+    <span class="chapter-part">Các giai đoạn trong quy trình SDD</span>
+  </div>
+
+  <h2 class="section-heading">Giới thiệu</h2>
+  <p class="body-text">
+    Spec-Kit chia quy trình Spec-Driven Development thành <strong>6 giai đoạn</strong> nối tiếp nhau, mỗi giai đoạn
+    tương ứng một slash command <code>/speckit.*</code> và sinh ra (hoặc cập nhật) một file cụ thể: <strong>Constitution
+    → Specification → Planning → Task Breakdown → Implementation → Convergence</strong>. Hiểu rõ từng giai đoạn làm
+    gì, nhận input nào và tạo ra output nào là điều kiện để dùng Spec-Kit hiệu quả trong 4 bài lab tiếp theo.
+  </p>
+
+  <h2 class="section-heading">Các tính năng chính</h2>
+  <ul class="feature-list">
+    <li><strong>Constitution</strong> — định nghĩa nguyên tắc chung, ràng buộc không thể vi phạm của cả project (vd luôn validate input, không phá vỡ API hiện có).</li>
+    <li><strong>Specification</strong> — đặc tả chi tiết một tính năng cụ thể: tính năng làm <em>gì</em>, cho ai, hành vi mong đợi — chưa bàn đến công nghệ triển khai.</li>
+    <li><strong>Planning</strong> — lập kế hoạch kỹ thuật: chọn thư viện, thiết kế API/route, các thay đổi cần thực hiện để đáp ứng spec.</li>
+    <li><strong>Task Breakdown</strong> — chia kế hoạch thành các task nhỏ, cụ thể, có thể thực hiện và kiểm tra độc lập từng phần.</li>
+    <li><strong>Implementation</strong> — AI agent (Claude Code) thực thi lần lượt từng task, sinh/sửa code thực tế.</li>
+    <li><strong>Convergence</strong> — đối chiếu kết quả implement với spec ban đầu, xác nhận đúng yêu cầu, khép lại vòng SDD cho tính năng đó.</li>
+  </ul>
+
+  <h2 class="section-heading">Mô hình kiến trúc</h2>
+  <div class="mermaid">
+  flowchart LR
+      C1["📜<br/><b>1. Constitution</b><br/>/speckit.constitution<br/>→ .specify/memory/constitution.md"]
+      C2["📝<br/><b>2. Specification</b><br/>/speckit.specify<br/>→ specs/{feature-id}/spec.md"]
+      C3["🗺️<br/><b>3. Planning</b><br/>/speckit.plan<br/>→ plan.md"]
+      C4["📋<br/><b>4. Task Breakdown</b><br/>/speckit.tasks<br/>→ tasks.md"]
+      C5["<img src='../../assets/svg-icon/claude-logo.svg' style='width:26px;height:26px;'/><br/><b>5. Implementation</b><br/>/speckit.implement<br/>→ code thực tế"]
+      C6["✅<br/><b>6. Convergence</b><br/>Đối chiếu code với spec.md"]
+
+      C1 --> C2 --> C3 --> C4 --> C5 --> C6
+      C6 -.->|"Phát hiện sai lệch → cập nhật spec"| C2
+  </div>
+  <p class="arch-caption">6 giai đoạn chạy nối tiếp trong cùng một vòng đời tính năng. Constitution chỉ cần định nghĩa một lần cho cả project (có thể tái sử dụng cho nhiều tính năng), còn 5 giai đoạn sau lặp lại cho mỗi tính năng mới.</p>
+
+  <h3 class="sub-heading">Tổng quan 6 giai đoạn</h3>
+  <div class="phase-timeline">
+    <div class="phase-item">
+      <strong>1. Constitution</strong>
+      Nguyên tắc chung của project — định nghĩa một lần, dùng lại cho mọi tính năng.
+    </div>
+    <div class="phase-item purple">
+      <strong>2. Specification</strong>
+      Đặc tả "làm gì" cho một tính năng cụ thể — chưa bàn công nghệ.
+    </div>
+    <div class="phase-item orange">
+      <strong>3. Planning</strong>
+      Kế hoạch kỹ thuật — chọn thư viện, thiết kế API, các thay đổi cần làm.
+    </div>
+    <div class="phase-item green">
+      <strong>4. Task Breakdown</strong>
+      Chia plan thành các task nhỏ, cụ thể, kiểm tra được từng phần.
+    </div>
+    <div class="phase-item">
+      <strong>5. Implementation</strong>
+      Claude Code thực thi lần lượt từng task, sinh code thật.
+    </div>
+    <div class="phase-item purple">
+      <strong>6. Convergence</strong>
+      Đối chiếu kết quả với spec ban đầu, xác nhận đúng yêu cầu.
+    </div>
+  </div>
+
+  <h2 class="section-heading">Use Cases</h2>
+  <div class="usecase-grid">
+    <div class="usecase-card">
+      <h4>Tính năng phức tạp, nhiều bước</h4>
+      <p>Chia nhỏ theo 6 giai đoạn giúp kiểm soát tốt hơn một tính năng có nhiều phần liên quan (API, UI, xử lý dữ liệu) so với một prompt duy nhất.</p>
+    </div>
+    <div class="usecase-card">
+      <h4>Cần đối chiếu lại sau khi code xong</h4>
+      <p>Giai đoạn Convergence đóng vai trò checklist, giúp phát hiện sớm phần nào Claude Code hiểu sai hoặc bỏ sót so với spec.</p>
+    </div>
+    <div class="usecase-card">
+      <h4>Constitution dùng lại nhiều lần</h4>
+      <p>Một khi định nghĩa xong nguyên tắc chung, các tính năng sau chỉ cần chạy lại từ giai đoạn Specification, không cần lặp lại Constitution.</p>
+    </div>
+  </div>
+
+  <h2 class="section-heading">Thông tin bổ sung</h2>
+  <p class="body-text">
+    6 giai đoạn không bắt buộc phải chạy tuyến tính một chiều — nếu ở giai đoạn Convergence phát hiện kết quả chưa
+    đúng spec, hoàn toàn có thể quay lại cập nhật spec/plan/task rồi chạy lại Implementation cho phần bị lệch, thay
+    vì sửa tay trực tiếp vào code (điều này sẽ làm code và spec lệch nhau trở lại — đúng vấn đề SDD muốn tránh).
+  </p>
+  <div class="alert alert-info">
+    <strong>Lưu ý:</strong> Tên slash command và tên file output ở trên là các quy ước ổn định của Spec-Kit tại thời
+    điểm biên soạn khoá học. Chương tiếp theo sẽ đi sâu vào cấu trúc file cụ thể và bảng chi tiết từng slash command.
+  </div>
+
+  <script>mermaid.initialize({ startOnLoad: true, theme: 'default' });</script>
+</body>
+</html>

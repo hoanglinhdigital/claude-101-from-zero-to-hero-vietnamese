@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lab - Viết test tự động cho hàm/API có sẵn – Claude 101</title>
+  <link rel="stylesheet" href="../../styles.css" />
+  <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+  <script src="../../mermaid-config.js"></script>
+  <link rel="stylesheet" href="../../prism.css" />
+  <script src="../../prism.js"></script>
+  <script src="../../script.js"></script>
+</head>
+<body class="chapter-body">
+
+  <div class="chapter-breadcrumb">
+    <span class="section-part">6. Claude cho Tester / QA</span>
+    <span class="sep">/</span>
+    <span class="chapter-part">Lab - Viết test tự động cho hàm/API có sẵn</span>
+  </div>
+
+  <div class="alert alert-info">
+    Bài lab này <strong>tiếp tục dùng project <code>D:\lab-expense-management</code></strong> đã tạo ở Section 4 - Chapter 4. Nếu chưa hoàn thành bài lab đó, hãy quay lại thực hiện trước khi bắt đầu.
+  </div>
+
+  <h2 class="section-heading">Mục tiêu</h2>
+  <ul class="feature-list">
+    <li>Dùng Claude Code viết test tự động cho API <code>POST /api/expenses</code>, dựa trên 3 test case trọng tâm đã thiết kế ở Chapter 4: tạo hợp lệ (happy path), <code>amount &lt;= 0</code> (negative), ngày chi tiêu ở tương lai (negative).</li>
+    <li>Hiểu góc nhìn <strong>Tester</strong> khi viết test tự động: dựa vào test case/spec và API contract (input/output qua HTTP), <strong>không cần đọc chi tiết code implementation</strong> — khác với lab viết unit test ở Section 4 (góc nhìn Developer, biết rõ code và viết test cùng lúc với code).</li>
+    <li>Chạy test tự động và đọc kết quả để phát hiện case nào đang fail trên implementation hiện tại của app.</li>
+  </ul>
+
+  <h2 class="section-heading">Kiến trúc tổng quan</h2>
+  <div class="mermaid">
+  flowchart LR
+      Tester(("<img src='../../assets/svg-icon/user.svg' style='width:26px;height:26px;'/><br/><b>Tester</b>"))
+      CC["<img src='../../assets/svg-icon/claude-logo.svg' style='width:28px;height:28px;'/><br/><b>Claude Code</b>"]
+      TestFile["<img src='../../assets/svg-icon/task.svg' style='width:26px;height:26px;'/><br/><b>tests/expenses.api.test.js</b><br/>Node test runner + fetch"]
+
+      subgraph App["Next.js Project — lab-expense-management"]
+          Route["⚙️ <b>POST /api/expenses</b>"]
+      end
+
+      Server["<img src='../../assets/svg-icon/container.svg' style='width:26px;height:26px;'/><br/><b>Dev server</b><br/>localhost:3000"]
+      Result["📊 <b>Kết quả pass/fail</b>"]
+
+      Tester -->|"Test case đã thiết kế"| CC
+      CC -->|"Sinh test tự động"| TestFile
+      TestFile -->|"Gọi HTTP, không đọc code impl"| Server
+      Server --> Route
+      TestFile --> Result --> Tester
+  </div>
+  <p class="arch-caption">Test viết dưới dạng integration test gọi trực tiếp qua HTTP đến dev server đang chạy — đúng góc nhìn hộp đen (black-box) của Tester, không phụ thuộc vào chi tiết code trong <code>route.ts</code>.</p>
+
+  <h2 class="section-heading">Yêu cầu trước khi bắt đầu</h2>
+  <ul class="feature-list">
+    <li>Đã hoàn thành Section 4 - Chapter 4 — project <code>D:\lab-expense-management</code> chạy được, MySQL container hoạt động.</li>
+    <li>Node.js 18 trở lên (có sẵn <code>fetch</code> toàn cục, không cần cài thêm thư viện HTTP).</li>
+    <li>Claude Code CLI đã cài đặt và đăng nhập thành công.</li>
+    <li>Terminal: PowerShell hoặc Windows Terminal (cần mở 2 cửa sổ terminal).</li>
+  </ul>
+
+  <h2 class="section-heading">Các bước thực hành</h2>
+
+  <h3 class="sub-heading">Phần 1: Khởi động lại project</h3>
+  <ol class="step-list">
+    <li>
+      <div>
+        <strong>Bước 1: Terminal 1 — khởi động MySQL và dev server, giữ terminal này chạy</strong>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">cd D:\lab-expense-management
+docker compose up -d
+npm run dev</code></pre>
+        <p>Giữ terminal này mở, dev server chạy tại <code>http://localhost:3000</code>.</p>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 2: Terminal 2 — vào project và khởi động Claude Code</strong>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">cd D:\lab-expense-management
+claude</code></pre>
+      </div>
+    </li>
+  </ol>
+
+  <h3 class="sub-heading">Phần 2: Yêu cầu Claude Code viết test tự động theo góc nhìn Tester</h3>
+  <ol class="step-list">
+    <li>
+      <div>
+        <strong>Bước 3: Gõ prompt yêu cầu viết integration test, nêu rõ đây là góc nhìn Tester (black-box)</strong>
+        <p>Prompt liệt kê rõ 3 test case bằng input/output mong đợi, không yêu cầu Claude Code đọc file <code>route.ts</code>.</p>
+        <pre class="command-line" data-prompt=">"><code class="language-text">Đóng vai trò Tester, viết một bộ test tự động dạng integration test gọi trực tiếp qua HTTP đến API đang chạy tại http://localhost:3000/api/expenses. KHÔNG cần đọc code trong app/api/expenses/route.ts — chỉ dựa vào 3 test case sau (đã thiết kế từ trước, mô tả input và kết quả mong đợi qua HTTP):
+
+Test case 1 (Happy path): POST /api/expenses với body { title: "Ăn trưa", amount: 50000, categoryId: &lt;id của category đầu tiên, lấy qua GET /api/categories&gt;, spentAt: &lt;ngày hôm nay, định dạng ISO&gt; }. Kết quả mong đợi: status 200 hoặc 201, response chứa id của bản ghi vừa tạo.
+
+Test case 2 (Negative - amount &lt;= 0): giống Test case 1 nhưng amount: -100. Kết quả mong đợi: status 400, response chứa message lỗi liên quan đến "amount"/"số tiền".
+
+Test case 3 (Negative - ngày ở tương lai): giống Test case 1 nhưng spentAt là ngày 7 ngày sau thời điểm hiện tại. Kết quả mong đợi: status 400, response chứa message lỗi liên quan đến ngày chi tiêu.
+
+Yêu cầu kỹ thuật:
+1. Dùng Node.js built-in test runner (node:test) và fetch có sẵn (Node 18+), không cài thêm thư viện ngoài.
+2. Trước các test case, tự gọi GET /api/categories để lấy một categoryId hợp lệ có sẵn, dùng chung cho cả 3 test case.
+3. Đặt file tại tests/expenses.api.test.js.
+4. Thêm script "test:api": "node --test tests/expenses.api.test.js" vào package.json.
+5. Test giả định server đã đang chạy sẵn ở http://localhost:3000 — không tự khởi động server trong test.</code></pre>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 4: Duyệt kế hoạch và xác nhận thực thi</strong>
+        <p>Đọc qua nội dung file <code>tests/expenses.api.test.js</code> và thay đổi trong <code>package.json</code> trước khi cho phép Claude Code ghi file.</p>
+      </div>
+    </li>
+  </ol>
+
+  <h3 class="sub-heading">Phần 3: Tham khảo nội dung file test</h3>
+  <p class="body-text">Nội dung dưới đây là ví dụ tham khảo cho những gì Claude Code nên sinh ra ở Bước 3 (rút gọn, chỉ giữ 2/3 test case để minh hoạ) — dùng để đối chiếu, không cần tự tay chép lại.</p>
+  <pre class="file-block"><span class="filename">tests/expenses.api.test.js</span><span class="cmt">const { test, before } = require('node:test');</span>
+<span class="cmt">const assert = require('node:assert/strict');</span>
+
+<span class="hl">const</span> BASE_URL = <span class="str">'http://localhost:3000'</span>;
+<span class="hl">let</span> categoryId;
+
+before(<span class="hl">async</span> () => {
+  const res = await fetch(`${BASE_URL}/api/categories`);
+  const categories = await res.json();
+  categoryId = categories[0].id;
+});
+
+test(<span class="str">'tạo khoản chi tiêu hợp lệ (happy path)'</span>, <span class="hl">async</span> () => {
+  const res = await fetch(`${BASE_URL}/api/expenses`, {
+    method: <span class="str">'POST'</span>,
+    headers: { <span class="str">'Content-Type'</span>: <span class="str">'application/json'</span> },
+    body: JSON.stringify({ title: <span class="str">'Ăn trưa'</span>, amount: 50000, categoryId, spentAt: new Date().toISOString() })
+  });
+  assert.ok(res.status === 200 || res.status === 201);
+});
+
+test(<span class="str">'từ chối khi amount &lt;= 0'</span>, <span class="hl">async</span> () => {
+  const res = await fetch(`${BASE_URL}/api/expenses`, {
+    method: <span class="str">'POST'</span>,
+    headers: { <span class="str">'Content-Type'</span>: <span class="str">'application/json'</span> },
+    body: JSON.stringify({ title: <span class="str">'Test âm'</span>, amount: -100, categoryId, spentAt: new Date().toISOString() })
+  });
+  assert.equal(res.status, 400);
+});
+
+<span class="cmt">// test case 3 (ngày ở tương lai) tương tự, xem file đầy đủ Claude Code sinh ra</span></pre>
+
+  <h3 class="sub-heading">Phần 4: Chạy test và đọc kết quả</h3>
+  <ol class="step-list">
+    <li>
+      <div>
+        <strong>Bước 5: Chạy bộ test tự động (ở Terminal 2, dev server vẫn phải đang chạy ở Terminal 1)</strong>
+        <pre class="command-line" data-prompt="PS>" data-output="2,3,4,5,6,7,8,9"><code class="language-powershell">npm run test:api
+▶ POST /api/expenses
+  ✔ tạo khoản chi tiêu hợp lệ (happy path) (98ms)
+  ✖ từ chối khi amount &lt;= 0 (42ms)
+    AssertionError: expected 400, received 201
+  ✖ từ chối khi ngày chi tiêu ở tương lai (39ms)
+    AssertionError: expected 400, received 201
+▶ POST /api/expenses (181ms)
+
+tests 3
+pass 1
+fail 2</code></pre>
+      </div>
+    </li>
+  </ol>
+
+  <div class="alert alert-warning">
+    <strong>Đây không phải lỗi của bộ test.</strong> Hai test negative fail đang phản ánh đúng thực tế: implementation
+    hiện tại của <code>POST /api/expenses</code> (xây dựng ở Section 4) <strong>chưa validate</strong> <code>amount &gt; 0</code>
+    và ngày chi tiêu không được ở tương lai theo đúng requirement. Đây chính là hai bug thực tế — Tester ghi nhận lại
+    kết quả này để viết bug report hoàn chỉnh ở Chapter 6.
+  </div>
+
+  <div class="verify-box">
+    <h4>✅ Kết quả mong đợi</h4>
+    <p class="body-text">Test case 1 (happy path) luôn pass. Nếu implementation hiện tại của bạn chưa có validate <code>amount</code> và ngày chi tiêu, 2 test case negative sẽ fail đúng như ví dụ trên — đó là kết quả hợp lệ và có giá trị đối với một Tester, vì đã phát hiện đúng bug cần báo cáo.</p>
+  </div>
+
+  <h2 class="section-heading">Troubleshoot</h2>
+  <div class="alert alert-warning">
+    <strong>Lỗi:</strong> Test báo lỗi <code>fetch failed</code> hoặc <code>ECONNREFUSED</code>.<br/>
+    <strong>Nguyên nhân:</strong> Dev server ở Terminal 1 chưa chạy hoặc đã bị dừng trước khi chạy test.<br/>
+    <strong>Giải pháp:</strong> Kiểm tra Terminal 1 vẫn đang chạy <code>npm run dev</code> và truy cập được <code>http://localhost:3000</code> trên browser trước khi chạy lại <code>npm run test:api</code>.
+  </div>
+  <div class="alert alert-warning">
+    <strong>Lỗi:</strong> <code>node --test</code> báo không nhận diện được cú pháp hoặc lệnh không tồn tại.<br/>
+    <strong>Nguyên nhân:</strong> Phiên bản Node.js thấp hơn 18, chưa hỗ trợ đầy đủ built-in test runner và <code>fetch</code> toàn cục.<br/>
+    <strong>Giải pháp:</strong> Kiểm tra bằng <code>node -v</code>, nâng cấp lên Node.js 18 trở lên nếu cần.
+  </div>
+  <div class="alert alert-warning">
+    <strong>Lỗi:</strong> Test case happy path cũng fail vì <code>categoryId</code> không hợp lệ.<br/>
+    <strong>Nguyên nhân:</strong> Database chưa có category nào (bảng <code>Category</code> rỗng).<br/>
+    <strong>Giải pháp:</strong> Vào app tại <code>http://localhost:3000</code>, tạo ít nhất một category trước khi chạy lại test, hoặc yêu cầu Claude Code cho phần <code>before()</code> tự tạo category nếu danh sách rỗng.
+  </div>
+
+  <h2 class="section-heading">Dọn dẹp resource</h2>
+  <div class="alert alert-warning">
+    <strong>Quan trọng:</strong> Project <code>D:\lab-expense-management</code> sẽ tiếp tục được dùng ở Chapter 6 — <strong>không xoá thư mục project</strong>. Bài lab này không tạo resource Cloud nào, chỉ cần dừng container MySQL và dev server khi tạm nghỉ.
+  </div>
+  <pre class="command-line" data-prompt="PS>"><code class="language-powershell">cd D:\lab-expense-management
+docker compose down</code></pre>
+
+  <script>mermaid.initialize({ startOnLoad: true, theme: 'default' });</script>
+</body>
+</html>

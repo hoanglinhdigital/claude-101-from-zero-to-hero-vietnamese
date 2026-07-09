@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lab - Thêm tính năng mới & viết unit test – Claude 101</title>
+  <link rel="stylesheet" href="../../styles.css" />
+  <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+  <script src="../../mermaid-config.js"></script>
+  <link rel="stylesheet" href="../../prism.css" />
+  <script src="../../prism.js"></script>
+  <script src="../../script.js"></script>
+</head>
+<body class="chapter-body">
+
+  <div class="chapter-breadcrumb">
+    <span class="section-part">4. Claude Code cho Developer</span>
+    <span class="sep">/</span>
+    <span class="chapter-part">Lab - Thêm tính năng mới & viết unit test</span>
+  </div>
+
+  <div class="alert alert-info">
+    Bài lab này <strong>tiếp tục dùng project <code>D:\lab-expense-management</code></strong> đã tạo ở Chapter 4. Nếu chưa hoàn thành Chapter 4, hãy quay lại thực hiện trước khi bắt đầu bài lab này.
+  </div>
+
+  <h2 class="section-heading">Mục tiêu</h2>
+  <ul class="feature-list">
+    <li>Dùng Claude Code thêm một tính năng mới vào project có sẵn: <strong>xuất CSV danh sách chi tiêu theo tháng</strong>.</li>
+    <li>Yêu cầu Claude Code viết unit test (Jest) cho phần logic của tính năng vừa thêm.</li>
+    <li>Biết cách tách logic thuần (pure function) ra khỏi API route để dễ viết unit test hơn.</li>
+    <li>Chạy test và đọc kết quả để xác nhận tính năng hoạt động đúng ở cả trường hợp bình thường và edge case.</li>
+  </ul>
+
+  <h2 class="section-heading">Mô hình kiến trúc</h2>
+  <div class="mermaid">
+  flowchart LR
+      Dev(("<img src='../../assets/svg-icon/developer.svg' style='width:26px;height:26px;'/><br/><b>Developer</b>"))
+      CC["<img src='../../assets/svg-icon/claude-logo.svg' style='width:28px;height:28px;'/><br/><b>Claude Code</b>"]
+
+      subgraph App["Next.js Project — lab-expense-management"]
+          Route["⚙️ <b>API Route</b><br/>/api/expenses/export"]
+          Lib["🧩 <b>lib/csv-export.ts</b><br/>buildExpensesCsv() — pure function"]
+          Test["🧪 <b>__tests__/csv-export.test.ts</b><br/>Jest unit test"]
+      end
+
+      Runner["<img src='../../assets/svg-icon/task.svg' style='width:26px;height:26px;'/><br/><b>Jest Runner</b><br/>npm test"]
+
+      Dev -->|"Yêu cầu thêm tính năng + test"| CC
+      CC -->|"Sinh code"| Route
+      CC -->|"Tách logic thuần"| Lib
+      CC -->|"Sinh test case"| Test
+      Route --> Lib
+      Test -->|"Gọi trực tiếp, không cần chạy server"| Lib
+      Test --> Runner
+      Runner -->|"Kết quả pass/fail"| Dev
+  </div>
+  <p class="arch-caption">Logic tạo CSV được tách thành hàm thuần <code>buildExpensesCsv()</code> trong <code>lib/csv-export.ts</code> — không phụ thuộc Next.js request/response, giúp Jest gọi và kiểm tra trực tiếp mà không cần khởi động server.</p>
+
+  <h2 class="section-heading">Yêu cầu trước khi bắt đầu</h2>
+  <ul class="feature-list">
+    <li>Đã hoàn thành Chapter 4 — project <code>D:\lab-expense-management</code> đã chạy được, MySQL container đang hoạt động.</li>
+    <li>Claude Code CLI đã cài đặt và đăng nhập thành công.</li>
+    <li>Terminal: PowerShell hoặc Windows Terminal.</li>
+  </ul>
+
+  <h2 class="section-heading">Các bước thực hành</h2>
+
+  <h3 class="sub-heading">Phần 1: Khởi động lại project</h3>
+  <ol class="step-list">
+    <li>
+      <div>
+        <strong>Bước 1: Vào thư mục project, khởi động MySQL và Claude Code</strong>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">cd D:\lab-expense-management
+docker compose up -d
+claude</code></pre>
+      </div>
+    </li>
+  </ol>
+
+  <h3 class="sub-heading">Phần 2: Thêm tính năng xuất CSV</h3>
+  <ol class="step-list">
+    <li>
+      <div>
+        <strong>Bước 2: Yêu cầu Claude Code thêm tính năng xuất CSV, tách logic thuần riêng</strong>
+        <p>Nêu rõ ràng buộc quan trọng nhất: logic tạo nội dung CSV phải nằm trong một hàm thuần, không phụ thuộc vào Next.js request/response, để có thể viết unit test dễ dàng.</p>
+        <pre class="command-line" data-prompt=">"><code class="language-text">Thêm tính năng xuất CSV danh sách chi tiêu theo tháng cho project. Yêu cầu cụ thể:
+1. Tạo file lib/csv-export.ts chứa hàm thuần buildExpensesCsv(expenses: Expense[]): string — nhận vào danh sách khoản chi tiêu (đã có category name kèm theo), trả về nội dung CSV dạng string với header "Ngày,Danh mục,Tiêu đề,Số tiền". Hàm này KHÔNG được gọi Prisma hay import bất cứ gì liên quan Next.js, chỉ nhận dữ liệu qua tham số và trả về string.
+2. Xử lý đúng trường hợp title hoặc category name có chứa dấu phẩy (escape bằng dấu ngoặc kép theo chuẩn CSV).
+3. Nếu danh sách rỗng, trả về CSV chỉ có dòng header, không lỗi.
+4. Tạo API route app/api/expenses/export/route.ts, nhận query param "month" (định dạng YYYY-MM, optional), lấy dữ liệu từ Prisma theo tháng đó (hoặc toàn bộ nếu không truyền month), gọi buildExpensesCsv() để tạo nội dung, trả về response với Content-Type "text/csv" và header Content-Disposition để browser tải file xuống.
+5. Thêm một nút "Xuất CSV" trên trang chủ (app/page.tsx), gọi route trên và tải file khi bấm.</code></pre>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 3: Duyệt kế hoạch và xác nhận thực thi</strong>
+        <p>Đọc qua các file Claude Code dự kiến tạo/sửa (<code>lib/csv-export.ts</code>, <code>app/api/expenses/export/route.ts</code>, <code>app/page.tsx</code>) trước khi cho phép ghi thay đổi.</p>
+      </div>
+    </li>
+  </ol>
+
+  <h3 class="sub-heading">Phần 3: Yêu cầu viết unit test</h3>
+  <ol class="step-list">
+    <li>
+      <div>
+        <strong>Bước 4: Yêu cầu cài đặt và cấu hình Jest (nếu project chưa có)</strong>
+        <pre class="command-line" data-prompt=">"><code class="language-text">Kiểm tra project đã có Jest chưa. Nếu chưa, cài đặt và cấu hình Jest cho project Next.js + TypeScript này (dùng ts-jest hoặc next/jest, tuỳ cách nào phù hợp hơn với cấu hình hiện tại), thêm script "test": "jest" vào package.json.</code></pre>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 5: Yêu cầu viết unit test cho hàm buildExpensesCsv()</strong>
+        <p>Nêu rõ các case cần bao phủ: happy path, escape dấu phẩy, danh sách rỗng — để Claude Code không bỏ sót edge case.</p>
+        <pre class="command-line" data-prompt=">"><code class="language-text">Viết unit test cho hàm buildExpensesCsv() trong lib/csv-export.ts, đặt tại __tests__/csv-export.test.ts. Bao phủ tối thiểu các case:
+1. Danh sách có 2-3 khoản chi tiêu bình thường -> đúng số dòng, đúng thứ tự cột, đúng giá trị.
+2. Một khoản chi tiêu có title hoặc category chứa dấu phẩy (vd "Ăn uống, giải trí") -> phải được escape đúng bằng dấu ngoặc kép, không làm lệch cột khi mở bằng Excel.
+3. Danh sách rỗng -> trả về đúng 1 dòng header, không có dòng dữ liệu, không throw lỗi.
+4. Số tiền có phần thập phân (vd 125000.50) -> hiển thị đúng định dạng số trong CSV.
+Chạy thử test sau khi viết xong để xác nhận toàn bộ pass.</code></pre>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 6: Chạy test và đọc kết quả</strong>
+        <p>Tự chạy lại lệnh test để xác nhận độc lập, không chỉ tin vào báo cáo của Claude Code.</p>
+        <pre class="command-line" data-prompt="PS>" data-output="2, 3, 4, 5"><code class="language-powershell">npm test
+PASS  __tests__/csv-export.test.ts
+  buildExpensesCsv
+    ✓ tạo đúng CSV với danh sách chi tiêu bình thường
+    ✓ escape đúng giá trị chứa dấu phẩy
+    ✓ trả về CSV chỉ có header khi danh sách rỗng
+    ✓ giữ đúng định dạng số thập phân</code></pre>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 7: Kiểm tra tính năng trên browser</strong>
+        <p>Chạy dev server và thử bấm nút "Xuất CSV" để xác nhận file được tải xuống đúng với dữ liệu thực tế trong database.</p>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">npm run dev</code></pre>
+        <p>Mở <code>http://localhost:3000</code>, bấm nút <strong>Xuất CSV</strong>, mở file vừa tải xuống bằng Excel hoặc Notepad để kiểm tra nội dung đúng định dạng.</p>
+      </div>
+    </li>
+  </ol>
+
+  <div class="verify-box">
+    <h4>✅ Kết quả mong đợi</h4>
+    <p class="body-text">Toàn bộ test case trong <code>__tests__/csv-export.test.ts</code> pass khi chạy <code>npm test</code>. Nút "Xuất CSV" trên trang chủ tải xuống đúng file <code>.csv</code> chứa danh sách chi tiêu, mở được bằng Excel không bị lệch cột dù có dữ liệu chứa dấu phẩy.</p>
+  </div>
+
+  <h2 class="section-heading">Troubleshoot</h2>
+  <div class="alert alert-warning">
+    <strong>Lỗi:</strong> <code>npm test</code> báo lỗi không nhận cú pháp TypeScript hoặc import module.<br/>
+    <strong>Nguyên nhân:</strong> Cấu hình Jest chưa khớp với TypeScript/ESM của project Next.js (thiếu preset <code>ts-jest</code> hoặc <code>next/jest</code>).<br/>
+    <strong>Giải pháp:</strong> Yêu cầu Claude Code kiểm tra lại file <code>jest.config.js</code>/<code>jest.config.ts</code>, đảm bảo dùng đúng preset tương ứng với <code>tsconfig.json</code> hiện có của project.
+  </div>
+  <div class="alert alert-warning">
+    <strong>Lỗi:</strong> Test case escape dấu phẩy vẫn fail dù đã sửa code.<br/>
+    <strong>Nguyên nhân:</strong> Logic escape CSV chưa xử lý đúng chuẩn (cần bọc cả field trong ngoặc kép nếu field chứa dấu phẩy, và escape luôn dấu ngoặc kép có sẵn trong field bằng cách nhân đôi).<br/>
+    <strong>Giải pháp:</strong> Yêu cầu Claude Code đọc lại chuẩn RFC 4180 cho định dạng CSV và sửa lại hàm <code>buildExpensesCsv()</code> cho đúng, chạy lại <code>npm test</code> để xác nhận.
+  </div>
+  <div class="alert alert-warning">
+    <strong>Lỗi:</strong> File CSV tải xuống bị lỗi font tiếng Việt khi mở bằng Excel.<br/>
+    <strong>Nguyên nhân:</strong> Thiếu BOM (Byte Order Mark) UTF-8 ở đầu file, Excel mặc định đọc sai encoding.<br/>
+    <strong>Giải pháp:</strong> Yêu cầu Claude Code thêm ký tự BOM (<code>﻿</code>) vào đầu nội dung CSV trước khi trả về response trong API route.
+  </div>
+
+  <h2 class="section-heading">Dọn dẹp resource</h2>
+  <div class="alert alert-warning">
+    <strong>Quan trọng:</strong> Project <code>D:\lab-expense-management</code> sẽ tiếp tục được dùng ở Chapter 7 — <strong>không xoá thư mục project</strong>. Chỉ cần dừng container MySQL khi tạm nghỉ.
+  </div>
+  <pre class="command-line" data-prompt="PS>"><code class="language-powershell">cd D:\lab-expense-management
+docker compose down</code></pre>
+
+  <script>mermaid.initialize({ startOnLoad: true, theme: 'default' });</script>
+</body>
+</html>

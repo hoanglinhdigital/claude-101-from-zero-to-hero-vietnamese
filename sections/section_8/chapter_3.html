@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MCP Server local vs remote & rủi ro bảo mật – Claude 101</title>
+  <link rel="stylesheet" href="../../styles.css" />
+  <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+  <script src="../../mermaid-config.js"></script>
+  <link rel="stylesheet" href="../../prism.css" />
+  <script src="../../prism.js"></script>
+  <script src="../../script.js"></script>
+</head>
+<body class="chapter-body">
+
+  <div class="chapter-breadcrumb">
+    <span class="section-part">8. Model Context Protocol (MCP)</span>
+    <span class="sep">/</span>
+    <span class="chapter-part">MCP Server local vs remote & rủi ro bảo mật</span>
+  </div>
+
+  <h2 class="section-heading">Giới thiệu</h2>
+  <p class="body-text">
+    MCP Server có thể được triển khai theo hai mô hình: <strong>local</strong> — chạy ngay trên máy của bạn, hoặc
+    <strong>remote</strong> — chạy trên một server khác và kết nối qua network. Lựa chọn mô hình nào ảnh hưởng trực
+    tiếp đến hiệu năng, độ phức tạp cấu hình, và quan trọng nhất — <strong>bề mặt rủi ro bảo mật</strong>. Vì một MCP
+    Server có quyền truy cập tương đương với những gì bạn cấp cho nó (đọc file, chạy lệnh, truy vấn database...), hiểu
+    rõ sự khác biệt này và áp dụng đúng nguyên tắc cấp quyền là điều bắt buộc trước khi đưa MCP vào công việc thực tế.
+  </p>
+
+  <h2 class="section-heading">Các tính năng chính</h2>
+  <ul class="feature-list">
+    <li><strong>MCP Server local</strong> — được Host (Claude Code/Claude Desktop) khởi chạy như một <strong>process con</strong> ngay trên máy, giao tiếp qua <strong>stdio</strong> (chuẩn input/output). Server dừng theo phiên làm việc, không cần mở cổng mạng.</li>
+    <li><strong>MCP Server remote</strong> — đã chạy sẵn ở một server khác (on-premise hoặc cloud), Host kết nối tới qua <strong>HTTP hoặc SSE (Server-Sent Events)</strong>, thường đi kèm cơ chế xác thực (API key, OAuth...).</li>
+    <li>Local phù hợp với công cụ cá nhân trên máy dev (filesystem, Git local, database chạy Docker local). Remote phù hợp khi Server cần dùng chung cho nhiều người/nhiều Host, hoặc khi hệ thống đích chỉ truy cập được qua network.</li>
+    <li>Dù local hay remote, MCP Server đều <strong>chạy với quyền tương đương quyền bạn cấp cho nó</strong> — không phải "chạy trong sandbox an toàn tuyệt đối" theo mặc định.</li>
+  </ul>
+
+  <h2 class="section-heading">Mô hình kiến trúc</h2>
+  <div class="mermaid">
+  flowchart LR
+      subgraph Local["💻 Máy local của bạn"]
+          direction TB
+          HostL["<img src='../../assets/svg-icon/claude-logo.svg' style='width:26px;height:26px;'/><br/><b>Claude Code</b>"]
+          ServerL["⚙️ <b>MCP Server (local)</b><br/>Chạy như process con<br/>giao tiếp qua stdio"]
+          FileL["📁 File / Database local"]
+          HostL -->|"spawn process<br/>stdin/stdout"| ServerL
+          ServerL -->|"đọc/ghi trực tiếp"| FileL
+      end
+
+      subgraph Remote["🌐 Server khác / Cloud"]
+          direction TB
+          HostR["<img src='../../assets/svg-icon/claude-logo.svg' style='width:26px;height:26px;'/><br/><b>Claude Code / Claude Desktop</b>"]
+          Tunnel["<img src='../../assets/svg-icon/tunnel.svg' style='width:24px;height:24px;'/><br/>HTTP / SSE<br/>+ Xác thực"]
+          ServerR["🖥️ <b>MCP Server (remote)</b><br/>Chạy trên server riêng"]
+          SysR["🗄️ Hệ thống nội bộ / SaaS"]
+          HostR -->|"request qua Internet"| Tunnel --> ServerR
+          ServerR -->|"truy cập"| SysR
+      end
+  </div>
+  <p class="arch-caption">MCP Server local được Host tự khởi chạy như process con trên chính máy đang dùng; MCP Server remote đã chạy sẵn ở nơi khác, Host chỉ kết nối tới qua network và cần cơ chế xác thực.</p>
+
+  <h3 class="sub-heading">So sánh Local vs Remote</h3>
+  <table class="compare-table">
+    <thead>
+      <tr><th>Tiêu chí</th><th>Local (stdio)</th><th>Remote (HTTP/SSE)</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Cách khởi chạy</td><td>Host tự spawn process con khi cần dùng</td><td>Server đã chạy sẵn, độc lập với Host</td></tr>
+      <tr><td>Kênh giao tiếp</td><td>stdin/stdout trên cùng một máy</td><td>HTTP hoặc Server-Sent Events qua network</td></tr>
+      <tr><td>Dữ liệu đi qua đâu</td><td>Không rời khỏi máy nếu Server chỉ đọc file/DB local</td><td>Có thể đi qua network đến một bên thứ 3</td></tr>
+      <tr><td>Xác thực</td><td>Thường không cần — chạy trong đúng ngữ cảnh user hiện tại</td><td>Cần cấu hình cơ chế auth riêng (API key, OAuth...)</td></tr>
+      <tr><td>Phù hợp với</td><td>Công cụ cá nhân, máy dev (filesystem, Git local, DB local)</td><td>Server dùng chung cho nhiều người/team, dịch vụ SaaS</td></tr>
+      <tr><td>Rủi ro chính</td><td>Server có quyền truy cập tương đương chính user đang chạy Claude Code</td><td>Thêm một bên thứ 3 xử lý dữ liệu — cần tin tưởng nhà cung cấp Server</td></tr>
+    </tbody>
+  </table>
+
+  <h2 class="section-heading">Use Cases</h2>
+  <div class="usecase-grid">
+    <div class="usecase-card">
+      <h4>Local — công cụ cá nhân trên máy dev</h4>
+      <p>MCP Server filesystem/Git chạy local phục vụ đúng một developer trên máy của họ, không cần hạ tầng thêm.</p>
+    </div>
+    <div class="usecase-card">
+      <h4>Remote — Server dùng chung cho team</h4>
+      <p>Một MCP Server database được deploy trên server riêng, nhiều thành viên team cùng kết nối tới qua HTTP với tài khoản/quyền riêng của từng người.</p>
+    </div>
+    <div class="usecase-card">
+      <h4>Remote — cổng kết nối SaaS doanh nghiệp</h4>
+      <p>Nhà cung cấp SaaS (CRM, ticketing...) expose MCP Server remote chính thức, khách hàng chỉ cần cấu hình kết nối, không cần tự host.</p>
+    </div>
+  </div>
+
+  <h2 class="section-heading">Thông tin bổ sung</h2>
+  <p class="body-text">
+    Nguyên tắc quan trọng nhất khi cấp quyền cho MCP Server là <strong>least privilege — chỉ cấp phạm vi truy cập
+    tối thiểu cần thiết</strong> cho đúng mục đích sử dụng, dù Server chạy local hay remote.
+  </p>
+  <div class="alert alert-danger">
+    <strong>Rủi ro thường gặp:</strong> Cấp cho một MCP Server database quyền tài khoản <strong>admin/root</strong>
+    trong khi mục đích thực tế chỉ là đọc dữ liệu để kiểm chứng. Nếu MCP Server có lỗi, bị khai thác, hoặc model bị
+    dẫn dụ gọi sai Tool (prompt injection từ dữ liệu bên ngoài), phạm vi thiệt hại tương đương đúng quyền đã cấp — cấp
+    quyền admin nghĩa là rủi ro cao nhất có thể xảy ra là mất/hỏng toàn bộ database.
+  </div>
+  <div class="alert alert-warning">
+    <strong>Với dữ liệu nhạy cảm:</strong> Khi dùng MCP Server remote do một bên thứ 3 cung cấp, dữ liệu bạn cho phép
+    Server truy cập có thể đi qua hạ tầng của bên đó. Cân nhắc kỹ trước khi kết nối MCP Server remote với hệ thống
+    chứa dữ liệu nhạy cảm (thông tin khách hàng, secret, dữ liệu tài chính), đặc biệt với Server chưa rõ nguồn gốc.
+  </div>
+  <ul class="feature-list">
+    <li>Với MCP Server database: tạo một user riêng chỉ có đúng quyền cần dùng (ví dụ chỉ SELECT nếu mục đích là kiểm chứng dữ liệu), không dùng lại user có toàn quyền CRUD của ứng dụng.</li>
+    <li>Trước khi thêm một MCP Server cộng đồng, kiểm tra mã nguồn có công khai không, ai duy trì, và Server yêu cầu quyền gì — càng yêu cầu quyền rộng mà không giải thích rõ vì sao, càng cần cẩn trọng.</li>
+    <li>Chỉ giữ kết nối những MCP Server thực sự đang cần dùng — gỡ bỏ Server không dùng nữa để giảm bề mặt rủi ro.</li>
+  </ul>
+
+  <script>mermaid.initialize({ startOnLoad: true, theme: 'default' });</script>
+</body>
+</html>

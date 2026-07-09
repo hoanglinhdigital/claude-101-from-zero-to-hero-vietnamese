@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Định hướng nâng cao: Claude API / Claude Agent SDK – Claude 101</title>
+  <link rel="stylesheet" href="../../styles.css" />
+  <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+  <script src="../../mermaid-config.js"></script>
+  <link rel="stylesheet" href="../../prism.css" />
+  <script src="../../prism.js"></script>
+  <script src="../../script.js"></script>
+</head>
+<body class="chapter-body">
+
+  <div class="chapter-breadcrumb">
+    <span class="section-part">11. Tổng kết & Định hướng nâng cao</span>
+    <span class="sep">/</span>
+    <span class="chapter-part">Định hướng nâng cao: Claude API / Claude Agent SDK</span>
+  </div>
+
+  <h2 class="section-heading">Giới thiệu</h2>
+  <p class="body-text">
+    Toàn bộ khoá học này sử dụng Claude qua các <strong>giao diện có sẵn</strong>: Claude.ai/Claude Desktop App (chat),
+    và Claude Code (CLI) — cùng các cơ chế mở rộng phía trên như Skill, Sub-agent, MCP, Hook, Spec-Kit. Nếu công việc
+    của bạn đi xa hơn — cần <strong>tích hợp Claude trực tiếp vào một ứng dụng/hệ thống riêng</strong> (không qua
+    giao diện chat) hoặc <strong>tự xây một agent tuỳ biến hoàn toàn</strong>, đó là lúc cần tìm hiểu thêm về
+    <strong>Claude API</strong> (Anthropic API) và <strong>Claude Agent SDK</strong>. Đây là hướng đi <em>nâng cao,
+    không bắt buộc</em> với mọi học viên — phù hợp hơn với lập trình viên muốn đi sâu về mặt kỹ thuật.
+  </p>
+
+  <h2 class="section-heading">Các tính năng chính</h2>
+  <ul class="feature-list">
+    <li><strong>Claude API (Anthropic API)</strong> — cách gọi trực tiếp model Claude từ code của riêng bạn (ứng dụng web, hệ thống backend, script xử lý dữ liệu...), không phụ thuộc vào giao diện chat hay Claude Code.</li>
+    <li>Phù hợp khi cần Claude hoạt động như một phần của sản phẩm/hệ thống đang vận hành — ví dụ chatbot chạy trên website của công ty, tính năng tóm tắt tự động trong một ứng dụng nội bộ.</li>
+    <li><strong>Claude Agent SDK</strong> — bộ SDK cho phép tự xây dựng một agent tuỳ biến, với vòng lặp suy luận – gọi tool – quan sát kết quả tương tự cách Claude Code được xây dựng, nhưng do bạn tự định nghĩa hành vi, tool, và giao diện riêng.</li>
+    <li>Khác với Skill/Sub-agent (vẫn chạy bên trong Claude Code), Agent SDK cho phép xây một chương trình/agent hoàn toàn độc lập, không cần Claude Code hay claude.ai làm "vỏ bọc".</li>
+    <li>Cả hai hướng đều yêu cầu kiến thức lập trình và cấu hình API Key từ Anthropic Console — không phải là bước tiếp theo bắt buộc cho học viên chỉ cần ứng dụng Claude vào công việc hằng ngày.</li>
+  </ul>
+
+  <h2 class="section-heading">Mô hình kiến trúc</h2>
+  <div class="mermaid">
+  flowchart LR
+      subgraph InCourse["🎓 Phạm vi khoá học này"]
+          direction TB
+          Interfaces["<img src='../../assets/svg-icon/claude-logo.svg' style='width:28px;height:28px;'/><br/><b>Claude qua giao diện có sẵn</b><br/>Claude.ai · Desktop App · Claude Code<br/>+ Skill / Sub-agent / MCP / Hook / Spec-Kit"]
+      end
+
+      subgraph Advanced["🚀 Định hướng nâng cao (ngoài phạm vi khoá học)"]
+          direction TB
+          API["🔌<br/><b>Claude API</b><br/>(Anthropic API)<br/>Tích hợp trực tiếp vào ứng dụng/hệ thống riêng"]
+          SDK["🛠️<br/><b>Claude Agent SDK</b><br/>Tự xây dựng agent tuỳ biến<br/>(tương tự cách Claude Code được xây dựng)"]
+      end
+
+      Interfaces -.->|"Muốn nhúng Claude vào sản phẩm,<br/>không qua giao diện chat"| API
+      Interfaces -.->|"Muốn tự xây agent riêng,<br/>hành vi/tool tuỳ biến hoàn toàn"| SDK
+  </div>
+  <p class="arch-caption">Claude API và Claude Agent SDK không thay thế những gì đã học — đây là bước đi tiếp theo dành cho ai muốn tích hợp Claude sâu hơn vào hệ thống của riêng mình bằng code.</p>
+
+  <h2 class="section-heading">Use Cases</h2>
+  <div class="usecase-grid">
+    <div class="usecase-card">
+      <h4>Chatbot tích hợp sản phẩm</h4>
+      <p>Nhúng Claude vào website/ứng dụng nội bộ của công ty qua Claude API, thay vì hướng người dùng ra claude.ai.</p>
+    </div>
+    <div class="usecase-card">
+      <h4>Xử lý dữ liệu hàng loạt</h4>
+      <p>Gọi Claude API để phân loại, tóm tắt, trích xuất thông tin từ số lượng lớn văn bản/dữ liệu theo lịch tự động.</p>
+    </div>
+    <div class="usecase-card">
+      <h4>Agent nội bộ tuỳ biến</h4>
+      <p>Dùng Claude Agent SDK xây một agent chuyên biệt cho quy trình nội bộ, với giao diện và bộ tool riêng của tổ chức.</p>
+    </div>
+  </div>
+
+  <h2 class="section-heading">Gợi ý xây dựng thói quen sử dụng Claude hằng ngày</h2>
+  <p class="body-text">
+    Không cần đợi đến khi thành thạo API/SDK mới thấy hiệu quả — thói quen ứng dụng Claude vào công việc hằng ngày
+    quan trọng hơn nhiều so với việc biết hết mọi công cụ nâng cao. Gợi ý một lộ trình đơn giản:
+  </p>
+  <div class="phase-timeline">
+    <div class="phase-item">
+      <strong>1. Bắt đầu nhỏ</strong>
+      Chọn một tác vụ lặp lại hằng ngày/hằng tuần, thử giao cho Claude/Claude Code làm trước.
+    </div>
+    <div class="phase-item purple">
+      <strong>2. Đóng gói thành Skill</strong>
+      Khi thấy prompt lặp lại nhiều lần theo cùng khuôn mẫu, đóng gói thành Skill để tái sử dụng.
+    </div>
+    <div class="phase-item orange">
+      <strong>3. Review kết quả thường xuyên</strong>
+      Luôn kiểm tra lại output — dùng Claude như trợ lý tăng tốc, không giao toàn quyền quyết định.
+    </div>
+    <div class="phase-item green">
+      <strong>4. Tham gia cộng đồng</strong>
+      Theo dõi cộng đồng/kênh chia sẻ về Claude để học thêm use case mới, cập nhật tính năng liên tục thay đổi.
+    </div>
+  </div>
+
+  <h2 class="section-heading">Thông tin bổ sung</h2>
+  <p class="body-text">
+    Chương này chỉ giới thiệu ở mức định hướng — khoá "Zero to Hero" tập trung vào việc dùng Claude qua các giao diện
+    có sẵn nên không đi sâu vào chi tiết kỹ thuật của Claude API/Agent SDK (cấu trúc code, cách gọi cụ thể). Nếu muốn
+    tìm hiểu tiếp, hãy tham khảo tài liệu chính thức tại <code>docs.claude.com</code> và tạo API Key tại
+    <strong>Anthropic Console</strong> đã được hướng dẫn tạo tài khoản ở Section 1.
+  </p>
+  <div class="alert alert-info">
+    <strong>Lưu ý:</strong> Chi tiết kỹ thuật, tên tham số, và cách tính phí của Claude API/Agent SDK có thể thay đổi
+    theo thời gian. Luôn kiểm tra tài liệu chính thức của Anthropic trước khi triển khai vào hệ thống thật, thay vì
+    dựa vào thông tin cũ.
+  </div>
+
+  <script>mermaid.initialize({ startOnLoad: true, theme: 'default' });</script>
+</body>
+</html>

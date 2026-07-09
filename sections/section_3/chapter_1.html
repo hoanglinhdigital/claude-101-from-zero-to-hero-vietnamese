@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Claude Skills là gì? – Claude 101</title>
+  <link rel="stylesheet" href="../../styles.css" />
+  <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+  <script src="../../mermaid-config.js"></script>
+  <link rel="stylesheet" href="../../prism.css" />
+  <script src="../../prism.js"></script>
+  <script src="../../script.js"></script>
+</head>
+<body class="chapter-body">
+
+  <div class="chapter-breadcrumb">
+    <span class="section-part">3. Claude Skills & Agent</span>
+    <span class="sep">/</span>
+    <span class="chapter-part">Claude Skills là gì?</span>
+  </div>
+
+  <h2 class="section-heading">Giới thiệu</h2>
+  <p class="body-text">
+    <strong>Claude Skill</strong> là một "gói kỹ năng" đóng gói sẵn — gồm hướng dẫn (instructions), quy trình thao tác,
+    và có thể kèm theo script/tài nguyên bổ sung — giúp Claude Code biết cách thực hiện một loại tác vụ cụ thể một
+    cách nhất quán, mỗi khi tác vụ đó xuất hiện. Thay vì phải giải thích lại từ đầu quy trình làm việc mỗi lần chat,
+    Skill cho phép đóng gói quy trình đó <strong>một lần</strong>, lưu vào project hoặc vào máy cá nhân, và để Claude
+    Code <strong>tự phát hiện, tự gọi</strong> khi có yêu cầu phù hợp — không cần học viên phải nhớ và gõ lại hướng
+    dẫn chi tiết mỗi lần.
+  </p>
+
+  <h2 class="section-heading">Các tính năng chính</h2>
+  <ul class="feature-list">
+    <li>Mỗi Skill là một thư mục riêng chứa file <code>SKILL.md</code> — nơi khai báo tên, mô tả (description) và nội dung hướng dẫn chi tiết cho tác vụ đó.</li>
+    <li><strong>Auto-discovery</strong> — Claude Code tự quét toàn bộ Skill có sẵn, đọc phần <code>description</code> trong YAML frontmatter của từng Skill để biết Skill đó "dùng khi nào", không cần học viên tự chọn hay gọi tên Skill.</li>
+    <li>Skill chỉ được <strong>nạp toàn bộ nội dung</strong> (phần thân file <code>SKILL.md</code> + tài nguyên đi kèm) khi prompt của người dùng thật sự khớp với mô tả — giúp tiết kiệm context, không làm "nặng" system prompt khi không dùng đến.</li>
+    <li>Có thể đặt ở 2 phạm vi: <strong>Project-level</strong> (<code>.claude/skills/</code> trong project, chia sẻ được cho cả team qua Git) hoặc <strong>User-level</strong> (thư mục cấu hình cá nhân, dùng cho mọi project trên máy).</li>
+    <li>Cho phép đóng gói kèm script, template file, hoặc checklist — không chỉ là đoạn hướng dẫn text đơn thuần.</li>
+  </ul>
+
+  <h3 class="sub-heading">Cấu trúc thư mục một Skill</h3>
+  <div class="file-tree">
+    <span class="dir">.claude/</span><br/>
+    &nbsp;&nbsp;<span class="dir">skills/</span><br/>
+    &nbsp;&nbsp;&nbsp;&nbsp;<span class="dir">ten-skill-cua-ban/</span><br/>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="file">SKILL.md</span> <span class="desc">— bắt buộc: frontmatter (name, description) + nội dung hướng dẫn</span><br/>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="file">scripts/</span> <span class="note">(tuỳ chọn)</span> <span class="desc">— script hỗ trợ, Skill có thể gọi khi cần</span><br/>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="file">templates/</span> <span class="note">(tuỳ chọn)</span> <span class="desc">— file mẫu Skill dùng lại</span>
+  </div>
+
+  <h2 class="section-heading">Mô hình kiến trúc</h2>
+  <div class="mermaid">
+  flowchart LR
+      User(("👤<br/><b>Học viên</b>"))
+      CC["<img src='../../assets/svg-icon/claude-logo.svg' style='width:30px;height:30px;'/><br/><b>Claude Code</b>"]
+
+      subgraph SkillsDir["📂 .claude/skills/"]
+          S1["🧩 <b>changelog-generator</b><br/>SKILL.md<br/><i>description: sinh changelog từ git log</i>"]
+          S2["🧩 <b>code-formatter</b><br/>SKILL.md<br/><i>description: format code theo chuẩn</i>"]
+          S3["🧩 <b>...</b><br/>SKILL.md<br/><i>description: ...</i>"]
+      end
+
+      Match{"🔍 So khớp<br/>prompt ↔ description"}
+      Load["📖 Nạp toàn bộ nội dung<br/>SKILL.md của Skill khớp"]
+      Run["⚙️ Thực thi theo<br/>hướng dẫn trong Skill"]
+
+      User -->|"Gõ yêu cầu bằng ngôn ngữ tự nhiên"| CC
+      CC -->|"Quét thư mục khi khởi động"| SkillsDir
+      SkillsDir -->|"Đọc description từng Skill"| Match
+      CC -->|"Prompt hiện tại"| Match
+      Match -->|"Có Skill khớp"| Load
+      Load --> Run
+      Run -->|"Trả kết quả"| User
+      Match -->|"Không Skill nào khớp"| CC
+  </div>
+  <p class="arch-caption">Claude Code chỉ đọc phần <code>description</code> (rất ngắn) của mọi Skill khi khởi động; toàn bộ nội dung chi tiết trong SKILL.md chỉ được nạp vào context khi prompt của người dùng khớp với đúng Skill đó.</p>
+
+  <h3 class="sub-heading">Phân biệt Skill với Prompt thông thường / CLAUDE.md</h3>
+  <table class="compare-table">
+    <thead>
+      <tr><th>Tiêu chí</th><th>Prompt thông thường</th><th>CLAUDE.md</th><th>Claude Skill</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Phạm vi áp dụng</td><td>Chỉ 1 lần hỏi trong phiên chat hiện tại</td><td>Toàn bộ phiên làm việc, mọi tác vụ trong project</td><td>Chỉ nạp khi tác vụ khớp mô tả — không ảnh hưởng các tác vụ khác</td></tr>
+      <tr><td>Tái sử dụng</td><td class="no">Không — phải gõ lại mỗi lần</td><td class="yes">Có — luôn được đọc mỗi phiên</td><td class="yes">Có — tự động gọi lại mỗi khi cần</td></tr>
+      <tr><td>Tốn context khi không dùng?</td><td>Không phát sinh (vì phải gõ lại)</td><td class="no">Luôn tốn — được đọc dù có cần hay không</td><td class="yes">Không — chỉ nạp khi thật sự khớp</td></tr>
+      <tr><td>Phù hợp cho</td><td>Yêu cầu một lần, không lặp lại</td><td>Quy tắc chung, xuyên suốt project (coding convention, cấu trúc thư mục...)</td><td>Quy trình cụ thể, lặp lại nhiều lần, cần chuẩn hoá từng bước</td></tr>
+    </tbody>
+  </table>
+
+  <div class="alert alert-tip">
+    <strong>Khi nào nên đóng gói thành Skill?</strong> Khi một quy trình được lặp lại nhiều lần theo đúng các bước cố định (vd: sinh changelog, format code theo chuẩn riêng, tạo báo cáo theo template), và cần <strong>chuẩn hoá</strong> để mọi thành viên trong team đều thực hiện giống nhau — thay vì mỗi người mô tả yêu cầu khác nhau mỗi lần.
+  </div>
+
+  <h2 class="section-heading">Use Cases</h2>
+  <div class="usecase-grid">
+    <div class="usecase-card">
+      <h4>Sinh changelog chuẩn hoá</h4>
+      <p>Skill đọc <code>git log</code> theo định dạng quy ước, tự phân loại commit (feature/fix/chore) và sinh file CHANGELOG.md nhất quán mỗi lần release.</p>
+    </div>
+    <div class="usecase-card">
+      <h4>Format code theo chuẩn riêng</h4>
+      <p>Đóng gói quy tắc format/coding convention đặc thù của team thành Skill, áp dụng nhất quán cho mọi file được yêu cầu format.</p>
+    </div>
+    <div class="usecase-card">
+      <h4>Quy trình review chuẩn hoá</h4>
+      <p>Skill chứa checklist review (bảo mật, performance, coding convention) để Claude Code áp dụng đầy đủ mỗi khi được yêu cầu review code.</p>
+    </div>
+    <div class="usecase-card">
+      <h4>Sinh tài liệu theo template</h4>
+      <p>Đóng gói template báo cáo/tài liệu kỹ thuật cố định, Skill tự điền nội dung theo đúng cấu trúc mỗi khi cần tạo tài liệu mới.</p>
+    </div>
+  </div>
+
+  <h2 class="section-heading">Thông tin bổ sung</h2>
+  <p class="body-text">
+    Skill hoạt động tốt nhất khi phần <code>description</code> trong frontmatter được viết <strong>rõ ràng, cụ thể về
+    trigger</strong> — mô tả đúng những từ khoá, ngữ cảnh mà người dùng thường dùng khi cần tác vụ đó. Description
+    quá mơ hồ khiến Claude Code khó nhận diện đúng lúc, dẫn đến Skill không được gọi dù đúng nhu cầu, hoặc bị gọi sai
+    trong tình huống không liên quan.
+  </p>
+  <div class="alert alert-warning">
+    <strong>Lưu ý:</strong> Không nên nhồi quá nhiều Skill có phạm vi mô tả chồng chéo lên nhau — dễ gây nhầm lẫn khi
+    Claude Code chọn Skill để gọi. Mỗi Skill nên tập trung vào một quy trình rõ ràng, tên và description không trùng
+    lặp ý nghĩa với Skill khác trong cùng project.
+  </div>
+
+</body>
+</html>

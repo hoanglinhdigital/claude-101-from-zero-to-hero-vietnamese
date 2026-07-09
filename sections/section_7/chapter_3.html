@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tóm tắt cuộc họp & trích xuất action items – Claude 101</title>
+  <link rel="stylesheet" href="../../styles.css" />
+  <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+  <script src="../../mermaid-config.js"></script>
+  <link rel="stylesheet" href="../../prism.css" />
+  <script src="../../prism.js"></script>
+  <script src="../../script.js"></script>
+</head>
+<body class="chapter-body">
+
+  <div class="chapter-breadcrumb">
+    <span class="section-part">7. Claude cho Project Manager</span>
+    <span class="sep">/</span>
+    <span class="chapter-part">Tóm tắt cuộc họp & trích xuất action items</span>
+  </div>
+
+  <h2 class="section-heading">Giới thiệu</h2>
+  <p class="body-text">
+    Sau mỗi cuộc họp, PM thường phải tự đọc lại ghi chú hoặc nghe lại bản ghi âm để tóm tắt nội dung chính và chốt lại
+    ai làm gì, đến khi nào — công việc lặp lại, tốn thời gian và dễ bỏ sót. Claude có thể nhận một đoạn <strong>transcript</strong>
+    (bản ghi lại toàn văn cuộc họp) hoặc ghi chú thô, sau đó tóm tắt đúng trọng tâm và tự trích xuất danh sách
+    <strong>action items</strong> kèm người phụ trách và deadline — nếu các thông tin đó có được nhắc đến trong
+    transcript. Chương này trình bày quy trình và kỹ thuật prompt để làm việc này hiệu quả.
+  </p>
+
+  <h2 class="section-heading">Các tính năng chính</h2>
+  <ul class="feature-list">
+    <li><strong>Tóm tắt đúng trọng tâm</strong> — yêu cầu Claude tách rõ phần "quyết định đã chốt" và phần "còn đang thảo luận, chưa chốt" thay vì tóm tắt lan man theo trình tự thời gian của cuộc họp.</li>
+    <li><strong>Trích xuất action items</strong> — yêu cầu Claude liệt kê từng việc cần làm dưới dạng bảng, kèm người phụ trách (Owner) và deadline nếu được nhắc trong transcript.</li>
+    <li><strong>Xử lý thông tin thiếu</strong> — nếu transcript không nói rõ ai phụ trách hoặc hạn nào, yêu cầu Claude ghi rõ "chưa xác định" thay vì tự suy diễn/gán bừa một người hoặc một ngày.</li>
+    <li><strong>Giữ nguyên số liệu, không suy diễn</strong> — với các con số, ngày cụ thể được nhắc trong họp, yêu cầu Claude trích dẫn đúng như trong transcript, không làm tròn hoặc đổi khác.</li>
+    <li>Kết quả tóm tắt/action items nên được PM <strong>gửi lại xác nhận với team</strong> trước khi coi là chính thức — đặc biệt khi transcript có đoạn nói không rõ ràng (nhiều người nói chen nhau, băng ghi âm nhiễu).</li>
+  </ul>
+
+  <h2 class="section-heading">Mô hình kiến trúc</h2>
+  <div class="mermaid">
+  flowchart LR
+      Meeting["🗣️ <b>Cuộc họp</b><br/>Ghi âm / ghi chú"]
+      Transcript["📄 <b>Transcript</b><br/>Toàn văn hội thoại"]
+      CC["<img src='../../assets/svg-icon/claude-logo.svg' style='width:28px;height:28px;'/><br/><b>Claude</b>"]
+      Summary["📊 <b>Tóm tắt</b><br/>Nội dung chính · Quyết định đã chốt"]
+      Actions["✅ <b>Action items</b><br/>Owner · Deadline"]
+      Team(("<img src='../../assets/svg-icon/user.svg' style='width:26px;height:26px;'/><br/><b>Team</b>"))
+
+      Meeting --> Transcript --> CC
+      CC --> Summary
+      CC --> Actions
+      Summary -->|"Gửi lại xác nhận"| Team
+      Actions -->|"Gửi lại xác nhận"| Team
+      Team -.->|"Phản hồi/chỉnh sửa nếu sai"| CC
+  </div>
+  <p class="arch-caption">Transcript được đưa cho Claude xử lý thành 2 sản phẩm song song — bản tóm tắt nội dung chính và bảng action items — cả hai đều cần gửi lại team xác nhận trước khi coi là chốt cuối cùng.</p>
+
+  <h2 class="section-heading">Use Cases</h2>
+  <div class="usecase-grid">
+    <div class="usecase-card">
+      <h4>Biên bản họp nhanh sau mỗi buổi sync</h4>
+      <p>Dán transcript ngay sau buổi họp weekly sync, có ngay bản tóm tắt + action items để gửi team trong vài phút thay vì cuối ngày.</p>
+    </div>
+    <div class="usecase-card">
+      <h4>Theo dõi cam kết của từng thành viên</h4>
+      <p>Bảng action items với Owner/Deadline rõ ràng giúp PM dễ theo dõi ai đang trễ hẹn ở buổi họp tiếp theo.</p>
+    </div>
+    <div class="usecase-card">
+      <h4>Họp với khách hàng/đối tác</h4>
+      <p>Tóm tắt nhanh các điểm khách hàng yêu cầu thay đổi và cam kết hai bên, giảm rủi ro hiểu sai giữa các buổi làm việc.</p>
+    </div>
+  </div>
+
+  <h2 class="section-heading">Thông tin bổ sung</h2>
+  <p class="body-text">
+    Chất lượng tóm tắt và action items phụ thuộc hoàn toàn vào chất lượng transcript đầu vào — nếu bản ghi thiếu ngữ
+    cảnh (ví dụ chỉ có câu nói cuối cùng, không có câu hỏi trước đó), Claude dễ hiểu sai ai đang nói về việc gì. Nếu
+    transcript không nhắc rõ deadline hoặc người phụ trách cho một việc, đừng để Claude tự đoán — hãy để trống hoặc
+    đánh dấu "cần xác nhận thêm" và tự bổ sung sau khi hỏi lại người liên quan.
+  </p>
+  <div class="alert alert-tip">
+    <strong>Mẹo:</strong> Yêu cầu Claude trả về action items dưới dạng bảng ngay từ đầu ("liệt kê dưới dạng bảng gồm
+    cột Việc cần làm, Người phụ trách, Deadline, Trạng thái") để có thể copy thẳng vào công cụ quản lý task
+    (Jira, Trello, Excel) mà không cần định dạng lại.
+  </div>
+
+  <script>mermaid.initialize({ startOnLoad: true, theme: 'default' });</script>
+</body>
+</html>
