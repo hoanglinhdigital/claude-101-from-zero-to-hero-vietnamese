@@ -3,92 +3,105 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Nguyên tắc viết prompt hiệu quả & tối ưu chi phí – Claude 101</title>
+  <title>Claude Cowork – Claude 101</title>
   <link rel="stylesheet" href="../../styles.css" />
   <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
   <script src="../../mermaid-config.js"></script>
   <link rel="stylesheet" href="../../prism.css" />
   <script src="../../prism.js"></script>
-  <script src="../../script.js"></script>
 </head>
 <body class="chapter-body">
 
   <div class="chapter-breadcrumb">
     <span class="section-part">2. Làm quen với Claude</span>
     <span class="sep">/</span>
-    <span class="chapter-part">Nguyên tắc viết prompt hiệu quả & mẹo tối ưu chi phí</span>
+    <span class="chapter-part">Claude Cowork</span>
   </div>
 
   <h2 class="section-heading">Giới thiệu</h2>
   <p class="body-text">
-    Chất lượng câu trả lời của Claude phụ thuộc rất nhiều vào cách người dùng đặt câu hỏi (prompt). Một prompt rõ
-    ràng, đủ ngữ cảnh giúp Claude trả lời đúng ý ngay từ lần đầu, giảm số lần phải hỏi lại. Bên cạnh đó, vì chi phí
-    sử dụng Claude tính theo số token xử lý, việc áp dụng đúng kỹ thuật — chọn model phù hợp, giới hạn context,
-    tận dụng prompt caching — có thể giảm đáng kể chi phí mà không ảnh hưởng tới chất lượng công việc.
+    <strong>Claude Cowork</strong> là không gian làm việc cộng tác cho phép nhiều thành viên trong một nhóm/tổ chức
+    cùng sử dụng Claude trên một ngữ cảnh (context) và tri thức dùng chung, thay vì mỗi người mở một cuộc chat riêng
+    lẻ. Thay vì "hỏi–đáp một mình" như Claude Chat thông thường, Claude Cowork tập trung vào việc chia sẻ prompt,
+    tài liệu, kết quả và lịch sử trao đổi giữa các thành viên, đồng thời kết nối trực tiếp với các công cụ làm việc
+    nhóm mà tổ chức đang dùng (Slack, Google Drive, Jira, SharePoint...) để Claude có thể tham chiếu đúng dữ liệu
+    của team khi trả lời.
   </p>
 
-  <h2 class="section-heading">Nguyên tắc viết prompt hiệu quả</h2>
+  <h2 class="section-heading">Các tính năng chính</h2>
   <ul class="feature-list">
-    <li><strong>Rõ ràng và cụ thể:</strong> nêu rõ mục tiêu, định dạng đầu ra mong muốn, tránh câu hỏi mơ hồ khiến Claude phải đoán ý.</li>
-    <li><strong>Cung cấp đủ ngữ cảnh:</strong> đính kèm tài liệu, đoạn code, hoặc mô tả bối cảnh liên quan — Claude không tự biết thông tin nằm ngoài những gì được cung cấp trong prompt.</li>
-    <li><strong>Đưa ví dụ mẫu (few-shot):</strong> với tác vụ cần định dạng đặc thù, cho 1-2 ví dụ đầu vào/đầu ra mẫu giúp Claude bắt đúng pattern nhanh hơn.</li>
-    <li><strong>Chia nhỏ tác vụ phức tạp:</strong> thay vì gộp nhiều yêu cầu vào một câu hỏi dài, nên chia thành từng bước tuần tự, dễ kiểm soát và dễ phát hiện lỗi.</li>
-    <li><strong>Yêu cầu Claude tự kiểm tra lại:</strong> với tác vụ quan trọng, có thể yêu cầu Claude tự rà soát lại kết quả trước khi chốt câu trả lời cuối.</li>
-    <li><strong>Dùng system prompt/CLAUDE.md cho ngữ cảnh lặp lại:</strong> các quy tắc, style, ràng buộc dùng nhiều lần nên đưa vào system prompt hoặc file CLAUDE.md thay vì gõ lại mỗi lần chat.</li>
+    <li><strong>Không gian làm việc dùng chung (Shared Workspace):</strong> nhiều thành viên cùng truy cập một Project, cùng một bộ tài liệu/ngữ cảnh nền tảng.</li>
+    <li><strong>Cộng tác theo thời gian thực:</strong> nhiều người có thể xem, tiếp tục hoặc góp ý vào cùng một cuộc hội thoại/kết quả thay vì làm riêng lẻ.</li>
+    <li><strong>Tích hợp công cụ doanh nghiệp:</strong> kết nối Slack, Google Drive, Jira, SharePoint, CRM... để Claude lấy dữ liệu thật của team làm ngữ cảnh trả lời.</li>
+    <li><strong>Phân quyền theo vai trò:</strong> quản trị viên kiểm soát ai được truy cập Workspace nào, dữ liệu nào được chia sẻ.</li>
+    <li><strong>Lưu trữ tri thức nhóm:</strong> lịch sử trao đổi, tài liệu, quy trình được giữ lại làm nguồn tham chiếu chung, giảm việc lặp lại ngữ cảnh mỗi khi có người mới hỏi.</li>
   </ul>
 
-  <h2 class="section-heading">Mẹo tối ưu chi phí</h2>
-  <ul class="feature-list">
-    <li><strong>Chọn đúng model theo độ khó:</strong> dùng Haiku cho tác vụ đơn giản khối lượng lớn, Sonnet cho công việc hằng ngày, chỉ dùng Opus/Fable khi thực sự cần suy luận sâu.</li>
-    <li><strong>Giới hạn context window:</strong> chỉ đính kèm tài liệu/file thực sự cần thiết cho tác vụ hiện tại — càng nhiều token đầu vào, chi phí và thời gian xử lý càng tăng.</li>
-    <li><strong>Tận dụng Prompt Caching:</strong> với phần ngữ cảnh lặp lại nhiều lần giữa các request (system prompt dài, tài liệu nền), Claude API có thể lưu cache để các lần gọi sau đọc lại với chi phí thấp hơn nhiều so với xử lý mới hoàn toàn.</li>
-    <li><strong>Điều chỉnh Effort/Thinking hợp lý:</strong> không nên luôn bật Extended Thinking hoặc để Effort ở mức Max cho mọi câu hỏi — chỉ dùng khi tác vụ thực sự cần suy luận nhiều bước.</li>
-    <li><strong>Bắt đầu cuộc hội thoại mới khi cần:</strong> hội thoại càng dài, số token phải gửi lại càng nhiều (do phải gửi kèm lịch sử) — nên tách cuộc hội thoại mới khi chuyển sang chủ đề không liên quan.</li>
-  </ul>
-
-  <h2 class="section-heading">Mô hình hoạt động của Prompt Caching</h2>
+  <h2 class="section-heading">Mô hình kiến trúc</h2>
   <div class="mermaid">
   flowchart LR
-      User(("👤<br/><b>Người dùng</b>"))
-      Client["<img src='../../assets/svg-icon/ide.svg' style='width:30px;height:30px;'/><br/><b>Claude Code / App</b><br/>Gửi request kèm ngữ cảnh"]
-      Cache{"<img src='../../assets/svg-icon/task.svg' style='width:26px;height:26px;'/><br/><b>Cache ngữ cảnh</b><br/>Còn hiệu lực?"}
-      API["<img src='../../assets/svg-icon/claude-logo.svg' style='width:30px;height:30px;'/><br/><b>Anthropic API</b><br/>Xử lý model"]
+      U1["<img src='../../assets/svg-icon/user.svg' style='width:28px;height:28px;'/><br/><b>Thành viên A</b>"]
+      U2["<img src='../../assets/svg-icon/developer.svg' style='width:28px;height:28px;'/><br/><b>Thành viên B</b>"]
+      CW["<img src='../../assets/svg-icon/claude-logo.svg' style='width:32px;height:32px;'/><br/><b>Claude Cowork</b><br/>Workspace dùng chung"]
+      Slack["<img src='../../assets/svg-icon/slack.svg' style='width:26px;height:26px;'/><br/><b>Slack</b>"]
+      Drive["<img src='../../assets/svg-icon/sharepoint.svg' style='width:26px;height:26px;'/><br/><b>Drive / SharePoint</b>"]
+      Jira["<img src='../../assets/svg-icon/jira.svg' style='width:26px;height:26px;'/><br/><b>Jira</b>"]
+      Git["<img src='../../assets/svg-icon/github.svg' style='width:26px;height:26px;'/><br/><b>GitHub</b>"]
 
-      User --> Client
-      Client -->|"Gửi ngữ cảnh + câu hỏi"| Cache
-      Cache -->|"Cache Hit ✅ — đọc lại, chi phí thấp"| API
-      Cache -->|"Cache Miss ❌ — xử lý mới, ghi cache"| API
-      API -->|"Trả kết quả"| Client
+      U1 -->|"Trao đổi, chia sẻ prompt"| CW
+      U2 -->|"Xem lại, tiếp tục hội thoại"| CW
+      CW -->|"Đọc dữ liệu, gửi thông báo"| Slack
+      CW -->|"Tham chiếu tài liệu"| Drive
+      CW -->|"Cập nhật ticket"| Jira
+      CW -->|"Đọc code, tạo PR"| Git
   </div>
-  <p class="arch-caption">Khi phần ngữ cảnh (system prompt, tài liệu nền) không đổi giữa các lần gọi liên tiếp trong thời gian ngắn, Anthropic API có thể tái sử dụng (cache hit) thay vì xử lý lại từ đầu — giúp giảm chi phí và tăng tốc độ phản hồi.</p>
+  <p class="arch-caption">Claude Cowork đóng vai trò không gian trung tâm: nhiều thành viên cùng chia sẻ một ngữ cảnh làm việc, trong khi Claude kết nối tới các hệ thống doanh nghiệp để lấy/đẩy dữ liệu thật thay vì trả lời chỉ dựa trên thông tin người dùng gõ vào.</p>
+
+  <h2 class="section-heading">So sánh Claude Chat, Claude Cowork và Claude Code (CLI)</h2>
+  <table class="pricing-table">
+    <thead>
+      <tr><th>Tiêu chí</th><th>Claude Chat</th><th>Claude Cowork</th><th>Claude Code (CLI)</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Đối tượng sử dụng</td><td>Cá nhân</td><td>Nhóm/tổ chức</td><td>Developer</td></tr>
+      <tr><td>Khả năng thực thi code</td><td>Chỉ chạy được trong sandbox tạm thời để xem trước Artifact, không tác động ra ngoài</td><td>Tương tự Claude Chat — hỗ trợ xem trước/chạy thử trong Workspace, không chỉnh sửa trực tiếp lên hệ thống của team</td><td>Thực thi trực tiếp trên máy/repository thật: chạy build, test, sửa file, commit</td></tr>
+      <tr><td>Ngữ cảnh làm việc</td><td>Riêng của từng cuộc chat</td><td>Dùng chung cho cả team (Workspace)</td><td>Riêng theo từng project/repository</td></tr>
+      <tr><td>Cộng tác nhiều người</td><td>Không, mỗi người một cuộc chat riêng</td><td>Có, nhiều người cùng xem/tiếp tục một hội thoại</td><td>Không, chạy độc lập theo máy/terminal của từng developer</td></tr>
+      <tr><td>Tích hợp công cụ ngoài</td><td>Hạn chế (chủ yếu qua Connector cá nhân)</td><td>Kết nối sâu với công cụ doanh nghiệp: Slack, Drive, Jira, SharePoint</td><td>Kết nối với filesystem, Git/GitHub, MCP server</td></tr>
+      <tr><td>Kết quả đầu ra chính</td><td>Văn bản, Artifacts (tài liệu, giao diện demo)</td><td>Tài liệu/kết quả dùng chung, cập nhật trạng thái công việc nhóm</td><td>Thay đổi trực tiếp trên code, commit, Pull Request</td></tr>
+      <tr><td>Nơi sử dụng</td><td>Trình duyệt / ứng dụng desktop</td><td>Trình duyệt / ứng dụng desktop (không gian Workspace riêng)</td><td>Terminal, tích hợp trong IDE</td></tr>
+    </tbody>
+  </table>
 
   <h2 class="section-heading">Use Cases</h2>
   <div class="usecase-grid">
     <div class="usecase-card">
-      <h4>Chat hằng ngày</h4>
-      <p>Viết prompt rõ ràng, đúng trọng tâm giúp giảm số lần hỏi lại — tiết kiệm cả thời gian lẫn token.</p>
+      <h4>Viết tài liệu nhóm</h4>
+      <p>Nhiều thành viên cùng soạn thảo, góp ý một tài liệu (kế hoạch dự án, quy trình nội bộ) dựa trên cùng một ngữ cảnh Claude đã nắm được.</p>
     </div>
     <div class="usecase-card">
-      <h4>Claude Code với CLAUDE.md</h4>
-      <p>Đưa quy ước coding, cấu trúc project vào CLAUDE.md một lần, mọi phiên làm việc sau đều tự động có ngữ cảnh mà không cần lặp lại.</p>
+      <h4>Tổng hợp thông tin từ nhiều nguồn</h4>
+      <p>Claude Cowork tham chiếu dữ liệu từ Slack, Drive, Jira để trả lời câu hỏi dựa trên tình trạng thực tế của công việc nhóm, không cần copy-paste thủ công.</p>
     </div>
     <div class="usecase-card">
-      <h4>Ứng dụng xử lý khối lượng lớn</h4>
-      <p>Kết hợp chọn đúng model (Haiku) và prompt caching cho hệ thống gọi API nhiều lần với cùng một ngữ cảnh nền — tối ưu chi phí vận hành đáng kể.</p>
+      <h4>Bàn giao và tiếp nối công việc</h4>
+      <p>Thành viên mới hoặc người thay ca có thể xem lại toàn bộ lịch sử trao đổi trong Workspace để tiếp tục công việc mà không mất ngữ cảnh.</p>
+    </div>
+    <div class="usecase-card">
+      <h4>Hỗ trợ khách hàng theo nhóm</h4>
+      <p>Team support cùng xử lý một ticket, Claude tổng hợp thông tin từ CRM/ServiceNow để đề xuất câu trả lời nhất quán giữa các thành viên.</p>
     </div>
   </div>
 
   <h2 class="section-heading">Thông tin bổ sung</h2>
   <p class="body-text">
-    Prompt Caching thường có chi phí ghi cache lần đầu cao hơn một chút so với xử lý thông thường, nhưng các lần đọc
-    cache sau đó rẻ hơn đáng kể — vì vậy kỹ thuật này phát huy hiệu quả nhất khi cùng một ngữ cảnh được tái sử dụng
-    nhiều lần trong thời gian ngắn (cache thường có thời gian hết hạn nếu không được gọi lại). Việc chọn sai model
-    (dùng Opus/Fable cho tác vụ đơn giản) là nguyên nhân phổ biến nhất gây phát sinh chi phí không cần thiết — nên
-    luôn bắt đầu từ Sonnet hoặc Haiku, chỉ nâng cấp khi thực sự cần thiết.
+    Vì Claude Cowork kết nối tới nhiều hệ thống doanh nghiệp và cho phép nhiều người cùng truy cập một Workspace,
+    tổ chức cần thiết lập phân quyền rõ ràng (ai được xem Workspace nào, dữ liệu nào được đồng bộ) để tránh rò rỉ
+    thông tin nội bộ. Nên giới hạn số lượng tích hợp ở mức cần thiết cho từng team thay vì bật toàn bộ connector,
+    vừa giảm nguy cơ bảo mật vừa giảm chi phí xử lý ngữ cảnh khi Claude phải tham chiếu quá nhiều nguồn dữ liệu
+    trong mỗi câu trả lời.
   </p>
-  <div class="alert alert-tip">
-    <strong>Gợi ý:</strong> Khi mới bắt đầu một tác vụ chưa rõ độ khó, có thể thử với model rẻ hơn (Haiku/Sonnet) trước — nếu kết quả chưa đạt yêu cầu mới cân nhắc chuyển sang model mạnh hơn, thay vì mặc định dùng model đắt nhất ngay từ đầu.
-  </div>
 
+  <script>mermaid.initialize({ startOnLoad: true, theme: 'default' });</script>
 </body>
 </html>

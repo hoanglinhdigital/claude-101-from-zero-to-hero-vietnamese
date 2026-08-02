@@ -61,7 +61,7 @@
     <li>
       <div>
         <strong>Bước 1: Tạo thư mục project</strong>
-        <p>Tạo một project trống dùng để thực hành tạo Sub-agent.</p>
+        <p>Tạo một project trống dùng để thực hành tạo Sub-agent (hoặc sử dụng lại project của bài lab Skill)</p>
         <pre class="command-line" data-prompt="PS>"><code class="language-powershell">mkdir D:\lab-claude-subagent
 cd D:\lab-claude-subagent</code></pre>
       </div>
@@ -70,7 +70,7 @@ cd D:\lab-claude-subagent</code></pre>
       <div>
         <strong>Bước 2: Tạo file code mẫu có vài vấn đề chất lượng</strong>
         <p>Tạo file <code>expense.js</code> chứa vài lỗi phổ biến (không kiểm tra input, dùng biến toàn cục, không xử lý lỗi) để Sub-agent có thứ để review.</p>
-        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">notepad expense.js</code></pre>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">expense.js</code></pre>
         <p>Dán nội dung sau vào file rồi lưu (Ctrl+S):</p>
         <pre class="file-block"><span class="filename">expense.js</span><span class="cmt">// Bien toan cuc luu danh sach khoan chi tieu</span>
 <span class="hl">var</span> expenses = [];
@@ -109,7 +109,7 @@ cd D:\lab-claude-subagent</code></pre>
       <div>
         <strong>Bước 4: Viết file code-reviewer.md</strong>
         <p>Tạo file <code>code-reviewer.md</code> bên trong thư mục <code>.claude\agents</code>.</p>
-        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">notepad .claude\agents\code-reviewer.md</code></pre>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">.claude\agents\code-reviewer.md</code></pre>
         <p>Dán nội dung sau vào file rồi lưu (Ctrl+S) — lưu ý phần <code>tools</code> chỉ liệt kê đúng 3 quyền đọc, <strong>không</strong> có quyền ghi/xoá file hay chạy lệnh:</p>
         <pre class="file-block"><span class="filename">.claude/agents/code-reviewer.md</span><span class="hl">---
 name</span>: code-reviewer
@@ -205,7 +205,7 @@ claude</code></pre>
   </div>
 
   <h2 class="section-heading">Dọn dẹp resource</h2>
-  <div class="alert alert-info">Bài lab này chỉ tạo file và thư mục trên máy local, không tạo ra resource cloud nào và không phát sinh chi phí ngoài usage theo gói cước Claude đang sử dụng. Có thể xoá project nếu không cần dùng tiếp:</div>
+  <div class="alert alert-info">Bài lab này chỉ tạo file và thư mục trên máy local, không tạo ra resource cloud nào và không phát sinh chi phí ngoài usage theo gói cước Claude đang sử dụng. Có thể xoá project nếu không cần dùng tiếp (Powershell):</div>
   <pre class="command-line" data-prompt="PS>"><code class="language-powershell">Remove-Item -Recurse -Force D:\lab-claude-subagent</code></pre>
 
   <script>mermaid.initialize({ startOnLoad: true, theme: 'default' });</script>

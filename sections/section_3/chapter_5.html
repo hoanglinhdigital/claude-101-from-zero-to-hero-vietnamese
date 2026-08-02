@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lab: Cài đặt Anthropic Skills có sẵn – Claude 101</title>
+  <link rel="stylesheet" href="../../styles.css" />
+  <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+  <script src="../../mermaid-config.js"></script>
+  <link rel="stylesheet" href="../../prism.css" />
+  <script src="../../prism.js"></script>
+  <script src="../../script.js"></script>
+</head>
+<body class="chapter-body">
+
+  <div class="chapter-breadcrumb">
+    <span class="section-part">3. Claude Skills & Agent</span>
+    <span class="sep">/</span>
+    <span class="chapter-part">Lab - Cài đặt Anthropic Skills có sẵn</span>
+  </div>
+
+  <h2 class="section-heading">Mục tiêu</h2>
+  <ul class="feature-list">
+    <li>Biết đến kho <strong>anthropics/skills</strong> trên GitHub — nơi Anthropic công bố các Skill mẫu chính thức (document-skills: docx/pptx/xlsx/pdf, example-skills...).</li>
+    <li>Thực hành <strong>Phần 1</strong>: tải kho Skill về máy và copy trực tiếp Skill cần dùng vào project (cài đặt Skill thuần, không qua Plugin).</li>
+    <li>Thực hành <strong>Phần 2</strong>: cài đặt <strong>Plugin</strong> từ Marketplace bằng lệnh <code>/plugin</code> — hiểu rõ đây là cơ chế cài đặt <strong>Plugin</strong> (có thể gồm Skill, Sub-agent, Hook, MCP server...), khác với việc chỉ copy một Skill đơn thuần.</li>
+    <li>Phân biệt được khi nào nên dùng Skill thuần (Phần 1) và khi nào nên dùng Plugin từ Marketplace (Phần 2).</li>
+  </ul>
+
+  <h2 class="section-heading">Kiến trúc tổng quan</h2>
+  <div class="mermaid">
+  flowchart LR
+      GH["<img src='../../assets/svg-icon/github.svg' style='width:30px;height:30px;'/><br/><b>GitHub</b><br/>anthropics/skills"]
+      Dev["<img src='../../assets/svg-icon/laptop.svg' style='width:30px;height:30px;'/><br/><b>Máy local học viên</b>"]
+      C1["📂 <b>Phần 1: Copy Skill thủ công</b><br/>git clone / download ZIP<br/>copy → .claude/skills/"]
+      C2["🧩 <b>Phần 2: Cài đặt Plugin</b><br/>/plugin marketplace add<br/>/plugin install"]
+      SkillOnly["📄 <b>Skill đơn thuần</b><br/>SKILL.md + resources"]
+      PluginPkg["📦 <b>Plugin</b><br/>Skill + Agent + Hook + MCP server (nếu có)"]
+      Main["<img src='../../assets/svg-icon/claude-logo.svg' style='width:26px;height:26px;'/><br/><b>Claude Code</b><br/>Main Agent"]
+
+      GH -->|"tải về"| Dev
+      Dev --> C1
+      GH -->|"đăng ký làm marketplace: anthropic-agent-skills"| C2
+      C1 -->|"đặt file vào đúng thư mục"| SkillOnly
+      C2 -->|"cài đặt qua /plugin install"| PluginPkg
+      SkillOnly -->|"tự động phát hiện, đọc description"| Main
+      PluginPkg -->|"đăng ký toàn bộ component sau /reload-plugins"| Main
+  </div>
+  <p class="arch-caption">Phần 1 chỉ copy thẳng thư mục Skill (chỉ có SKILL.md + resources) vào <code>.claude/skills</code>. Phần 2 dùng lệnh <code>/plugin</code> để cài đặt một <strong>Plugin</strong> — một gói có thể chứa nhiều Skill, Sub-agent, Hook, MCP server cùng lúc, được Claude Code quản lý qua Marketplace (bật/tắt, gỡ, cập nhật phiên bản).</p>
+
+  <h2 class="section-heading">Yêu cầu trước khi bắt đầu</h2>
+  <ul class="feature-list">
+    <li>Claude Code CLI đã cài đặt và đăng nhập thành công (xem lại Section 2) — khuyến nghị bản mới nhất, dùng <code>claude --version</code> để kiểm tra.</li>
+    <li>Git đã cài đặt trên máy (dùng cho Phần 1) — kiểm tra bằng <code>git --version</code>.</li>
+    <li>Có thể dùng lại project <code>D:\lab-claude-skill</code> ở bài Lab trước (Section 3, Chapter 2), hoặc tạo project mới như hướng dẫn dưới đây.</li>
+  </ul>
+  <h2 class="section-heading">Các bước thực hành</h2>
+
+  <h3 class="sub-heading">Phần 1: Cài đặt Skill thông qua Anthropic GitHub Official Repository</h3>
+  <ol class="step-list">
+    <li>
+      <div>
+        <strong>Bước 1: Di chuyển vào project sẽ dùng Skill</strong>
+        <p>Tái sử dụng lại project <code>D:\lab-claude-skill</code> đã tạo ở bài Lab trước. Nếu chưa có, tạo mới một thư mục project trống.</p>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">cd D:\lab-claude-skill</code></pre>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 2: Clone kho anthropics/skills về một thư mục riêng</strong>
+        <p>Không clone trực tiếp vào project — tải kho về một thư mục tạm bên ngoài, sau đó chỉ copy đúng Skill cần dùng vào project.</p>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">cd D:\
+git clone https://github.com/anthropics/skills.git anthropic-skills-repo
+cd anthropic-skills-repo
+dir</code></pre>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 3: Xem danh sách Skill có sẵn trong kho</strong>
+        <p>Mỗi Skill nằm trong một thư mục riêng, chứa file <code>SKILL.md</code> khai báo frontmatter (<code>name</code>, <code>description</code>) giống cấu trúc đã học ở Chapter 2. Kho được tổ chức theo nhóm, ví dụ:</p>
+        <pre class="command-line" data-prompt="PS>" data-output="2, 3, 4, 5"><code class="language-powershell">dir
+document-skills   # docx, pptx, xlsx, pdf
+example-skills    # các Skill ví dụ, minh hoạ cách xây dựng Skill
+artifacts-builder</code></pre>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 4: Tạo thư mục Skill trong project nếu chưa có</strong>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">cd D:\lab-claude-skill
+mkdir .claude\skills</code></pre>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 5: Copy Skill cần dùng vào project</strong>
+        <p>Ví dụ copy Skill <code>docx</code> (tạo/chỉnh sửa file Word) từ nhóm <code>document-skills</code> trong kho vừa clone vào thư mục Skill của project.</p>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">Copy-Item -Path D:\anthropic-skills-repo\document-skills\docx -Destination D:\lab-claude-skill\.claude\skills\docx -Recurse</code></pre>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 6: Kiểm tra Skill đã được nhận diện</strong>
+        <p>Khởi động lại Claude Code trong project (nếu đang chạy sẵn, gõ <code>/exit</code> rồi mở lại) và dùng slash command <code>/skills</code> để xem danh sách Skill hiện có — <code>docx</code> phải xuất hiện trong danh sách.</p>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">claude</code></pre>
+        <pre class="command-line" data-prompt=">"><code class="language-text">/skills</code></pre>
+      </div>
+    </li>
+  </ol>
+
+  <div class="alert alert-tip">
+    <strong>Vì sao không clone thẳng kho vào <code>.claude/skills</code>?</strong> Kho <code>anthropics/skills</code> chứa rất nhiều Skill khác nhau — Claude Code sẽ cố gắng đọc <em>tất cả</em> thư mục con như từng Skill riêng biệt, gây nhiễu context và làm chậm quá trình phát hiện Skill phù hợp. Luôn chỉ copy đúng (những) Skill thật sự cần dùng.
+  </div>
+
+  <h3 class="sub-heading">Phần 2: Cài đặt plugin từ marketplace</h3>
+  <p class="body-text">
+    Lệnh <code>/plugin</code> không cài đặt một Skill đơn lẻ — nó cài đặt một <strong>Plugin</strong>, tức một gói mở rộng có thể đóng gói nhiều thành phần cùng lúc: Skill, Sub-agent, Hook, Slash command và cả MCP server. Kho <code>anthropics/skills</code> cũng đồng thời được công bố dưới dạng một <strong>Plugin Marketplace</strong> tên <code>anthropic-agent-skills</code>, cho phép cài đặt các Skill của Anthropic dưới hình thức Plugin thay vì copy tay như Phần 1.
+  </p>
+  <ol class="step-list">
+    <li>
+      <div>
+        <strong>Bước 7: Đăng ký repository làm Plugin Marketplace</strong>
+        <p>Trong phiên Claude Code (vẫn ở project <code>D:\lab-claude-skill</code>), dùng lệnh <code>/plugin marketplace add</code> kèm tên repo GitHub dạng <code>owner/repo</code> để đăng ký kho <code>anthropics/skills</code> làm nguồn marketplace.</p>
+        <pre class="command-line" data-prompt=">"><code class="language-text">/plugin marketplace add anthropics/skills</code></pre>
+        <p>Claude Code sẽ tải metadata của marketplace về và đăng ký nó dưới tên <code>anthropic-agent-skills</code>.</p>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 8: Xem danh sách Plugin có thể cài đặt</strong>
+        <p>Mở giao diện quản lý plugin để duyệt danh sách các Plugin có trong marketplace vừa thêm. Giao diện gồm 4 tab, chuyển bằng <code>Tab</code>/<code>Shift+Tab</code>: <strong>Discover</strong> (khám phá plugin mới), <strong>Installed</strong> (plugin đã cài), <strong>Marketplaces</strong> (quản lý marketplace) và <strong>Errors</strong> (lỗi tải plugin).</p>
+        <pre class="command-line" data-prompt=">"><code class="language-text">/plugin</code></pre>
+        <p>Ở tab <strong>Discover</strong>, chọn marketplace <code>anthropic-agent-skills</code>, dùng phím mũi tên để chọn plugin (ví dụ <code>document-skills</code>), nhấn <code>Enter</code> để xem chi tiết (gồm những Skill/Agent/Hook plugin sẽ cài) rồi chọn phạm vi cài đặt (User/Project/Local scope) để xác nhận.</p>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 9: Cài đặt Plugin trực tiếp bằng lệnh</strong>
+        <p>Có thể bỏ qua giao diện tương tác và cài thẳng Plugin nếu đã biết tên plugin và marketplace, theo cú pháp <code>/plugin install &lt;plugin-name&gt;@&lt;marketplace-name&gt;</code>.</p>
+        <pre class="command-line" data-prompt=">"><code class="language-text">/plugin install document-skills@anthropic-agent-skills</code></pre>
+        <p>Có thể cài thêm Plugin <code>example-skills</code> (các Skill ví dụ) theo cùng cú pháp:</p>
+        <pre class="command-line" data-prompt=">"><code class="language-text">/plugin install example-skills@anthropic-agent-skills</code></pre>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 10: Kích hoạt Plugin vừa cài trong phiên hiện tại</strong>
+        <p>Sau khi cài đặt, chạy <code>/reload-plugins</code> để Claude Code nạp lại toàn bộ Skill/Agent/Hook/MCP server của Plugin mà không cần khởi động lại phiên.</p>
+        <pre class="command-line" data-prompt=">"><code class="language-text">/reload-plugins</code></pre>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 11: Xác nhận Plugin đã cài đặt thành công</strong>
+        <p>Kiểm tra danh sách Plugin đã cài và danh sách Skill hiện có trong phiên.</p>
+        <pre class="command-line" data-prompt=">"><code class="language-text">/plugin list --enabled</code></pre>
+        <pre class="command-line" data-prompt=">"><code class="language-text">/skills</code></pre>
+        <p>Danh sách trả về phải có cả Skill cài qua Phần 1 (<code>docx</code>, copy thủ công) lẫn Plugin cài qua Phần 2 (<code>document-skills</code>, <code>example-skills</code>, qua Plugin Marketplace).</p>
+      </div>
+    </li>
+  </ol>
+
+  <div class="verify-box">
+    <h4>✅ Kết quả mong đợi</h4>
+    <p class="body-text">Lệnh <code>/plugin list --enabled</code> hiển thị <code>document-skills</code> và <code>example-skills</code> ở trạng thái đã cài đặt, lệnh <code>/skills</code> hiển thị đầy đủ Skill từ cả 2 nguồn (copy thủ công lẫn qua Plugin), và khi gõ một yêu cầu liên quan (vd "tạo giúp tôi một file Word tóm tắt nội dung sau") Claude Code tự động dùng đúng Skill tương ứng.</p>
+  </div>
+
+  <h2 class="section-heading">Troubleshoot</h2>
+  <div class="alert alert-warning">
+    <strong>Lỗi:</strong> Lệnh <code>git clone</code> báo lỗi <code>'git' is not recognized</code>.<br/>
+    <strong>Nguyên nhân:</strong> Git chưa được cài đặt hoặc chưa có trong biến môi trường PATH.<br/>
+    <strong>Giải pháp:</strong> Cài đặt Git for Windows từ trang chủ chính thức, khởi động lại terminal sau khi cài, kiểm tra lại bằng <code>git --version</code>.
+  </div>
+  <div class="alert alert-warning">
+    <strong>Lỗi:</strong> Lệnh <code>/skills</code> không hiển thị Skill vừa copy ở Phần 1.<br/>
+    <strong>Nguyên nhân:</strong> Thư mục Skill không nằm đúng đường dẫn <code>.claude/skills/&lt;tên-skill&gt;/SKILL.md</code>, hoặc phiên Claude Code chưa được khởi động lại sau khi copy.<br/>
+    <strong>Giải pháp:</strong> Kiểm tra lại bằng <code>dir .claude\skills</code>, đảm bảo file <code>SKILL.md</code> nằm ngay trong thư mục Skill, sau đó thoát và mở lại phiên Claude Code.
+  </div>
+  <div class="alert alert-warning">
+    <strong>Lỗi:</strong> <code>/plugin marketplace add anthropics/skills</code> báo lỗi không tải được marketplace.<br/>
+    <strong>Nguyên nhân:</strong> Mất kết nối Internet, gõ sai định dạng tên repo (phải đúng dạng <code>owner/repo</code>), hoặc Claude Code phiên bản cũ chưa hỗ trợ đầy đủ lệnh <code>/plugin</code>.<br/>
+    <strong>Giải pháp:</strong> Kiểm tra lại kết nối mạng, đối chiếu chính xác tên repo trên GitHub, cập nhật Claude Code lên bản mới nhất (<code>npm install -g @anthropic-ai/claude-code@latest</code>) rồi thử lại.
+  </div>
+  <div class="alert alert-warning">
+    <strong>Lỗi:</strong> <code>/plugin install document-skills@anthropic-agent-skills</code> báo lỗi <code>Marketplace not found</code>.<br/>
+    <strong>Nguyên nhân:</strong> Marketplace chưa được đăng ký thành công ở Bước 7, hoặc dữ liệu marketplace trên máy đã cũ.<br/>
+    <strong>Giải pháp:</strong> Chạy lại <code>/plugin marketplace add anthropics/skills</code>, hoặc làm mới dữ liệu bằng <code>/plugin marketplace update anthropic-agent-skills</code> rồi cài lại.
+  </div>
+  <div class="alert alert-warning">
+    <strong>Lỗi:</strong> Sau khi cài Plugin, gõ yêu cầu liên quan nhưng Claude Code không dùng Skill trong Plugin.<br/>
+    <strong>Nguyên nhân:</strong> Quên chạy <code>/reload-plugins</code> sau khi cài, nên Plugin chưa được nạp vào phiên hiện tại.<br/>
+    <strong>Giải pháp:</strong> Chạy <code>/reload-plugins</code> như Bước 10, hoặc thoát và mở lại phiên Claude Code.
+  </div>
+  <div class="alert alert-warning">
+    <strong>Lỗi:</strong> Cài cả Skill thủ công (Phần 1) lẫn Plugin (Phần 2) cho cùng một chức năng khiến Claude Code chọn nhầm.<br/>
+    <strong>Nguyên nhân:</strong> Description của Skill (Phần 1) và Skill trong Plugin (Phần 2) quá giống nhau, Claude Code không phân biệt được nên dùng bản nào.<br/>
+    <strong>Giải pháp:</strong> Chỉ giữ lại một nguồn duy nhất cho mỗi chức năng — gỡ Plugin bằng <code>/plugin uninstall document-skills@anthropic-agent-skills</code> hoặc xoá thư mục tương ứng trong <code>.claude/skills</code> (Phần 1).
+  </div>
+
+  <h2 class="section-heading">Dọn dẹp resource</h2>
+  <div class="alert alert-info">Bài lab này chỉ tạo file, thư mục và đăng ký marketplace trên máy local, không tạo ra resource cloud nào và không phát sinh chi phí ngoài usage theo gói cước Claude đang sử dụng. Có thể dọn dẹp nếu không cần dùng tiếp:</div>
+  <pre class="command-line" data-prompt="PS>"><code class="language-powershell"># Gỡ từng Plugin đã cài (chạy trong phiên Claude Code)
+/plugin uninstall document-skills@anthropic-agent-skills
+/plugin uninstall example-skills@anthropic-agent-skills
+
+# Gỡ đăng ký marketplace — lưu ý thao tác này sẽ tự gỡ luôn mọi Plugin cài từ marketplace này
+/plugin marketplace remove anthropic-agent-skills</code></pre>
+  <pre class="command-line" data-prompt="PS>"><code class="language-powershell"># Xoá thư mục kho đã clone tạm (Powershell):
+Remove-Item -Recurse -Force D:\anthropic-skills-repo
+
+# Xoá Skill đã copy thủ công trong project (nếu không cần dùng tiếp) (Powershell):
+Remove-Item -Recurse -Force D:\lab-claude-skill\.claude\skills\docx</code></pre>
+
+
+<h3 class="sub-heading">Phần Lab: Các promp sử dụng trong bài lab tiếp theo để các bạn tiện copy</h3>
+<pre class="command-line" data-prompt="PS>">
+  <code class="text">
+# Prompt yêu cầu Claude Code sử dụng plugin webapp-testing để test Responsive:
+
+Sử dụng skill webapp-testing để kiểm tra cơ bản các tiêu chí responsive display trên website đã được triển khai tại địa chỉ:
+http://localhost:3000/record 
+Đây là giao diện của một ứng dụng quản lý chi tiêu cá nhân.
+
+# Prompt yêu cầu Claude Code sử dụng plugin webapp-testing để test thao tác trên màn hình record:
+
+Tiếp tục sử dụng skill webapp-testing để test thao tác trên màn hình record http://localhost:3000/record  với các bài test sau:
+1. Switch qua lại giữa 2 nút Expense và income, dấu + và - sẽ thay đổi tương ứng
+2. thay đổi amount thành các số âm, 0, dương, số thập phân và test khả năng hiển thị.
+3. Chọn các loại Account khác nhau như: Cash, Bank Account, Credit Card, E-Wallet
+4. Hoạt động của nút Clear.
+Output của các bài test bao gồm screenshot lưu tại: test-ui\record-screen\ui-test-report-20260801
+  </code>
+</pre>
+
+  <script>mermaid.initialize({ startOnLoad: true, theme: 'default' });</script>
+</body>
+</html>

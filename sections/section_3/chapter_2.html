@@ -75,19 +75,19 @@ git config user.name "Hoc Vien"</code></pre>
         <p>Tạo một vài file giả lập và commit theo quy ước <code>feat:</code>, <code>fix:</code>, <code>chore:</code> — đây là dữ liệu đầu vào để Skill đọc và phân loại khi sinh changelog.</p>
         <pre class="command-line" data-prompt="PS>"><code class="language-powershell">"# Expense App" | Out-File -Encoding utf8 README.md
 git add README.md
-git commit -m "chore: khoi tao project"
+git commit -m "chore: khởi tạo project"
 
 "function addExpense() {}" | Out-File -Encoding utf8 expense.js
 git add expense.js
-git commit -m "feat: them chuc nang tao khoan chi tieu moi"
+git commit -m "feat: thêm chức năng tạo khoản chi tiêu mới"
 
 "function validateAmount() {}" | Out-File -Encoding utf8 validate.js
 git add validate.js
-git commit -m "fix: sua loi validate so tien am"
+git commit -m "fix: sửa lỗi validate số tiền âm"
 
 "function exportReport() {}" | Out-File -Encoding utf8 report.js
 git add report.js
-git commit -m "feat: them chuc nang xuat bao cao chi tieu"</code></pre>
+git commit -m "feat: Thêm chức năng xuất báo cáo chi tiêu"</code></pre>
       </div>
     </li>
   </ol>
@@ -98,14 +98,14 @@ git commit -m "feat: them chuc nang xuat bao cao chi tieu"</code></pre>
       <div>
         <strong>Bước 3: Tạo thư mục Skill</strong>
         <p>Mỗi Skill nằm trong một thư mục riêng bên trong <code>.claude/skills/</code>. Tên thư mục nên viết liền, dùng dấu gạch ngang, mô tả đúng chức năng.</p>
-        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">mkdir .claude\skills\changelog-generator</code></pre>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">.claude\skills\changelog-generator</code></pre>
       </div>
     </li>
     <li>
       <div>
         <strong>Bước 4: Viết file SKILL.md</strong>
-        <p>Tạo file <code>SKILL.md</code> bên trong thư mục Skill vừa tạo. Có thể dùng Notepad hoặc yêu cầu Claude Code tạo giúp — nội dung mẫu đầy đủ như sau, copy toàn bộ vào file <code>.claude\skills\changelog-generator\SKILL.md</code>:</p>
-        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">notepad .claude\skills\changelog-generator\SKILL.md</code></pre>
+        <p>Tạo file <code>SKILL.md</code> bên trong thư mục Skill vừa tạo. Có thể dùng VSCode tạo bằng tay hoặc yêu cầu Claude Code tạo giúp — nội dung mẫu đầy đủ như sau, copy toàn bộ vào file <code>.claude\skills\changelog-generator\SKILL.md</code>:</p>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">.claude\skills\changelog-generator\SKILL.md</code></pre>
         <p>Dán nội dung sau vào file rồi lưu (Ctrl+S):</p>
         <pre class="file-block"><span class="filename">.claude/skills/changelog-generator/SKILL.md</span><span class="hl">---
 name</span>: changelog-generator
@@ -168,7 +168,7 @@ claude</code></pre>
         <strong>Bước 7: Xác nhận Skill đã được gọi đúng</strong>
         <p>Quan sát phần đầu phản hồi của Claude Code — khi một Skill được gọi, Claude Code thường hiển thị dòng thông báo dạng <code>Skill: changelog-generator</code> (hoặc tương đương) trước khi thực thi các bước. Đây là dấu hiệu xác nhận Skill đã được phát hiện và nạp đúng, không phải Claude tự trả lời theo cách thông thường.</p>
         <p>Sau khi hoàn tất, kiểm tra file <code>CHANGELOG.md</code> vừa được sinh ra:</p>
-        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">notepad CHANGELOG.md</code></pre>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">CHANGELOG.md</code></pre>
       </div>
     </li>
     <li>
@@ -204,7 +204,6 @@ claude</code></pre>
 
   <h2 class="section-heading">Dọn dẹp resource</h2>
   <div class="alert alert-info">Bài lab này chỉ tạo file và thư mục trên máy local (project Git mẫu + Skill), không tạo ra resource cloud nào và không phát sinh chi phí ngoài usage theo gói cước Claude đang sử dụng. Có thể giữ lại project <code>D:\lab-claude-skill</code> để tiếp tục thực hành ở các bài Lab sau, hoặc xoá đi nếu không cần dùng nữa:</div>
-  <pre class="command-line" data-prompt="PS>"><code class="language-powershell">Remove-Item -Recurse -Force D:\lab-claude-skill</code></pre>
 
   <script>mermaid.initialize({ startOnLoad: true, theme: 'default' });</script>
 </body>

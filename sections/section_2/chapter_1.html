@@ -149,15 +149,6 @@ Plan: Claude Pro</code></pre>
     <strong>Giải pháp:</strong> Liên hệ bộ phận IT để whitelist domain <code>claude.ai</code>, <code>console.anthropic.com</code> và <code>api.anthropic.com</code>.
   </div>
 
-  <h2 class="section-heading">Dọn dẹp resource</h2>
-  <div class="alert alert-info">Bước cài đặt này chỉ diễn ra trên máy local, không tạo ra resource cloud phát sinh chi phí. Nếu muốn gỡ hoàn toàn, thực hiện các bước sau.</div>
-  <pre class="command-line" data-prompt="PS>"><code class="language-powershell"># Đăng xuất Claude Code
-claude /logout
-
-# Gỡ cài đặt Claude Code CLI
-npm uninstall -g @anthropic-ai/claude-code</code></pre>
-  <div class="alert alert-info">Để gỡ Claude Desktop App: mở <strong>Settings → Apps → Installed apps</strong>, tìm <strong>Claude</strong> và chọn <strong>Uninstall</strong>. Trong app, có thể đăng xuất trước tại <strong>Settings → Account → Log out</strong>.</div>
-
   <script>mermaid.initialize({ startOnLoad: true, theme: 'default' });</script>
 </body>
 </html>

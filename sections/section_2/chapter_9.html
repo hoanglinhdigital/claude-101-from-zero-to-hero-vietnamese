@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Lab: Sử dụng Claude Design – Claude 101</title>
+  <title>Lab: Thao tác cơ bản với Claude trên máy local – Claude 101</title>
   <link rel="stylesheet" href="../../styles.css" />
   <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
   <script src="../../mermaid-config.js"></script>
@@ -16,142 +16,153 @@
   <div class="chapter-breadcrumb">
     <span class="section-part">2. Làm quen với Claude</span>
     <span class="sep">/</span>
-    <span class="chapter-part">Lab: Sử dụng Claude Design</span>
-  </div>
-
-  <h2 class="section-heading">Giới thiệu nhanh</h2>
-  <p class="body-text">
-    <strong>Claude Design</strong> <span class="badge badge-purple">Mới</span> là công cụ giúp dựng nội dung trực
-    quan — slide trình bày, trang web, tài liệu, sơ đồ — chỉ từ mô tả bằng ngôn ngữ tự nhiên. Thay vì phải tự tay
-    thiết kế từng phần tử, người dùng mô tả mục tiêu và nội dung mong muốn, Claude Design sẽ dựng bản nháp hoàn
-    chỉnh và cho phép tinh chỉnh lại qua nhiều vòng phản hồi.
-  </p>
-
-  <h2 class="section-heading">Use case thường sử dụng</h2>
-  <div class="usecase-grid">
-    <div class="usecase-card">
-      <h4>Slide trình bày (Presentation)</h4>
-      <p>Dựng nhanh bộ slide cho báo cáo, so sánh giải pháp, thuyết trình nội bộ mà không cần mở PowerPoint từ đầu.</p>
-    </div>
-    <div class="usecase-card">
-      <h4>Trang web / Landing page</h4>
-      <p>Thiết kế trang giới thiệu sản phẩm, landing page bán hàng bằng HTML/CSS chỉ từ mô tả nội dung và bố cục mong muốn.</p>
-    </div>
-    <div class="usecase-card">
-      <h4>Tài liệu & sơ đồ trực quan</h4>
-      <p>Sinh tài liệu định dạng đẹp, sơ đồ quy trình, infographic tóm tắt số liệu cho báo cáo hoặc chia sẻ nội bộ.</p>
-    </div>
+    <span class="chapter-part">Lab: Thao tác cơ bản với Claude trên máy local</span>
   </div>
 
   <h2 class="section-heading">Mục tiêu</h2>
   <ul class="feature-list">
-    <li>Hiểu cách mô tả yêu cầu cho Claude Design để nhận được bản nháp sát với mong muốn ngay từ lần đầu.</li>
-    <li>Dùng Claude Design dựng một slide trình bày so sánh các framework thuộc họ Node.js.</li>
-    <li>Dùng Claude Design dựng một trang website bán khóa học bằng HTML/Tailwind CSS.</li>
-    <li>Biết cách tinh chỉnh (refine) và xuất kết quả ra file để sử dụng thực tế.</li>
+    <li>Sử dụng thành thạo Claude Desktop App để hỏi đáp, duy trì ngữ cảnh trong một cuộc trò chuyện.</li>
+    <li>Đính kèm và phân tích một tài liệu thực tế (PDF/Word/txt), yêu cầu Claude tóm tắt và trích xuất thông tin chính.</li>
+    <li>Dùng Claude Desktop App để sinh code một game hoàn chỉnh (Snake Game) bằng HTML/CSS/JS thuần và xem trực tiếp kết quả qua tính năng Artifacts.</li>
+    <li>Biết cách lưu lại kết quả (code, bản tóm tắt) ra file trên máy local để sử dụng sau.</li>
   </ul>
 
   <h2 class="section-heading">Kiến trúc tổng quan</h2>
   <div class="mermaid">
-  flowchart LR
-      User(("👤<br/><b>Học viên</b>"))
-      Design["<img src='../../assets/svg-icon/claude-logo.svg' style='width:32px;height:32px;'/><br/><b>Claude Design</b><br/>Mô tả bằng ngôn ngữ tự nhiên"]
+  flowchart TD
+      User["👤<br/><b>Học viên</b>"]
+      Desktop["<img src='../../assets/svg-icon/claude-logo.svg' style='width:32px;height:32px;'/><br/><b>Claude Desktop App</b><br/>New Chat"]
+      QA["💬<br/><b>Hỏi đáp</b><br/>Chat nhiều vòng"]
+      Doc["<img src='../../assets/svg-icon/task.svg' style='width:28px;height:28px;'/><br/><b>Tài liệu đính kèm</b><br/>PDF / Word / TXT"]
+      Artifact["<img src='../../assets/svg-icon/ide.svg' style='width:28px;height:28px;'/><br/><b>Artifact</b><br/>Preview code trực tiếp"]
       API["<img src='../../assets/svg-icon/claude-logo.svg' style='width:28px;height:28px;'/><br/><b>Anthropic API</b><br/>Xử lý model"]
-      Slide["<img src='../../assets/svg-icon/task.svg' style='width:28px;height:28px;'/><br/><b>Slide trình bày</b><br/>So sánh Node.js framework"]
-      Web["<img src='../../assets/svg-icon/ide.svg' style='width:28px;height:28px;'/><br/><b>Website HTML/Tailwind</b><br/>Trang bán khóa học"]
+      Game["🐍<br/><b>game.html</b><br/>Snake Game"]
 
-      User -->|"Mô tả yêu cầu"| Design
-      Design -->|"Gửi prompt"| API
-      API -->|"Sinh nội dung, bố cục"| Design
-      Design -->|"Xuất bản"| Slide
-      Design -->|"Xuất bản"| Web
-      User -.->|"Phản hồi, tinh chỉnh"| Design
+      User --> Desktop
+      Desktop --> QA
+      Desktop --> Doc
+      Desktop --> Artifact
+      QA -->|"Gửi câu hỏi"| API
+      Doc -->|"Upload file"| API
+      Artifact -->|"Yêu cầu sinh code"| API
+      API -->|"Trả lời"| QA
+      API -->|"Tóm tắt nội dung"| Doc
+      API -->|"Sinh code HTML/CSS/JS"| Artifact
+      Artifact -->|"Lưu / Export"| Game
   </div>
-  <p class="arch-caption">Claude Design nhận mô tả từ người dùng, gửi tới Anthropic API để sinh nội dung/bố cục, sau đó cho phép tinh chỉnh lặp lại nhiều vòng trước khi xuất ra kết quả cuối (slide, website...).</p>
+  <p class="arch-caption">Claude Desktop App là điểm chạm duy nhất cho cả ba tác vụ: hỏi đáp, phân tích tài liệu và sinh code — mọi yêu cầu đều được gửi tới Anthropic API để xử lý, kết quả code có thể được xem trực tiếp qua Artifact và lưu ra file local.</p>
 
   <h2 class="section-heading">Yêu cầu trước khi bắt đầu</h2>
   <ul class="feature-list">
-    <li>Tài khoản Claude đã đăng nhập, có quyền truy cập Claude Design (Personal/Team/Enterprise tuỳ điều kiện triển khai).</li>
+    <li>Claude Desktop App đã được cài đặt và đăng nhập thành công (xem lại Lab ở Section 2, Chapter 1).</li>
+    <li>Một tài liệu mẫu bất kỳ để thực hành phân tích — có thể dùng file PDF/Word/txt sẵn có trên máy (báo cáo, hợp đồng, bài viết...).</li>
     <li>Kết nối Internet ổn định trong suốt quá trình thực hành.</li>
-    <li>Kiến thức nền cơ bản về các framework Node.js (Express, NestJS, Fastify, Koa) để đánh giá nội dung slide có chính xác không — không bắt buộc nhưng giúp thực hành hiệu quả hơn.</li>
-    <li>Một thư mục trên máy local để lưu lại file website xuất ra, ví dụ <code>D:\lab-claude-design\</code>.</li>
+    <li>Một thư mục trên máy local để lưu lại code game sau khi hoàn thành, ví dụ <code>D:\lab-claude-desktop\</code>.</li>
   </ul>
-  <div class="alert alert-tip">
-    <strong>Lưu ý:</strong> Claude Design là tính năng mới, giao diện và tên các nút bấm (Export, Download, Refine...) có thể thay đổi theo thời gian — nếu không thấy đúng tên mục như mô tả, hãy tìm các mục có ý nghĩa tương đương.
-  </div>
 
   <h2 class="section-heading">Các bước thực hành</h2>
 
-  <h3 class="sub-heading">Demo 1: Thiết kế slide so sánh các framework Node.js</h3>
+  <h3 class="sub-heading">Phần 1: Hỏi đáp cơ bản với Claude Desktop App</h3>
   <ol class="step-list">
     <li>
       <div>
-        <strong>Bước 1: Mở Claude Design và tạo bản thiết kế mới</strong>
-        <p>Truy cập Claude Design, chọn <strong>New design</strong> (hoặc New presentation), chọn loại nội dung là <strong>Slide/Presentation</strong>.</p>
+        <strong>Bước 1: Tạo cuộc trò chuyện mới</strong>
+        <p>Mở Claude Desktop App, chọn <strong>New chat</strong> ở góc trên bên trái để bắt đầu một cuộc trò chuyện trống.</p>
       </div>
     </li>
     <li>
       <div>
-        <strong>Bước 2: Mô tả yêu cầu nội dung slide</strong>
-        <p>Nhập mô tả càng cụ thể càng giúp Claude Design dựng đúng nội dung mong muốn — nêu rõ chủ đề, các mục cần so sánh và số lượng slide.</p>
-        <pre class="command-line" data-prompt=">"><code class="language-text">Tạo một bộ slide trình bày so sánh 4 framework phổ biến của Node.js: Express, NestJS, Fastify và Koa. Mỗi framework cần so sánh theo các tiêu chí: hiệu năng (performance), độ khó khi học (learning curve), hệ sinh thái/thư viện hỗ trợ (ecosystem) và loại project phù hợp (project nhỏ/vừa/lớn). Trình bày dưới dạng bảng so sánh trực quan, tối đa 6 slide, phong cách gọn gàng chuyên nghiệp.</code></pre>
+        <strong>Bước 2: Đặt câu hỏi đơn giản</strong>
+        <p>Nhập một câu hỏi bất kỳ để làm quen với giao diện chat, ví dụ nhờ Claude giải thích một khái niệm.</p>
+        <pre class="command-line" data-prompt=">"><code class="language-text">Giải thích ngắn gọn sự khác biệt giữa AI, Machine Learning và Large Language Model (LLM) cho người mới bắt đầu, dùng ví dụ dễ hiểu.</code></pre>
       </div>
     </li>
     <li>
       <div>
-        <strong>Bước 3: Xem bản nháp và kiểm tra nội dung</strong>
-        <p>Claude Design sẽ dựng bản nháp gồm nhiều slide hiển thị trực tiếp trên canvas. Rà soát lại nội dung so sánh có chính xác, dễ đọc và đúng số lượng slide đã yêu cầu không.</p>
+        <strong>Bước 3: Hỏi tiếp theo (follow-up) để kiểm tra ngữ cảnh</strong>
+        <p>Trong cùng cuộc trò chuyện, đặt câu hỏi tiếp nối câu trả lời trước — Claude sẽ hiểu được ngữ cảnh mà không cần lặp lại thông tin.</p>
+        <pre class="command-line" data-prompt=">"><code class="language-text">Từ câu trả lời trên, cho tôi 3 ví dụ thực tế về việc ứng dụng LLM trong công việc của một Developer.</code></pre>
       </div>
     </li>
     <li>
       <div>
-        <strong>Bước 4: Tinh chỉnh bố cục/nội dung</strong>
-        <p>Gửi phản hồi để chỉnh sửa slide — ví dụ đổi màu, thêm slide tổng kết, hoặc nhấn mạnh một tiêu chí cụ thể.</p>
-        <pre class="command-line" data-prompt=">"><code class="language-text">Thêm 1 slide tổng kết ở cuối, đưa ra khuyến nghị nên chọn framework nào tương ứng với từng loại project (startup nhỏ, doanh nghiệp lớn, real-time application). Đổi màu chủ đạo của slide sang tông xanh dương.</code></pre>
-      </div>
-    </li>
-    <li>
-      <div>
-        <strong>Bước 5: Xuất bản slide</strong>
-        <p>Chọn <strong>Export</strong> (hoặc Download), chọn định dạng phù hợp (PDF/PPTX nếu có hỗ trợ) để lưu bộ slide ra máy local, phục vụ cho việc thuyết trình sau này.</p>
+        <strong>Bước 4: Thử chuyển đổi model</strong>
+        <p>Nhấn vào tên model ở phía trên khung chat (ví dụ Sonnet), chọn một model khác (Haiku hoặc Opus) và gửi lại một câu hỏi tương tự để so sánh tốc độ và chất lượng câu trả lời.</p>
       </div>
     </li>
   </ol>
 
-  <h3 class="sub-heading">Demo 2: Thiết kế website bán khóa học bằng HTML/Tailwind CSS</h3>
+  <h3 class="sub-heading">Phần 2: Phân tích tài liệu & tóm tắt nội dung</h3>
   <ol class="step-list">
     <li>
       <div>
-        <strong>Bước 1: Tạo bản thiết kế mới cho website</strong>
-        <p>Trong Claude Design, chọn <strong>New design</strong>, chọn loại nội dung là <strong>Website/Landing page</strong>.</p>
+        <strong>Bước 1: Tạo cuộc trò chuyện mới cho tác vụ tài liệu</strong>
+        <p>Chọn <strong>New chat</strong> để bắt đầu cuộc trò chuyện riêng cho việc phân tích tài liệu, tránh lẫn ngữ cảnh với phần hỏi đáp ở trên.</p>
       </div>
     </li>
     <li>
       <div>
-        <strong>Bước 2: Mô tả yêu cầu website</strong>
-        <p>Nêu rõ mục đích trang, các section cần có và yêu cầu công nghệ (HTML + Tailwind CSS) để kết quả đúng định dạng mong muốn.</p>
-        <pre class="command-line" data-prompt=">"><code class="language-text">Thiết kế một trang landing page bán khóa học online, dùng HTML và Tailwind CSS (qua CDN), responsive tốt trên mobile. Trang gồm các phần: Hero section giới thiệu khóa học "Claude 101 - From Zero to Hero", phần Nội dung khóa học tóm tắt các section chính, phần giới thiệu giảng viên, phần học phí kèm nút Đăng ký ngay (CTA), và Footer. Phong cách tươi sáng, màu chủ đạo cam và tím.</code></pre>
-      </div>
-    </li>
-    <li>
-      <div>
-        <strong>Bước 3: Xem preview trực tiếp</strong>
-        <p>Claude Design hiển thị bản preview website ngay trên canvas — kiểm tra bố cục các section, khả năng responsive bằng cách thu nhỏ khung xem sang kích thước mobile.</p>
-      </div>
-    </li>
-    <li>
-      <div>
-        <strong>Bước 4: Tinh chỉnh nội dung/giao diện</strong>
-        <p>Gửi phản hồi để chỉnh sửa các phần chưa đạt yêu cầu, ví dụ thêm phần đánh giá học viên hoặc đổi lại nút CTA.</p>
-        <pre class="command-line" data-prompt=">"><code class="language-text">Thêm một phần "Đánh giá học viên" (testimonial) gồm 3 card review giả định, đặt ngay trước phần học phí. Nút "Đăng ký ngay" cần nổi bật hơn, dùng màu cam làm nền.</code></pre>
-      </div>
-    </li>
-    <li>
-      <div>
-        <strong>Bước 5: Xuất code website ra file local</strong>
-        <p>Chọn <strong>Export</strong> (hoặc Copy code), lưu lại thành file <code>index.html</code> trong thư mục <code>D:\lab-claude-design\</code>, sau đó mở bằng trình duyệt để kiểm tra lần cuối.</p>
+        <strong>Bước 2: Đính kèm tài liệu</strong>
+        <p>Nhấn vào icon <strong>đính kèm (📎)</strong> ở khung nhập chat, chọn file tài liệu mẫu đã chuẩn bị (PDF/Word/txt) từ máy local.</p>
         <div class="alert alert-info">
-          Vì trang dùng Tailwind CSS qua CDN, cần có kết nối Internet khi mở file để CSS được tải và hiển thị đúng.
+          Claude Desktop App hỗ trợ nhiều định dạng phổ biến: PDF, DOCX, TXT, CSV, hình ảnh (PNG/JPG)... Với file PDF scan (dạng ảnh), Claude vẫn có thể đọc được nội dung nhờ khả năng xử lý hình ảnh.
+        </div>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 3: Yêu cầu tóm tắt nội dung chính</strong>
+        <p>Sau khi file đã được đính kèm, gửi yêu cầu tóm tắt.</p>
+        <pre class="command-line" data-prompt=">"><code class="language-text">Đọc tài liệu vừa đính kèm và tóm tắt nội dung chính trong 5-7 câu, tập trung vào các ý quan trọng nhất.</code></pre>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 4: Trích xuất thông tin cụ thể</strong>
+        <p>Tiếp tục hỏi để trích xuất các thông tin có cấu trúc rõ ràng hơn từ tài liệu, ví dụ danh sách ý chính hoặc các mốc thời gian/số liệu quan trọng.</p>
+        <pre class="command-line" data-prompt=">"><code class="language-text">Liệt kê dưới dạng bullet point các số liệu, ngày tháng hoặc con số quan trọng được nhắc đến trong tài liệu này.</code></pre>
+      </div>
+    </li>
+  </ol>
+
+  <h3 class="sub-heading">Phần 3: Viết Game Rắn săn mồi (Snake Game) bằng HTML/CSS/JS</h3>
+  <ol class="step-list">
+    <li>
+      <div>
+        <strong>Bước 1: Tạo cuộc trò chuyện mới và yêu cầu viết game</strong>
+        <p>Chọn <strong>New chat</strong>, sau đó gửi yêu cầu viết game Snake hoàn chỉnh, gộp toàn bộ trong một file HTML duy nhất.</p>
+        <pre class="command-line" data-prompt=">"><code class="language-text">Viết cho tôi game Rắn săn mồi (Snake game) hoàn chỉnh bằng HTML, CSS và JavaScript thuần (không dùng thư viện ngoài), gộp tất cả trong một file HTML duy nhất. Yêu cầu:
+- Điều khiển rắn bằng phím mũi tên (arrow keys).
+- Hiển thị điểm số hiện tại.
+- Khi rắn ăn mồi thì dài ra và điểm số tăng lên.
+- Khi rắn tự đâm vào thân hoặc đâm tường thì hiện thông báo Game Over và nút Chơi lại.</code></pre>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 2: Xem preview trực tiếp qua Artifact</strong>
+        <p>Claude sẽ trả về code và tự động mở khung <strong>Artifact</strong> bên phải cửa sổ chat, hiển thị bản preview chạy được ngay của game — không cần copy code ra ngoài để test.</p>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 3: Chơi thử ngay trong Artifact</strong>
+        <p>Nhấn vào khung Artifact để focus, dùng phím mũi tên điều khiển rắn di chuyển và kiểm tra các tính năng: ăn mồi tăng điểm, game over khi va chạm.</p>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 4: Yêu cầu chỉnh sửa, bổ sung tính năng</strong>
+        <p>Tiếp tục hội thoại trong cùng chat để yêu cầu Claude tinh chỉnh game — Artifact sẽ tự động cập nhật bản preview mới sau mỗi lần chỉnh sửa.</p>
+        <pre class="command-line" data-prompt=">"><code class="language-text">Chỉnh sửa game hiện tại: tăng dần tốc độ di chuyển của rắn mỗi khi ăn được 5 mồi, và đổi màu nền game sang tối (dark mode).</code></pre>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 5: Lưu code ra file trên máy local</strong>
+        <p>Ở góc trên khung Artifact, chọn icon <strong>tải xuống (Download)</strong> để lưu file, hoặc chọn <strong>Copy code</strong> rồi dán vào một file mới trong thư mục đã chuẩn bị.</p>
+        <div class="alert alert-info">
+          Đặt tên file là <code>game.html</code>, lưu vào thư mục <code>D:\lab-claude-desktop\</code>. Sau khi lưu, có thể mở trực tiếp file này bằng trình duyệt (double-click) để chơi offline, không cần Claude Desktop App.
         </div>
       </div>
     </li>
@@ -159,27 +170,21 @@
 
   <h2 class="section-heading">Troubleshoot</h2>
   <div class="alert alert-warning">
-    <strong>Lỗi:</strong> Nội dung slide/website sinh ra chưa đúng ý, bố cục lộn xộn.<br/>
-    <strong>Nguyên nhân:</strong> Mô tả yêu cầu ban đầu còn mơ hồ, thiếu chi tiết về số lượng phần tử, thứ tự hoặc phong cách mong muốn.<br/>
-    <strong>Giải pháp:</strong> Mô tả lại cụ thể hơn (số lượng slide/section, tiêu chí so sánh, màu sắc, thứ tự hiển thị) và yêu cầu Claude Design chỉnh sửa từng phần một thay vì đổi toàn bộ cùng lúc.
+    <strong>Lỗi:</strong> Không đính kèm được file tài liệu vào chat.<br/>
+    <strong>Nguyên nhân:</strong> File vượt quá giới hạn kích thước cho phép, hoặc định dạng không được hỗ trợ.<br/>
+    <strong>Giải pháp:</strong> Kiểm tra dung lượng file (thường giới hạn vài chục MB tuỳ gói cước), thử chuyển sang định dạng phổ biến hơn (PDF, DOCX, TXT) hoặc chia nhỏ tài liệu nếu quá dài.
   </div>
   <div class="alert alert-warning">
-    <strong>Lỗi:</strong> Xuất file (Export) không có định dạng mong muốn (ví dụ không có PPTX).<br/>
-    <strong>Nguyên nhân:</strong> Tuỳ thời điểm, Claude Design có thể chỉ hỗ trợ một số định dạng xuất nhất định.<br/>
-    <strong>Giải pháp:</strong> Xuất theo định dạng gần nhất đang hỗ trợ (PDF, HTML, ảnh), sau đó dùng công cụ khác (PowerPoint, Google Slides) để chuyển đổi định dạng nếu cần.
+    <strong>Lỗi:</strong> Artifact không hiển thị preview hoặc hiển thị màn hình trắng.<br/>
+    <strong>Nguyên nhân:</strong> Code JavaScript bị lỗi cú pháp, hoặc Claude chưa nhận diện được yêu cầu tạo Artifact.<br/>
+    <strong>Giải pháp:</strong> Yêu cầu Claude kiểm tra và sửa lỗi trong đoạn code đã sinh (ví dụ: "Artifact đang bị màn hình trắng, hãy kiểm tra lại lỗi trong code và sửa"), Claude sẽ tự rà soát và cập nhật lại.
   </div>
   <div class="alert alert-warning">
-    <strong>Lỗi:</strong> Website xuất ra hiển thị lỗi giao diện, không có style Tailwind.<br/>
-    <strong>Nguyên nhân:</strong> Thiếu kết nối Internet để tải Tailwind CDN, hoặc thẻ <code>&lt;script src="cdn.tailwindcss.com"&gt;</code> bị xoá khi copy code.<br/>
-    <strong>Giải pháp:</strong> Kiểm tra lại file HTML có đầy đủ thẻ script Tailwind CDN trong phần <code>&lt;head&gt;</code>, đảm bảo có kết nối Internet khi mở file.
+    <strong>Lỗi:</strong> Claude trả lời chậm hoặc bị ngắt giữa câu trả lời dài.<br/>
+    <strong>Nguyên nhân:</strong> Kết nối Internet không ổn định, hoặc hệ thống Anthropic đang tải cao.<br/>
+    <strong>Giải pháp:</strong> Kiểm tra lại kết nối mạng, thử gửi lại yêu cầu (resend), hoặc chia nhỏ yêu cầu phức tạp thành nhiều bước nhỏ hơn.
   </div>
 
-  <h2 class="section-heading">Dọn dẹp resource</h2>
-  <div class="alert alert-info">Bài lab này chỉ thao tác trên Claude Design (dịch vụ của Anthropic) và lưu kết quả ra máy local, không tạo ra resource cloud nào phát sinh chi phí ngoài usage theo gói cước đang sử dụng.</div>
-  <ul class="feature-list">
-    <li>Xoá các bản thiết kế demo (slide, website) trong Claude Design nếu không cần giữ lại: mở danh sách <strong>My designs</strong>, chọn bản demo và nhấn <strong>Delete</strong>.</li>
-    <li>Xoá thư mục <code>D:\lab-claude-design\</code> chứa file <code>index.html</code> đã xuất ra nếu không còn nhu cầu sử dụng.</li>
-  </ul>
 
   <script>mermaid.initialize({ startOnLoad: true, theme: 'default' });</script>
 </body>

@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Claude Agent là gì? – Claude 101</title>
+  <title>Claude Sub-Agent là gì? – Claude 101</title>
   <link rel="stylesheet" href="../../styles.css" />
   <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
   <script src="../../mermaid-config.js"></script>
@@ -16,19 +16,41 @@
   <div class="chapter-breadcrumb">
     <span class="section-part">3. Claude Skills & Agent</span>
     <span class="sep">/</span>
-    <span class="chapter-part">Claude Agent là gì?</span>
+    <span class="chapter-part">Claude Sub-Agent là gì?</span>
   </div>
+
+
 
   <h2 class="section-heading">Giới thiệu</h2>
   <p class="body-text">
+    <strong>Agent</strong> là một hệ thống AI có khả năng tự chủ thực hiện một chuỗi hành động để đạt mục tiêu được giao,
+    thay vì chỉ trả lời một câu hỏi duy nhất: nó tự lên kế hoạch, gọi các <strong>tool</strong> (đọc/ghi file, chạy lệnh,
+    tìm kiếm, gọi API...), quan sát kết quả rồi quyết định bước tiếp theo, lặp lại cho đến khi hoàn thành hoặc cần hỏi lại
+    người dùng. Claude Code chính là một agent như vậy — phiên CLI bạn đang trò chuyện đã có đầy đủ system prompt, bộ tool
+    và khả năng tự điều phối công việc.
+  </p>
+  <div class="figure-centered">
+    <img src="../../assets/images/agent-minh-hoa-by-gemini.png" alt="Minh họa AI Agent" />
+    <p class="figure-title">Minh họa AI Agent bởi Gemini</p>
+  </div>
+  <p class="body-text">
     <strong>Sub-agent</strong> trong Claude Code là một "trợ lý con" chuyên biệt, có <strong>system prompt riêng</strong>
-    và <strong>phạm vi công cụ (tools) riêng</strong>, được Agent chính (main agent — phiên Claude Code học viên đang
+    và <strong>phạm vi công cụ (tools) riêng</strong>, được Agent chính (main agent — phiên Claude Code User đang
     trò chuyện trực tiếp) gọi đến để xử lý một loại việc cụ thể, rồi trả kết quả tổng hợp lại. Thay vì để một Agent
     duy nhất phải "biết tuốt" và chia sẻ chung một context dài, mô hình Sub-agent giúp <strong>chuyên biệt hoá</strong>
     từng phần việc, giữ context của Agent chính gọn nhẹ, và hạn chế rủi ro khi giao cho một tác vụ nhạy cảm chỉ đúng
     những tool cần thiết.
   </p>
-
+    <h2 class="section-heading">Một số lưu ý</h2>
+  <div class="alert alert-info">
+    <strong>Claude Code chính là "agent":</strong> phiên làm việc CLI bạn đang chạy (đọc file, sửa code, chạy lệnh...) đã là một agent hoàn chỉnh. Nó không cần bạn định nghĩa thêm một "agent gốc" nào khác — vai trò đó do chính CLI đảm nhiệm.
+  </div>
+  <div class="alert alert-info">
+    <strong>Sub-agent giải quyết vấn đề cụ thể:</strong> Một sub-agent trong Claude Code là một instance Claude độc lập, có system prompt riêng, context window riêng, danh sách tool riêng và permission mode riêng. Khi Claude Code chạy sub-agent, nó tạo ra một context window tách biệt, đưa input vào và chỉ trả lại bản tóm tắt cho phiên chính. 
+  </div>
+  <div class="alert alert-info">
+    <strong>Mục đích thiết kế: </strong> nên dùng sub-agent khi một tác vụ phụ sẽ làm ngập conversation chính bằng kết quả tìm kiếm, log, hay nội dung file mà bạn sẽ không cần tham chiếu lại — sub-agent sẽ làm việc đó trong context riêng và chỉ trả về bản tóm tắt. Đây là lý do nó được gọi là "sub" — nó luôn phục vụ và báo cáo lại cho agent chính (phiên CLI của bạn), chứ không tồn tại như một thực thể độc lập ngang hàng.
+  </div>
   <h2 class="section-heading">Các tính năng chính</h2>
   <ul class="feature-list">
     <li>Mỗi Sub-agent được khai báo trong một file Markdown riêng tại <code>.claude/agents/&lt;ten-agent&gt;.md</code>, với YAML frontmatter khai báo <code>name</code>, <code>description</code>, <code>tools</code> (danh sách công cụ được phép dùng) và <code>model</code> (model nào xử lý Sub-agent này).</li>
@@ -41,7 +63,7 @@
   <h2 class="section-heading">Mô hình kiến trúc</h2>
   <div class="mermaid">
   flowchart TB
-      User(("👤<br/><b>Học viên</b>"))
+      User(("👤<br/><b>User</b>"))
       Main["<img src='../../assets/svg-icon/claude-logo.svg' style='width:32px;height:32px;'/><br/><b>Main Agent</b><br/>Claude Code — phiên chat chính"]
 
       Route{"🔀 Định tuyến task<br/>theo description<br/>của từng Sub-agent"}
@@ -61,7 +83,7 @@
 
       Main -->|"Tổng hợp & phản hồi"| User
   </div>
-  <p class="arch-caption">Main Agent nhận yêu cầu từ học viên, dùng Task tool định tuyến từng phần việc đến đúng Sub-agent chuyên biệt (mỗi Sub-agent có system prompt & phạm vi tools riêng), sau đó tổng hợp kết quả trả về từ các Sub-agent thành phản hồi cuối cùng.</p>
+  <p class="arch-caption">Main Agent nhận yêu cầu từ User, dùng Task tool định tuyến từng phần việc đến đúng Sub-agent chuyên biệt (mỗi Sub-agent có system prompt & phạm vi tools riêng), sau đó tổng hợp kết quả trả về từ các Sub-agent thành phản hồi cuối cùng.</p>
 
   <h3 class="sub-heading">Khi nào Main Agent gọi Sub-agent?</h3>
   <table class="compare-table">
@@ -69,8 +91,8 @@
       <tr><th>Cách gọi</th><th>Cơ chế</th><th>Khi nào xảy ra</th></tr>
     </thead>
     <tbody>
-      <tr><td>Tự động (auto-invoke)</td><td>Main Agent so khớp yêu cầu hiện tại với <code>description</code> của từng Sub-agent, tự quyết định gọi Sub-agent phù hợp nhất</td><td>Khi description của Sub-agent viết đủ rõ trigger, khớp đúng ngữ cảnh yêu cầu của học viên</td></tr>
-      <tr><td>Gọi rõ ràng qua <code>/agents</code></td><td>Học viên tự chọn Sub-agent muốn dùng từ danh sách quản lý</td><td>Khi muốn ép dùng đúng một Sub-agent cụ thể, hoặc khi mới tạo Sub-agent cần test thử</td></tr>
+      <tr><td>Tự động (auto-invoke)</td><td>Main Agent so khớp yêu cầu hiện tại với <code>description</code> của từng Sub-agent, tự quyết định gọi Sub-agent phù hợp nhất</td><td>Khi description của Sub-agent viết đủ rõ trigger, khớp đúng ngữ cảnh yêu cầu của User</td></tr>
+      <tr><td>Gọi rõ ràng qua <code>/agents</code></td><td>User tự chọn Sub-agent muốn dùng từ danh sách quản lý</td><td>Khi muốn ép dùng đúng một Sub-agent cụ thể, hoặc khi mới tạo Sub-agent cần test thử</td></tr>
       <tr><td>Chỉ định trực tiếp trong prompt</td><td>Nhắc rõ tên Sub-agent trong câu yêu cầu (vd "dùng code-reviewer để kiểm tra file này")</td><td>Khi có nhiều Sub-agent phạm vi gần giống nhau, cần chỉ rõ để tránh Main Agent chọn nhầm</td></tr>
     </tbody>
   </table>
@@ -104,9 +126,22 @@
     <li><strong>Tránh chồng chéo phạm vi</strong> — không nên có nhiều Skill/Sub-agent mô tả trùng lặp ý nghĩa, dễ gây nhầm lẫn khi Main Agent phải chọn giữa nhiều lựa chọn giống nhau.</li>
     <li><strong>Chọn model phù hợp cho từng Sub-agent</strong> — Sub-agent xử lý việc đơn giản, lặp lại nhiều (vd review syntax cơ bản) có thể dùng model nhẹ hơn (Haiku) để tiết kiệm chi phí, giữ Sonnet/Opus cho việc cần suy luận sâu.</li>
   </ul>
-  <div class="alert alert-info">
-    <strong>Phân biệt nhanh Skill và Sub-agent:</strong> Skill là một "quy trình đóng gói sẵn" được nạp thêm vào ngữ cảnh của cùng một Agent khi cần; Sub-agent là một "Agent độc lập khác" với context và system prompt riêng, được Main Agent giao việc rồi nhận lại kết quả. Có thể phối hợp cả hai: một Sub-agent vẫn có thể tự gọi Skill riêng của nó khi cần.
-  </div>
+  <h3 class="sub-heading">So sánh Skill và Sub-agent</h3>
+  <table class="compare-table">
+    <thead>
+      <tr><th>Tiêu chí</th><th>Skill</th><th>Sub-agent</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Bản chất</td><td>"Quy trình đóng gói sẵn" — một bộ hướng dẫn/kiến thức được nạp thêm vào ngữ cảnh</td><td>Một "Agent độc lập khác" được giao việc rồi trả kết quả về</td></tr>
+      <tr><td>Context</td><td>Dùng chung context với Agent đang gọi nó — không tách riêng</td><td>Có context riêng, độc lập với Main Agent, không làm phình to context chính</td></tr>
+      <tr><td>System prompt</td><td>Không có system prompt riêng, chỉ bổ sung nội dung vào prompt hiện tại</td><td>Có system prompt riêng, định nghĩa vai trò và cách hành xử riêng biệt</td></tr>
+      <tr><td>Phạm vi tools</td><td>Kế thừa toàn bộ tools của Agent đang chạy</td><td>Có thể giới hạn tools riêng theo nguyên tắc least privilege</td></tr>
+      <tr><td>Chỉ định Model</td><td>Không chỉ định được — luôn chạy bằng đúng model của Agent đang gọi nó, vì chỉ là nội dung nạp thêm vào cùng context</td><td>Chỉ định được riêng qua field <code>model</code> trong YAML frontmatter (vd dùng Haiku cho việc đơn giản, giữ Sonnet/Opus cho việc cần suy luận sâu)</td></tr>
+      <tr><td>Cách kích hoạt</td><td>Nạp thêm ("load") vào ngữ cảnh hiện tại khi cần, không tạo tiến trình mới</td><td>Được gọi qua Task tool, chạy như một tiến trình/agent riêng rồi trả kết quả</td></tr>
+      <tr><td>Phù hợp cho</td><td>Quy trình, checklist, kiến thức chuyên biệt cần tái sử dụng nhiều lần</td><td>Việc cần cô lập context, xử lý song song, hoặc cần vai trò/quyền hạn khác Main Agent</td></tr>
+      <tr><td>Kết hợp</td><td colspan="2">Có thể phối hợp cả hai: một Sub-agent vẫn có thể tự gọi Skill riêng của nó khi cần.</td></tr>
+    </tbody>
+  </table>
 
 </body>
 </html>

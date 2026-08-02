@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Claude là gì? – Claude 101</title>
+  <title>Những hiểu lầm về Generative AI & AI Agent – Claude 101</title>
   <link rel="stylesheet" href="../../styles.css" />
   <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
   <script src="../../mermaid-config.js"></script>
@@ -16,134 +16,165 @@
   <div class="chapter-breadcrumb">
     <span class="section-part">2. Làm quen với Claude</span>
     <span class="sep">/</span>
-    <span class="chapter-part">Claude là gì?</span>
+    <span class="chapter-part">Những hiểu lầm về các công cụ Generative AI</span>
   </div>
 
   <h2 class="section-heading">Giới thiệu</h2>
   <p class="body-text">
-    <strong>Claude</strong> là một dòng mô hình ngôn ngữ lớn (Large Language Model – LLM) do <strong>Anthropic</strong>
-    phát triển, có khả năng hiểu và sinh ra ngôn ngữ tự nhiên giống con người để hỗ trợ hội thoại, viết nội dung,
-    lập trình, phân tích dữ liệu và xử lý tài liệu. Thay vì chỉ có một model duy nhất, Anthropic cung cấp nhiều
-    <strong>dòng model (model line)</strong> với các mức độ tốc độ, chi phí và khả năng suy luận khác nhau — giúp
-    người dùng chọn đúng model cho đúng bài toán, tránh lãng phí chi phí khi dùng model quá mạnh cho tác vụ đơn giản.
-    Gần đây Anthropic ra mắt thêm <strong>Claude Fable 5</strong> — dòng model cao cấp nhất (thuộc nhóm "Mythos-class")
-    tính đến hiện tại, đứng trên cả Opus về khả năng suy luận và làm việc tự động (agentic) trong thời gian dài.
+    Trước khi đi sâu vào Claude, học viên cần có một bức tranh đúng về <strong>Generative AI</strong> và
+    <strong>AI Agent</strong> nói chung — vì phần lớn sự thất vọng khi mới dùng các công cụ như Claude, ChatGPT,
+    Gemini đến từ việc kỳ vọng sai. Người mới thường nghĩ AI "hiểu" và "suy nghĩ" như con người, luôn luôn đúng,
+    hoặc tự động làm mọi việc không cần giám sát. Chương này chỉ ra bản chất kỹ thuật đơn giản của các công cụ này
+    và làm rõ những ngộ nhận phổ biến nhất, giúp học viên sử dụng Claude hiệu quả và an toàn hơn trong các chương sau.
   </p>
 
-  <h2 class="section-heading">Các tính năng chính</h2>
+  <h2 class="section-heading">Bản chất của Generative AI</h2>
   <ul class="feature-list">
-    <li>Xử lý ngôn ngữ tự nhiên đa dạng: viết nội dung, tóm tắt, dịch thuật, phân tích văn bản, trả lời câu hỏi.</li>
-    <li>Hỗ trợ lập trình mạnh: đọc hiểu codebase, viết tính năng mới, refactor, debug, sinh test tự động.</li>
-    <li>Context window lớn (lên đến hàng trăm nghìn token) — đọc và ghi nhớ được tài liệu, codebase dài trong một phiên làm việc.</li>
-    <li>Đa phương thức (multimodal): hiểu được văn bản, hình ảnh, PDF, biểu đồ, không chỉ riêng text.</li>
-    <li>Có 4 dòng model chính — <strong>Haiku</strong>, <strong>Sonnet</strong>, <strong>Opus</strong> và mới nhất <strong>Fable 5</strong> — đánh đổi giữa tốc độ, chi phí và độ "thông minh".</li>
-    <li>Truy cập qua nhiều giao diện: Claude.ai (web/mobile), Claude Desktop App, Claude Code (CLI), hoặc tích hợp qua API.</li>
+    <li>Generative AI (Claude, ChatGPT, Gemini...) là <strong>mô hình ngôn ngữ lớn (LLM)</strong> — được huấn luyện để dự đoán từ/token tiếp theo có xác suất cao nhất, dựa trên toàn bộ văn bản đã thấy trước đó.</li>
+    <li>Model <strong>không "suy nghĩ"</strong> theo nghĩa có ý thức — nó tính toán xác suất thống kê trên hàng tỷ tham số, không có nhận thức hay chủ ý thực sự.</li>
+    <li>Model <strong>không có bộ nhớ dài hạn mặc định</strong> — mỗi lần trả lời, nó chỉ "nhìn thấy" nội dung nằm trong context window (cửa sổ ngữ cảnh) của phiên hiện tại.</li>
+    <li>Model được huấn luyện đến một thời điểm nhất định (knowledge cutoff) — không tự động biết thông tin xảy ra sau đó, trừ khi được cấp công cụ tra cứu (web search, MCP, RAG...).</li>
+    <li><strong>AI Agent</strong> (như Claude Code) không phải là "AI thông minh hơn" — mà là một LLM được cho vòng lặp tự gọi công cụ (tool use) nhiều lần để hoàn thành tác vụ, dưới sự giám sát của con người.</li>
   </ul>
 
-  <h3 class="sub-heading">So sánh 4 dòng model</h3>
-  <table class="pricing-table">
-    <thead>
-      <tr><th>Model</th><th>Tốc độ</th><th>Chi phí tương đối</th><th>Use case chính</th></tr>
-    </thead>
-    <tbody>
-      <tr><td><strong>Haiku</strong></td><td>Rất nhanh</td><td class="price-value">$</td><td>Tác vụ đơn giản, khối lượng lớn: phân loại, trích xuất thông tin, chatbot hỗ trợ nhanh.</td></tr>
-      <tr><td><strong>Sonnet</strong></td><td>Nhanh – Cân bằng</td><td class="price-value">$$</td><td>Công việc hằng ngày: coding với Claude Code, viết nội dung, phân tích dữ liệu.</td></tr>
-      <tr><td><strong>Opus</strong></td><td>Chậm hơn</td><td class="price-value">$$$</td><td>Tác vụ phức tạp: suy luận nhiều bước, nghiên cứu sâu, bài toán đòi hỏi độ chính xác cao.</td></tr>
-      <tr><td><strong>Fable 5</strong> <span class="badge badge-orange">Mới</span></td><td>Chậm nhất</td><td class="price-value">$$$$</td><td>Tác vụ agentic phức tạp, chạy tự động thời gian dài, đòi hỏi khả năng suy luận và lập kế hoạch cao nhất.</td></tr>
-    </tbody>
-  </table>
-
-  <h3 class="sub-heading">Effort — mức độ nỗ lực suy luận</h3>
-  <p class="body-text">
-    Ngoài việc chọn dòng model, mỗi model còn cho phép tinh chỉnh thêm tham số <strong>Effort</strong> — quyết định
-    Claude sẽ bỏ ra "bao nhiêu công sức" tính toán cho mỗi câu trả lời, độc lập với việc chọn Haiku/Sonnet/Opus/Fable.
-    Effort có 5 mức, từ thấp đến cao: <strong>Low</strong>, <strong>Medium</strong>, <strong>High</strong>,
-    <strong>Extra (Xhigh)</strong> và <strong>Max</strong>.
-  </p>
-  <table class="pricing-table">
-    <thead>
-      <tr><th>Effort</th><th>Khi nào dùng</th><th>Chi phí & thời gian</th></tr>
-    </thead>
-    <tbody>
-      <tr><td><strong>Low</strong></td><td>Chat thông thường, tác vụ khối lượng lớn, không cần suy luận sâu.</td><td class="price-value">Thấp / Nhanh</td></tr>
-      <tr><td><strong>Medium</strong></td><td>Công việc tri thức hằng ngày với vài bước xử lý — mức mặc định hợp lý cho phần lớn use case.</td><td class="price-value">Trung bình</td></tr>
-      <tr><td><strong>High</strong></td><td>Suy luận phức tạp, khi chất lượng quan trọng hơn tốc độ/chi phí (mặc định của API).</td><td class="price-value">Cao</td></tr>
-      <tr><td><strong>Extra (Xhigh)</strong></td><td>Mức trung gian giữa High và Max — cho tác vụ cần nhiều hơn High nhưng chưa cần tốn token như Max (thường có ở Opus/Fable).</td><td class="price-value">Rất cao</td></tr>
-      <tr><td><strong>Max</strong></td><td>Tác vụ khó nhất, không giới hạn ngân sách token — chấp nhận chi phí và thời gian chờ cao nhất.</td><td class="price-value">Cao nhất</td></tr>
-    </tbody>
-  </table>
-  <div class="alert alert-warning">
-    Effort ảnh hưởng trực tiếp đến chi phí: cùng một câu hỏi, chạy ở mức <strong>Max</strong> có thể tốn <strong>gấp 10 lần</strong> số token so với mức <strong>Low</strong>. Nên chọn effort tương ứng với độ khó thực tế của tác vụ, không nên luôn để Max.
-  </div>
-
-  <h3 class="sub-heading">Enable Thinking (Extended Thinking) khác gì so với không enable?</h3>
-  <p class="body-text">
-    <strong>Extended Thinking</strong> là một cơ chế khác, tách biệt với Effort. Khi được bật (Enable Thinking),
-    Claude sẽ "suy nghĩ" từng bước trước khi trả lời — tự lập kế hoạch giải quyết, thử nhiều hướng tiếp cận và
-    tự kiểm tra lại logic — thay vì trả lời ngay câu đầu tiên nghĩ ra. Đây vẫn là cùng một model, chỉ khác là model
-    được cho thêm thời gian và "không gian suy nghĩ" trước khi sinh câu trả lời cuối cùng.
-  </p>
-  <ul class="feature-list">
-    <li><strong>Khi Enable Thinking:</strong> Xuất hiện thêm phần "Thinking" (có thể mở rộng để xem) hiển thị quá trình suy luận của Claude — hữu ích để kiểm chứng cách Claude ra kết quả, đặc biệt với bài toán nhiều bước, toán học, debug logic phức tạp.</li>
-    <li><strong>Khi tắt (không Enable Thinking):</strong> Claude trả lời trực tiếp, không hiển thị quá trình suy luận — tốc độ phản hồi nhanh hơn, phù hợp cho câu hỏi đơn giản, tra cứu thông tin, viết nội dung ngắn.</li>
-    <li><strong>Liên hệ với Effort:</strong> Effort quyết định "bao nhiêu" ngân sách suy luận được cấp; Thinking quyết định việc Claude có chủ động suy luận từng bước (và hiển thị quá trình đó) hay không. Hai cơ chế này phối hợp với nhau (Adaptive Thinking) để tự động điều chỉnh mức suy luận phù hợp.</li>
-  </ul>
-  <div class="alert alert-tip">
-    <strong>Gợi ý áp dụng:</strong> Với câu hỏi đơn giản, tra cứu nhanh — tắt Thinking, dùng effort Low/Medium để tiết kiệm chi phí và có kết quả nhanh. Với bài toán nhiều bước, code phức tạp hoặc cần độ chính xác cao — bật Thinking và tăng effort lên High/Extra/Max.
-  </div>
-
-  <h2 class="section-heading">Mô hình lựa chọn model theo bài toán</h2>
+  <h2 class="section-heading">Mô hình kiến trúc</h2>
   <div class="mermaid">
   flowchart LR
-      User(("👤<br/><b>Người dùng</b>"))
-      Haiku["<img src='../../assets/svg-icon/claude-logo.svg' style='width:30px;height:30px;'/><br/><b>Claude Haiku</b><br/>⚡ Nhanh · 💰 Rẻ nhất"]
-      Sonnet["<img src='../../assets/svg-icon/claude-logo.svg' style='width:30px;height:30px;'/><br/><b>Claude Sonnet</b><br/>⚖️ Cân bằng"]
-      Opus["<img src='../../assets/svg-icon/claude-logo.svg' style='width:30px;height:30px;'/><br/><b>Claude Opus</b><br/>🧠 Mạnh nhất"]
-      Fable["<img src='../../assets/svg-icon/claude-logo.svg' style='width:30px;height:30px;'/><br/><b>Claude Fable 5</b><br/>🚀 Cao cấp nhất · Agentic dài hạn"]
-
-      User -->|"Tác vụ đơn giản, số lượng lớn"| Haiku
-      User -->|"Công việc hằng ngày, coding"| Sonnet
-      User -->|"Tác vụ phức tạp, suy luận sâu"| Opus
-      User -->|"Tác vụ agentic phức tạp nhất, chạy dài hạn"| Fable
+      User["👤<br/><b>Người dùng</b>"] --> PromptBox["📝<br/><b>Prompt</b><br/>Câu hỏi / yêu cầu"]
+      PromptBox --> Tokenize["🔤<br/><b>Tokenization</b><br/>Chia nhỏ thành token"]
+      Tokenize --> Model["🧠<br/><b>LLM (Claude)</b><br/>Dự đoán token kế tiếp<br/>dựa trên xác suất"]
+      Model -->|"Lặp lại cho từng token"| Model
+      Model --> Detokenize["🔡<br/><b>Ghép token</b><br/>thành câu trả lời"]
+      Detokenize --> Output["💬<br/><b>Phản hồi</b><br/>trả về người dùng"]
   </div>
-  <p class="arch-caption">Chọn model theo độ khó của bài toán — không nên dùng Opus cho tác vụ đơn giản vì tốn chi phí không cần thiết, và không nên dùng Haiku cho bài toán cần suy luận sâu vì dễ cho kết quả chưa đủ chính xác.</p>
+  <p class="arch-caption">
+    Toàn bộ quá trình chỉ là dự đoán token tiếp theo lặp đi lặp lại — không có bước "tra cứu sự thật" hay
+    "kiểm tra logic" nào mặc định. Đây chính là lý do gốc rễ của phần lớn hiểu lầm bên dưới: model có thể sinh ra
+    câu trả lời nghe rất tự tin nhưng sai (hallucination), vì bản chất nó chỉ đang chọn token có xác suất cao nhất.
+  </p>
+
+  <h2 class="section-heading">Những hiểu lầm phổ biến</h2>
+
+  <div class="compare-grid">
+    <div class="compare-card">
+      <h4>❌ Hiểu lầm: "AI hiểu và suy nghĩ như con người"</h4>
+      <ul>
+        <li class="cross">Cho rằng AI có ý thức, chủ ý, hoặc thực sự "hiểu" ý nghĩa câu hỏi.</li>
+        <li class="cross">Tin tưởng tuyệt đối vào lập luận (reasoning) hiển thị trên màn hình.</li>
+      </ul>
+    </div>
+    <div class="compare-card green">
+      <h4>✅ Thực tế</h4>
+      <ul>
+        <li>AI dự đoán token dựa trên xác suất thống kê học được từ dữ liệu huấn luyện, không có nhận thức.</li>
+        <li>"Suy luận" (reasoning) là mô phỏng bằng cách sinh văn bản trung gian, không phải quá trình tư duy thật.</li>
+      </ul>
+    </div>
+
+    <div class="compare-card">
+      <h4>❌ Hiểu lầm: "AI luôn luôn đúng, không bao giờ sai"</h4>
+      <ul>
+        <li class="cross">Copy-paste kết quả AI trả về mà không kiểm tra lại (đặc biệt số liệu, code, trích dẫn).</li>
+        <li class="cross">Tin ngay khi AI trả lời với giọng điệu tự tin, chắc chắn.</li>
+      </ul>
+    </div>
+    <div class="compare-card green">
+      <h4>✅ Thực tế</h4>
+      <ul>
+        <li>Model có thể "hallucinate" — bịa ra thông tin nghe hợp lý nhưng sai sự thật.</li>
+        <li>Luôn cần con người review, đối chiếu nguồn, đặc biệt với thông tin quan trọng (pháp lý, y tế, số liệu tài chính).</li>
+      </ul>
+    </div>
+
+    <div class="compare-card">
+      <h4>❌ Hiểu lầm: "AI nhớ mọi thứ trong mọi cuộc trò chuyện"</h4>
+      <ul>
+        <li class="cross">Nghĩ rằng chat hôm qua tự động được AI "nhớ" khi mở đoạn chat mới.</li>
+        <li class="cross">Ngạc nhiên khi Claude "quên" thông tin đã nói ở đầu một đoạn chat rất dài.</li>
+      </ul>
+    </div>
+    <div class="compare-card green">
+      <h4>✅ Thực tế</h4>
+      <ul>
+        <li>Mỗi cuộc trò chuyện mới không có bộ nhớ từ các phiên trước, trừ khi dùng tính năng riêng (Projects, Memory).</li>
+        <li>Trong một phiên, model chỉ "nhìn thấy" nội dung nằm trong context window — nội dung quá dài có thể bị cắt bớt hoặc bị "loãng" ưu tiên.</li>
+      </ul>
+    </div>
+
+    <div class="compare-card">
+      <h4>❌ Hiểu lầm: "Model mạnh nhất (Opus) luôn là lựa chọn tốt nhất"</h4>
+      <ul>
+        <li class="cross">Luôn chọn model cao cấp nhất cho mọi tác vụ, kể cả việc đơn giản.</li>
+        <li class="cross">Không quan tâm đến chi phí và tốc độ phản hồi khi chọn model.</li>
+      </ul>
+    </div>
+    <div class="compare-card green">
+      <h4>✅ Thực tế</h4>
+      <ul>
+        <li>Model mạnh hơn (Opus, Fable 5) thường chậm hơn và tốn chi phí hơn — phù hợp bài toán phức tạp, cần suy luận sâu.</li>
+        <li>Model nhẹ (Haiku) đủ tốt và nhanh, rẻ hơn nhiều cho các tác vụ đơn giản, lặp lại.</li>
+      </ul>
+    </div>
+
+    <div class="compare-card">
+      <h4>❌ Hiểu lầm: "AI Agent tự động làm mọi việc, không cần giám sát"</h4>
+      <ul>
+        <li class="cross">Để Claude Code hoặc AI Agent tự chạy các lệnh nguy hiểm (xoá dữ liệu, deploy production) mà không review.</li>
+        <li class="cross">Nghĩ Agent "biết" điều gì đúng/sai với riêng dự án hoặc tổ chức của mình.</li>
+      </ul>
+    </div>
+    <div class="compare-card green">
+      <h4>✅ Thực tế</h4>
+      <ul>
+        <li>AI Agent chỉ là LLM được cấp thêm công cụ (tools) và chạy theo vòng lặp — vẫn có thể chọn sai công cụ hoặc hiểu sai yêu cầu.</li>
+        <li>Luôn cần con người xác nhận (approval) với các hành động rủi ro cao, không thể hoàn tác.</li>
+      </ul>
+    </div>
+
+    <div class="compare-card">
+      <h4>❌ Hiểu lầm: "Prompt càng dài, càng nhiều chi tiết thì AI càng hiểu đúng"</h4>
+      <ul>
+        <li class="cross">Viết prompt dài dòng, lặp ý, không có cấu trúc rõ ràng.</li>
+        <li class="cross">Nhồi nhét tất cả thông tin vào một câu hỏi thay vì chia nhỏ, làm rõ từng bước.</li>
+      </ul>
+    </div>
+    <div class="compare-card green">
+      <h4>✅ Thực tế</h4>
+      <ul>
+        <li>Prompt rõ ràng, có cấu trúc (mục tiêu, ngữ cảnh, ràng buộc, ví dụ) hiệu quả hơn nhiều so với prompt dài nhưng lan man.</li>
+        <li>Chia nhỏ tác vụ phức tạp thành nhiều bước thường cho kết quả chính xác hơn một prompt "ôm đồm".</li>
+      </ul>
+    </div>
+  </div>
 
   <h2 class="section-heading">Use Cases</h2>
   <div class="usecase-grid">
     <div class="usecase-card">
-      <h4>Haiku — Xử lý số lượng lớn</h4>
-      <p>Phân loại email, trích xuất dữ liệu từ tài liệu, chatbot trả lời nhanh các câu hỏi đơn giản.</p>
+      <h4>Luôn review kết quả quan trọng</h4>
+      <p>Với code trước khi merge, số liệu trước khi báo cáo, hay nội dung pháp lý — luôn đối chiếu nguồn hoặc kiểm thử thay vì tin tuyệt đối vào AI.</p>
     </div>
     <div class="usecase-card">
-      <h4>Sonnet — Công việc hằng ngày</h4>
-      <p>Viết và refactor code với Claude Code, soạn tài liệu, phân tích dữ liệu, hầu hết tác vụ trong khóa học này.</p>
+      <h4>Chọn model theo bài toán</h4>
+      <p>Dùng Haiku cho tác vụ đơn giản, lặp lại; dùng Sonnet/Opus cho tác vụ cần suy luận sâu, đa bước — tối ưu cả chi phí và tốc độ.</p>
     </div>
     <div class="usecase-card">
-      <h4>Opus — Bài toán phức tạp</h4>
-      <p>Nghiên cứu chuyên sâu, lên chiến lược, giải quyết vấn đề nhiều bước đòi hỏi độ chính xác và suy luận cao.</p>
+      <h4>Giám sát AI Agent ở hành động rủi ro cao</h4>
+      <p>Bật chế độ xác nhận thủ công (approval) khi để Claude Code thao tác với production, database, hoặc lệnh xoá/ghi đè dữ liệu.</p>
     </div>
     <div class="usecase-card">
-      <h4>Fable 5 — Agentic dài hạn</h4>
-      <p>Tự lập kế hoạch và thực thi các tác vụ nhiều bước, chạy tự động trong thời gian dài với ít cần con người can thiệp giữa chừng — phù hợp cho các dự án agent phức tạp nhất.</p>
+      <h4>Cung cấp lại ngữ cảnh khi cần</h4>
+      <p>Dùng Claude Projects hoặc file CLAUDE.md để lưu ngữ cảnh xuyên suốt nhiều phiên làm việc, thay vì kỳ vọng AI tự nhớ.</p>
     </div>
   </div>
 
   <h2 class="section-heading">Thông tin bổ sung</h2>
   <p class="body-text">
-    Mỗi model đều có giới hạn về <strong>context window</strong> (lượng token tối đa đọc được trong một lần trò
-    chuyện) và <strong>knowledge cutoff</strong> (mốc thời gian dữ liệu huấn luyện) — Claude không tự biết các sự
-    kiện xảy ra sau mốc này trừ khi được cung cấp thêm thông tin trong prompt hoặc qua công cụ tìm kiếm. Để tối ưu
-    chi phí, nên bắt đầu với Sonnet cho phần lớn công việc hằng ngày, chỉ chuyển sang Opus khi thực sự cần độ chính
-    xác cao, và dùng Haiku cho các tác vụ lặp lại với khối lượng lớn.
+    Hiểu đúng bản chất "dự đoán token tiếp theo" của Generative AI không làm giảm giá trị của công cụ — ngược lại,
+    nó giúp học viên biết khi nào nên tin tưởng, khi nào cần kiểm chứng, và khi nào cần thiết kế thêm lớp giám sát
+    (guardrail) khi giao việc cho AI Agent. Các chương tiếp theo trong khoá học sẽ đi sâu vào cách viết prompt hiệu
+    quả và cách cấu hình Claude Code an toàn — dựa trên chính những nguyên tắc đã nêu ở chương này.
   </p>
-  <div class="alert alert-info">
-    <strong>Claude Fable 5:</strong> Ra mắt giữa năm 2026, đây là model "Mythos-class" đầu tiên được Anthropic đưa
-    ra sử dụng rộng rãi qua Claude API, Claude Platform, Amazon Bedrock, Google Cloud và Microsoft Foundry, cũng như
-    trên Claude.ai, Claude Desktop App và Claude Code. Fable 5 có chi phí cao nhất trong 4 dòng model (khoảng
-    $10/triệu token input và $50/triệu token output tại thời điểm ra mắt — giá có thể thay đổi theo thời gian), do
-    đó chỉ nên dùng cho các tác vụ agentic phức tạp nhất, cần chạy tự động trong thời gian dài. Với công việc hằng
-    ngày trong khóa học này, Sonnet vẫn là lựa chọn mặc định hợp lý nhất.
-  </div>
 
+  <script>mermaid.initialize({ startOnLoad: true, theme: 'default' });</script>
 </body>
 </html>

@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Claude Cowork & Claude Design – Claude 101</title>
+  <title>Claude Code – Claude 101</title>
   <link rel="stylesheet" href="../../styles.css" />
   <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
   <script src="../../mermaid-config.js"></script>
@@ -16,72 +16,88 @@
   <div class="chapter-breadcrumb">
     <span class="section-part">2. Làm quen với Claude</span>
     <span class="sep">/</span>
-    <span class="chapter-part">Claude Cowork & Claude Design</span>
+    <span class="chapter-part">Claude Code</span>
   </div>
 
   <h2 class="section-heading">Giới thiệu</h2>
   <p class="body-text">
-    Bên cạnh Claude Desktop App và Claude Code, hệ sinh thái Claude còn có hai công cụ hướng tới nhu cầu làm việc
-    nhóm và tài liệu trực quan: <strong>Claude Cowork</strong> <span class="badge badge-purple">Mới</span> — không
-    gian cộng tác cho phép nhiều thành viên cùng tham gia một phiên làm việc với Claude, chia sẻ ngữ cảnh và theo dõi
-    tiến độ tác vụ theo thời gian thực; và <strong>Claude Design</strong> <span class="badge badge-purple">Mới</span>
-    — công cụ hỗ trợ dựng tài liệu, sơ đồ và bản trình bày trực quan từ mô tả bằng ngôn ngữ tự nhiên. Hai công cụ này
-    không thay thế Desktop App/Claude Code mà mở rộng thêm chiều hướng cộng tác nhóm và trình bày nội dung.
+    <strong>Claude Code</strong> là trợ lý lập trình chạy trực tiếp trên dòng lệnh (Command Line Interface – CLI),
+    được thiết kế để làm việc ngay trong terminal hoặc tích hợp vào IDE (VS Code, JetBrains) thay vì chỉ trò chuyện
+    qua khung chat. Khác với Claude.ai/Claude Desktop App — nơi người dùng hỏi và Claude trả lời bằng văn bản — Claude
+    Code có thể <strong>tự đọc, tự sửa file, tự chạy lệnh</strong> ngay trên máy hoặc repository của người dùng để
+    hoàn thành một tác vụ lập trình từ đầu đến cuối.
   </p>
 
   <h2 class="section-heading">Các tính năng chính</h2>
   <ul class="feature-list">
-    <li><strong>Claude Cowork — Không gian làm việc chung:</strong> nhiều thành viên cùng truy cập một phiên làm việc, thấy được lịch sử trao đổi và các tác vụ Claude đang/đã thực hiện.</li>
-    <li><strong>Claude Cowork — Phân chia & theo dõi tác vụ:</strong> giao việc cho Claude ngay trong không gian nhóm, theo dõi trạng thái (đang xử lý, cần review, hoàn tất) như một board công việc.</li>
-    <li><strong>Claude Cowork — Ngữ cảnh dùng chung:</strong> tài liệu, quy chuẩn của nhóm được chia sẻ chung, tránh mỗi thành viên phải tự cung cấp lại ngữ cảnh riêng lẻ.</li>
-    <li><strong>Claude Design — Sinh tài liệu/trình bày trực quan:</strong> tạo bản trình bày (slide), tài liệu định dạng, sơ đồ từ mô tả ngắn gọn bằng ngôn ngữ tự nhiên.</li>
-    <li><strong>Claude Design — Chỉnh sửa lặp lại (iterative):</strong> tinh chỉnh bố cục, nội dung qua nhiều vòng phản hồi, giữ nhất quán phong cách xuyên suốt tài liệu.</li>
+    <li><strong>Thao tác trực tiếp trên filesystem:</strong> đọc, tạo, sửa nhiều file trong project mà không cần copy-paste code qua lại giữa chat và editor.</li>
+    <li><strong>Chạy được lệnh hệ thống:</strong> tự thực thi command (build, test, git, package manager...) và đọc kết quả để tự điều chỉnh bước tiếp theo.</li>
+    <li><strong>Làm việc theo vòng lặp agentic:</strong> tự lập kế hoạch (Plan), thực hiện (Code), rồi tự kiểm tra lại kết quả (Verify) — không dừng lại sau một câu trả lời như chat thông thường.</li>
+    <li><strong>Nhiều chế độ tương tác:</strong> Plan mode (chỉ lên kế hoạch, chưa sửa code), Auto-accept mode (tự động thực hiện thay đổi), hoặc xác nhận từng bước (Accept Edits) tuỳ mức độ tin tưởng.</li>
+    <li><strong>Mở rộng qua Skills, Sub-agent, MCP, Hooks:</strong> tuỳ biến hành vi và kết nối thêm hệ thống bên ngoài (sẽ học ở Section 3, 8, 9).</li>
+    <li><strong>Tích hợp Git:</strong> tự tạo commit, viết mô tả Pull Request, hỗ trợ code review ngay trong luồng làm việc.</li>
   </ul>
 
   <h2 class="section-heading">Mô hình kiến trúc</h2>
   <div class="mermaid">
   flowchart LR
-      subgraph Team["👥 Nhóm làm việc"]
-          U1["👤<br/><b>Thành viên A</b>"]
-          U2["👤<br/><b>Thành viên B</b>"]
-      end
-      Cowork["<img src='../../assets/svg-icon/claude-logo.svg' style='width:32px;height:32px;'/><br/><b>Claude Cowork</b><br/>Không gian & ngữ cảnh dùng chung"]
-      Design["<img src='../../assets/svg-icon/claude-logo.svg' style='width:32px;height:32px;'/><br/><b>Claude Design</b><br/>Sinh tài liệu, trình bày trực quan"]
-      API["<img src='../../assets/svg-icon/claude-logo.svg' style='width:28px;height:28px;'/><br/><b>Anthropic API</b><br/>Xử lý model"]
-      Output["<img src='../../assets/svg-icon/task.svg' style='width:28px;height:28px;'/><br/><b>Tài liệu / Slide / Sơ đồ</b>"]
+      User(("👤<br/><b>Developer</b>"))
+      CLI["<img src='../../assets/svg-icon/ide.svg' style='width:32px;height:32px;'/><br/><b>Claude Code CLI</b><br/>Terminal / IDE"]
+      FS["<img src='../../assets/svg-icon/laptop.svg' style='width:28px;height:28px;'/><br/><b>Filesystem cục bộ</b><br/>Đọc/ghi file, chạy lệnh"]
+      API["<img src='../../assets/svg-icon/claude-logo.svg' style='width:28px;height:28px;'/><br/><b>Anthropic API</b><br/>Xử lý model, lập kế hoạch"]
+      Git["<img src='../../assets/svg-icon/github.svg' style='width:28px;height:28px;'/><br/><b>Git / GitHub</b><br/>Commit, Pull Request"]
+      Tools["<img src='../../assets/svg-icon/container.svg' style='width:28px;height:28px;'/><br/><b>Skills · Sub-agent · MCP</b><br/>Mở rộng khả năng (tuỳ chọn)"]
 
-      U1 -->|"Trao đổi, giao việc"| Cowork
-      U2 -->|"Trao đổi, giao việc"| Cowork
-      Cowork -->|"Gửi yêu cầu"| API
-      Cowork -->|"Yêu cầu dựng nội dung trực quan"| Design
-      Design -->|"Gửi yêu cầu"| API
-      Design -->|"Xuất kết quả"| Output
+      User -->|"Gõ yêu cầu"| CLI
+      CLI -->|"Gửi ngữ cảnh + yêu cầu"| API
+      API -->|"Trả kế hoạch / lệnh cần chạy"| CLI
+      CLI -->|"Đọc/sửa file, thực thi command"| FS
+      CLI -->|"Commit, tạo PR"| Git
+      CLI -.->|"Gọi khi cần"| Tools
   </div>
-  <p class="arch-caption">Claude Cowork là lớp không gian làm việc nhóm dùng chung ngữ cảnh; khi cần dựng tài liệu/trình bày trực quan, nhóm có thể gọi tới Claude Design để sinh kết quả rồi tiếp tục tinh chỉnh trong cùng không gian cộng tác.</p>
+  <p class="arch-caption">Claude Code đóng vai trò "cầu nối" giữa model (qua Anthropic API) và máy của developer — model chỉ đưa ra kế hoạch/lệnh, còn Claude Code là thành phần thực thi trực tiếp trên filesystem, Git và các công cụ mở rộng.</p>
+
+  <h2 class="section-heading">Claude Code khác gì so với chat thông thường?</h2>
+  <table class="pricing-table">
+    <thead>
+      <tr><th>Tiêu chí</th><th>Chat thông thường (Claude.ai / Desktop App)</th><th>Claude Code</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Cách tương tác</td><td>Hỏi – đáp bằng văn bản</td><td>Ra lệnh cho một tác vụ, Claude tự thực hiện nhiều bước</td></tr>
+      <tr><td>Truy cập file</td><td>Người dùng tự copy-paste code vào/ra</td><td>Tự đọc và ghi trực tiếp lên file trong project</td></tr>
+      <tr><td>Thực thi lệnh</td><td>Không có</td><td>Tự chạy build/test/git và đọc kết quả để điều chỉnh</td></tr>
+      <tr><td>Vòng lặp làm việc</td><td>Một câu hỏi – một câu trả lời</td><td>Explore → Plan → Code → Verify, có thể lặp nhiều vòng tự động</td></tr>
+      <tr><td>Nơi sử dụng</td><td>Trình duyệt / ứng dụng desktop</td><td>Terminal, tích hợp trực tiếp trong IDE</td></tr>
+    </tbody>
+  </table>
 
   <h2 class="section-heading">Use Cases</h2>
   <div class="usecase-grid">
     <div class="usecase-card">
-      <h4>Họp nhóm & giao việc</h4>
-      <p>Cả nhóm cùng thảo luận trong một phiên Cowork, giao Claude thực hiện các tác vụ nhỏ và theo dõi tiến độ chung.</p>
+      <h4>Khởi tạo project mới</h4>
+      <p>Yêu cầu Claude Code dựng sẵn cấu trúc project theo tech stack chỉ định (vd: Next.js, FastAPI) chỉ với một câu lệnh mô tả yêu cầu.</p>
     </div>
     <div class="usecase-card">
-      <h4>Chuẩn hoá ngữ cảnh dự án</h4>
-      <p>Chia sẻ tài liệu quy chuẩn (style guide, quy trình) một lần cho cả nhóm thay vì từng người tự cung cấp ngữ cảnh riêng.</p>
+      <h4>Đọc hiểu codebase lạ</h4>
+      <p>Yêu cầu tóm tắt kiến trúc, luồng dữ liệu của một repository chưa từng biết trước, tiết kiệm thời gian đọc code thủ công.</p>
     </div>
     <div class="usecase-card">
-      <h4>Dựng bản trình bày nhanh</h4>
-      <p>Mô tả nội dung cần trình bày, để Claude Design sinh bản slide/tài liệu nháp, sau đó tinh chỉnh lại theo góp ý.</p>
+      <h4>Thêm tính năng / sửa lỗi</h4>
+      <p>Mô tả yêu cầu bằng ngôn ngữ tự nhiên, Claude Code tự tìm đúng file cần sửa, viết code và kiểm tra lại kết quả.</p>
+    </div>
+    <div class="usecase-card">
+      <h4>Refactor & viết test</h4>
+      <p>Tự động refactor đoạn code phức tạp và sinh kèm unit test tương ứng để đảm bảo hành vi không đổi.</p>
     </div>
   </div>
 
   <h2 class="section-heading">Thông tin bổ sung</h2>
   <p class="body-text">
-    Claude Cowork và Claude Design là các công cụ mở rộng, phù hợp khi công việc cần nhiều người cùng tham gia hoặc
-    cần tài liệu/trình bày trực quan — với công việc cá nhân hằng ngày, Claude Desktop App và Claude Code vẫn là hai
-    công cụ chính xuyên suốt khoá học này. Vì đây là các tính năng mới trong hệ sinh thái Claude, phạm vi tính năng
-    và điều kiện sử dụng (gói cước, giới hạn số thành viên) có thể thay đổi theo thời gian — nên kiểm tra tài liệu
-    chính thức của Anthropic trước khi áp dụng vào công việc thực tế của nhóm.
+    Vì Claude Code có thể thực thi lệnh và chỉnh sửa file trực tiếp, luôn nên review kỹ các thay đổi trước khi chấp
+    nhận, đặc biệt với lệnh có khả năng gây ảnh hưởng lớn (xoá file, thay đổi cấu hình hệ thống, thao tác Git như
+    force push). Nên bắt đầu với chế độ xác nhận từng bước (Accept Edits) khi mới làm quen, chỉ chuyển sang chế độ
+    tự động (Auto-accept) khi đã tin tưởng vào cách Claude Code xử lý loại tác vụ đó. Chi tiết các chế độ tương tác
+    (Plan/Auto-mode/Accept Edit) sẽ được thực hành kỹ ở bài Lab tiếp theo trong Section này.
   </p>
 
   <script>mermaid.initialize({ startOnLoad: true, theme: 'default' });</script>

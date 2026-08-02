@@ -25,14 +25,14 @@
     và có thể kèm theo script/tài nguyên bổ sung — giúp Claude Code biết cách thực hiện một loại tác vụ cụ thể một
     cách nhất quán, mỗi khi tác vụ đó xuất hiện. Thay vì phải giải thích lại từ đầu quy trình làm việc mỗi lần chat,
     Skill cho phép đóng gói quy trình đó <strong>một lần</strong>, lưu vào project hoặc vào máy cá nhân, và để Claude
-    Code <strong>tự phát hiện, tự gọi</strong> khi có yêu cầu phù hợp — không cần học viên phải nhớ và gõ lại hướng
+    Code <strong>tự phát hiện, tự gọi</strong> khi có yêu cầu phù hợp — không cần phải nhớ và gõ lại hướng
     dẫn chi tiết mỗi lần.
   </p>
 
   <h2 class="section-heading">Các tính năng chính</h2>
   <ul class="feature-list">
     <li>Mỗi Skill là một thư mục riêng chứa file <code>SKILL.md</code> — nơi khai báo tên, mô tả (description) và nội dung hướng dẫn chi tiết cho tác vụ đó.</li>
-    <li><strong>Auto-discovery</strong> — Claude Code tự quét toàn bộ Skill có sẵn, đọc phần <code>description</code> trong YAML frontmatter của từng Skill để biết Skill đó "dùng khi nào", không cần học viên tự chọn hay gọi tên Skill.</li>
+    <li><strong>Auto-discovery</strong> — Claude Code tự quét toàn bộ Skill có sẵn, đọc phần <code>description</code> trong YAML frontmatter của từng Skill để biết Skill đó "dùng khi nào", không cần tự chọn hay gọi tên Skill.</li>
     <li>Skill chỉ được <strong>nạp toàn bộ nội dung</strong> (phần thân file <code>SKILL.md</code> + tài nguyên đi kèm) khi prompt của người dùng thật sự khớp với mô tả — giúp tiết kiệm context, không làm "nặng" system prompt khi không dùng đến.</li>
     <li>Có thể đặt ở 2 phạm vi: <strong>Project-level</strong> (<code>.claude/skills/</code> trong project, chia sẻ được cho cả team qua Git) hoặc <strong>User-level</strong> (thư mục cấu hình cá nhân, dùng cho mọi project trên máy).</li>
     <li>Cho phép đóng gói kèm script, template file, hoặc checklist — không chỉ là đoạn hướng dẫn text đơn thuần.</li>
@@ -50,7 +50,7 @@
 
   <h2 class="section-heading">Mô hình kiến trúc</h2>
   <div class="mermaid">
-  flowchart LR
+  flowchart TD
       User(("👤<br/><b>Học viên</b>"))
       CC["<img src='../../assets/svg-icon/claude-logo.svg' style='width:30px;height:30px;'/><br/><b>Claude Code</b>"]
 
