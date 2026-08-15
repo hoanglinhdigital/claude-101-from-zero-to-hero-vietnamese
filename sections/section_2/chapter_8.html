@@ -37,6 +37,172 @@
     <li><strong>Dùng system prompt/CLAUDE.md cho ngữ cảnh (context) lặp lại:</strong> các quy tắc, style, ràng buộc dùng nhiều lần nên đưa vào system prompt hoặc file CLAUDE.md thay vì gõ lại mỗi lần chat.</li>
   </ul>
 
+  <h3 class="sub-heading">1. Kỹ thuật sử dụng XML tag</h3>
+  <p class="body-text">
+    Claude được huấn luyện để nhận diện và xử lý tốt các đoạn văn bản được bao bọc trong thẻ XML (ví dụ
+    <code>&lt;document&gt;</code>, <code>&lt;instructions&gt;</code>, <code>&lt;example&gt;</code>). Dùng XML tag giúp
+    tách bạch rõ ràng từng phần trong một prompt dài — ngữ cảnh (context), yêu cầu, ví dụ mẫu, ràng buộc định dạng —
+    thay vì gộp chung thành một đoạn văn khiến Claude phải tự đoán ranh giới giữa các phần. Tên thẻ không bắt buộc
+    theo chuẩn nào, chỉ cần đặt tên rõ nghĩa và dùng nhất quán (thẻ mở phải có thẻ đóng tương ứng).
+  </p>
+  <ul class="feature-list">
+    <li>Tách riêng dữ liệu đầu vào (tài liệu, đoạn code) khỏi phần chỉ dẫn — giúp Claude không nhầm lẫn nội dung nào là dữ liệu cần xử lý, nội dung nào là yêu cầu.</li>
+    <li>Yêu cầu Claude trả lời đúng theo cấu trúc thẻ đã định nghĩa — dễ dàng parse kết quả bằng code nếu cần xử lý tự động.</li>
+    <li>Đặc biệt hữu ích khi prompt có nhiều ví dụ mẫu (few-shot) hoặc nhiều tài liệu tham chiếu cùng lúc.</li>
+  </ul>
+  <p class="body-text">Ví dụ: yêu cầu Claude phân tích một đoạn feedback khách hàng, tách rõ dữ liệu đầu vào và chỉ dẫn xử lý:</p>
+  <pre class="code-block"><code class="language-text">&lt;instructions&gt;
+Đọc feedback khách hàng trong thẻ &lt;feedback&gt; bên dưới. Trả lời theo đúng
+cấu trúc: &lt;sentiment&gt; (positive/negative/neutral), &lt;summary&gt; (tóm tắt 1 câu),
+&lt;action_needed&gt; (có cần đội CSKH liên hệ lại không, yes/no).
+&lt;/instructions&gt;
+
+&lt;feedback&gt;
+Tôi đã đặt hàng 2 tuần trước nhưng vẫn chưa nhận được, gọi hotline không ai
+nghe máy. Đây là lần thứ 2 tôi gặp tình trạng này.
+&lt;/feedback&gt;</code></pre>
+  <div class="alert alert-tip">
+    Khi prompt càng dài và có nhiều thành phần, dùng XML tag để phân tách càng giúp Claude giảm khả năng nhầm lẫn giữa
+    dữ liệu và chỉ dẫn — đây là kỹ thuật nên dùng mặc định cho các prompt phức tạp, không chỉ dành riêng cho lập trình viên.
+  </div>
+
+  <h3 class="sub-heading">2. Kỹ thuật Few-shot</h3>
+  <p class="body-text">
+    Few-shot prompting là kỹ thuật đưa vào prompt một vài ví dụ mẫu (thường 2-5 ví dụ) về cặp đầu vào/đầu ra mong
+    muốn, trước khi đưa ra yêu cầu thực tế. Claude sẽ học theo pattern từ các ví dụ này để tạo ra kết quả đúng định
+    dạng, đúng văn phong — hiệu quả hơn nhiều so với chỉ mô tả bằng lời cho các tác vụ có yêu cầu định dạng đặc thù
+    hoặc mang tính chủ quan (văn phong, cách phân loại).
+  </p>
+  <ul class="feature-list">
+    <li>Hiệu quả nhất khi tác vụ có định dạng đầu ra rõ ràng nhưng khó mô tả đầy đủ bằng lời (ví dụ: cách viết tiêu đề email, cách phân loại mức độ ưu tiên ticket).</li>
+    <li>Nên dùng ví dụ đa dạng — bao gồm cả trường hợp biên (edge case) — để Claude không chỉ học một khuôn mẫu cứng nhắc.</li>
+    <li>Kết hợp XML tag để đánh dấu rõ từng ví dụ (<code>&lt;example&gt;</code>) giúp Claude phân biệt ví dụ với yêu cầu thực tế cần xử lý.</li>
+  </ul>
+  <p class="body-text">Ví dụ: yêu cầu Claude viết lại tiêu đề commit Git theo đúng convention của team, dựa trên 3 ví dụ mẫu:</p>
+  <pre class="code-block"><code class="language-text">Viết lại tiêu đề commit theo đúng format các ví dụ sau (loại: mô tả ngắn gọn,
+viết thường, không chấm câu cuối):
+
+&lt;example&gt;
+Input: đã sửa lỗi không load được ảnh đại diện user
+Output: fix: user avatar không load được
+&lt;/example&gt;
+
+&lt;example&gt;
+Input: thêm chức năng export báo cáo ra file Excel
+Output: feat: thêm export báo cáo ra Excel
+&lt;/example&gt;
+
+&lt;example&gt;
+Input: dọn lại code phần xử lý thanh toán, không đổi logic
+Output: refactor: dọn code module thanh toán
+&lt;/example&gt;
+
+Input: sửa lại css cho form đăng ký bị lệch trên mobile
+Output:</code></pre>
+
+  <h3 class="sub-heading">3. Kỹ thuật Chain of Thought (CoT)</h3>
+  <p class="body-text">
+    Chain of Thought là kỹ thuật yêu cầu Claude trình bày từng bước suy luận trước khi đưa ra kết luận cuối cùng, thay
+    vì trả lời ngay kết quả. Với các tác vụ cần suy luận nhiều bước (tính toán, phân tích logic, so sánh nhiều
+    phương án), việc "nghĩ thành lời" giúp Claude ít bỏ sót bước trung gian và cho kết quả chính xác hơn hẳn so với
+    yêu cầu trả lời trực tiếp.
+  </p>
+  <ul class="feature-list">
+    <li>Cách đơn giản nhất: thêm cụm "hãy suy nghĩ từng bước" (think step by step) vào cuối prompt.</li>
+    <li>Có thể dùng thẻ XML để tách riêng phần suy luận và phần kết luận, ví dụ <code>&lt;thinking&gt;...&lt;/thinking&gt;</code> và <code>&lt;answer&gt;...&lt;/answer&gt;</code> — thuận tiện khi cần lấy tự động phần kết luận, bỏ qua phần suy luận.</li>
+    <li>Với các model Claude hỗ trợ Extended Thinking, có thể bật tính năng này thay vì tự yêu cầu CoT thủ công trong prompt — Claude sẽ tự suy luận trong một không gian riêng trước khi trả lời.</li>
+  </ul>
+  <p class="body-text">Ví dụ: yêu cầu Claude so sánh và chọn giải pháp lưu trữ dữ liệu phù hợp, có giải trình từng bước:</p>
+  <pre class="code-block"><code class="language-text">Team đang cần chọn giải pháp lưu trữ cho dữ liệu log ứng dụng: ghi khoảng
+5GB/ngày, chủ yếu để tra cứu khi debug, không cần truy vấn phức tạp, giữ
+tối đa 30 ngày. Hai lựa chọn: (1) PostgreSQL, (2) lưu file log trực tiếp +
+công cụ search log.
+
+Hãy suy nghĩ từng bước: liệt kê ưu/nhược điểm mỗi lựa chọn theo đúng nhu cầu
+trên, sau đó mới đưa ra kết luận nên chọn phương án nào.</code></pre>
+  <div class="alert alert-tip">
+    CoT đặc biệt hiệu quả khi kết hợp với việc yêu cầu Claude tự kiểm tra lại kết quả — ví dụ "sau khi tính xong, hãy
+    kiểm tra lại từng bước xem có sai sót không" — giúp phát hiện lỗi logic trước khi đưa ra câu trả lời cuối.
+  </div>
+
+  <h3 class="sub-heading">4. Kỹ thuật Role / System prompt</h3>
+  <p class="body-text">
+    System prompt là phần ngữ cảnh (context) được thiết lập riêng, đứng trước toàn bộ cuộc hội thoại, dùng để định
+    hình vai trò (role), phong cách trả lời, và các ràng buộc mà Claude cần tuân theo xuyên suốt — khác với tin nhắn
+    thông thường trong hội thoại. Gán đúng vai trò giúp Claude tập trung vào đúng góc nhìn chuyên môn, dùng đúng thuật
+    ngữ, và giữ nhất quán phong cách trả lời qua nhiều lượt hỏi đáp mà không cần lặp lại yêu cầu mỗi lần.
+  </p>
+  <ul class="feature-list">
+    <li>Dùng system prompt để cố định vai trò, đối tượng người đọc, giới hạn phạm vi trả lời (ví dụ: chỉ trả lời câu hỏi liên quan tới sản phẩm, không tư vấn ngoài phạm vi).</li>
+    <li>Với Claude Code, file <code>CLAUDE.md</code> đóng vai trò tương tự một system prompt cho toàn bộ project.</li>
+    <li>Nên mô tả vai trò gắn với hành vi cụ thể (cách trả lời, mức độ chi tiết) thay vì chỉ nêu chức danh chung chung.</li>
+  </ul>
+  <p class="body-text">Ví dụ: system prompt cho một trợ lý hỗ trợ kỹ thuật nội bộ, chỉ trả lời trong phạm vi tài liệu công ty:</p>
+  <pre class="code-block"><code class="language-text">Bạn là trợ lý hỗ trợ kỹ thuật nội bộ cho đội IT Helpdesk của công ty.
+Đối tượng người hỏi là nhân viên không rành kỹ thuật, vì vậy hãy trả lời
+ngắn gọn, từng bước rõ ràng, tránh thuật ngữ chuyên môn khi không cần thiết.
+
+Chỉ trả lời dựa trên tài liệu nội bộ được cung cấp trong ngữ cảnh (context).
+Nếu câu hỏi nằm ngoài phạm vi tài liệu, trả lời rằng bạn không có đủ thông
+tin và đề nghị người dùng liên hệ trực tiếp đội IT Helpdesk qua kênh #it-help.</code></pre>
+
+  <h3 class="sub-heading">5. Kỹ thuật chia nhỏ yêu cầu</h3>
+  <p class="body-text">
+    Với các tác vụ phức tạp, gộp toàn bộ yêu cầu vào một prompt duy nhất thường khiến Claude bỏ sót một số phần, hoặc
+    thực hiện đúng nhưng chất lượng không đồng đều giữa các phần. Chia nhỏ yêu cầu thành từng bước tuần tự — mỗi bước
+    một mục tiêu rõ ràng, dựa trên kết quả của bước trước — giúp kiểm soát chất lượng tốt hơn và dễ phát hiện, sửa
+    lỗi ngay tại bước xảy ra vấn đề thay vì phải làm lại từ đầu.
+  </p>
+  <div class="two-col">
+    <table class="compare-table">
+      <thead>
+        <tr><th>Gộp chung 1 yêu cầu</th><th>Chia nhỏ thành nhiều bước</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="cross">✗ Phân tích dữ liệu bán hàng quý 3, tìm nguyên nhân doanh số giảm, đề xuất giải pháp và viết luôn báo cáo hoàn chỉnh gửi ban giám đốc.</td>
+          <td class="check">✓ Bước 1: Phân tích dữ liệu, liệt kê các số liệu bất thường.</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td class="check">✓ Bước 2: Từ số liệu ở Bước 1, xác định 2-3 nguyên nhân khả dĩ nhất.</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td class="check">✓ Bước 3: Đề xuất giải pháp tương ứng với từng nguyên nhân ở Bước 2.</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td class="check">✓ Bước 4: Tổng hợp Bước 1-3 thành báo cáo hoàn chỉnh theo đúng format gửi ban giám đốc.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="body-text">
+    Với cách gộp chung, Claude phải tự cân đối khối lượng giữa 4 việc khác nhau trong cùng một lượt trả lời, dễ dẫn
+    tới báo cáo cuối bị hời hợt ở phần phân tích nguyên nhân. Với cách chia nhỏ, mỗi bước có thể được review và điều
+    chỉnh ngay trước khi chuyển sang bước tiếp theo — đặc biệt quan trọng khi làm việc với Claude Code cho các tác vụ
+    coding nhiều bước (phân tích yêu cầu → thiết kế → code → test).
+  </p>
+  <div class="compare-grid">
+    <div class="compare-card green">
+      <h4>✅ Nên chia nhỏ khi</h4>
+      <ul>
+        <li>Yêu cầu có nhiều bước phụ thuộc lẫn nhau (bước sau cần kết quả bước trước).</li>
+        <li>Cần kiểm tra, điều chỉnh kết quả trung gian trước khi đi tiếp.</li>
+        <li>Tác vụ coding phức tạp — nên tách riêng bước phân tích/thiết kế trước khi để Claude viết code.</li>
+      </ul>
+    </div>
+    <div class="compare-card red">
+      <h4>❌ Không cần chia nhỏ khi</h4>
+      <ul>
+        <li>Tác vụ đơn giản, một bước là đủ (ví dụ: dịch một đoạn văn ngắn).</li>
+        <li>Các phần việc độc lập, không phụ thuộc kết quả của nhau.</li>
+        <li>Chia quá nhỏ những việc đơn giản chỉ làm tốn thêm số lượt hỏi đáp không cần thiết.</li>
+      </ul>
+    </div>
+  </div>
+
   <h2 class="section-heading">Mẹo tối ưu chi phí</h2>
   <ul class="feature-list">
     <li><strong>Chọn đúng model theo độ khó:</strong> dùng Haiku cho tác vụ đơn giản khối lượng lớn, Sonnet cho công việc hằng ngày, chỉ dùng Opus/Fable khi thực sự cần suy luận sâu.</li>

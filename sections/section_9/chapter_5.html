@@ -39,14 +39,14 @@
       Stop["<img src='../../assets/svg-icon/Alarm.svg' style='width:26px;height:26px;'/><br/><b>Stop Hook</b><br/>notify-stop.ps1"]
       Log["📄<br/><b>hook-log.txt</b><br/>ghi timestamp + tên project"]
       Popup["<img src='../../assets/svg-icon/Alarm.svg' style='width:26px;height:26px;'/><br/>💬 MessageBox popup<br/>Windows Forms"]
-      Dev(("<img src='../../assets/svg-icon/developer.svg' style='width:26px;height:26px;'/><br/><b>Học viên</b>"))
+      Dev(("<img src='../../assets/svg-icon/developer.svg' style='width:26px;height:26px;'/><br/><b>User</b>"))
 
       CC --> Stop
       Stop --> Log
       Stop --> Popup
       Popup --> Dev
   </div>
-  <p class="arch-caption">Khi Claude Code phát sinh event Stop (hoàn thành tác vụ), Hook chạy một script PowerShell vừa ghi log vào file vừa hiện popup thông báo ngay trên màn hình, giúp học viên biết ngay mà không cần canh terminal.</p>
+  <p class="arch-caption">Khi Claude Code phát sinh event Stop (hoàn thành tác vụ), Hook chạy một script PowerShell vừa ghi log vào file vừa hiện popup thông báo ngay trên màn hình, giúp User biết ngay mà không cần canh terminal.</p>
 
   <h2 class="section-heading">Yêu cầu trước khi bắt đầu</h2>
   <ul class="feature-list">

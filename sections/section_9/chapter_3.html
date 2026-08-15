@@ -28,7 +28,7 @@
 
   <h2 class="section-heading">Các tính năng chính</h2>
   <ul class="feature-list">
-    <li><code>PostToolUse</code> hook có thể đọc thông tin về file vừa được sửa để chạy formatter tương ứng ngay sau khi Claude Code ghi thay đổi — không cần học viên tự nhớ chạy lệnh format.</li>
+    <li><code>PostToolUse</code> hook có thể đọc thông tin về file vừa được sửa để chạy formatter tương ứng ngay sau khi Claude Code ghi thay đổi — không cần User tự nhớ chạy lệnh format.</li>
     <li><code>PreToolUse</code> hook có thể kiểm tra nội dung command trước khi nó chạy, và ngăn hành động lại nếu phát hiện pattern nguy hiểm (tham khảo tài liệu chính thức để biết chính xác cơ chế/exit code dùng để chặn theo từng phiên bản Claude Code).</li>
     <li><code>Stop</code> hook có thể chạy bất kỳ hành động "phụ trợ" nào khi một tác vụ hoàn thành — ghi log, hiện thông báo, gọi tiếp một script nội bộ khác.</li>
     <li>Vì Hook chỉ là shell command thông thường, có thể kết hợp nhiều hành động trong cùng một Hook (vd vừa ghi log vừa hiện thông báo trong cùng một script).</li>
@@ -61,7 +61,7 @@
     </div>
     <div class="usecase-card">
       <h4>Thông báo khi hoàn thành tác vụ dài (Stop)</h4>
-      <p>Khi Claude Code hoàn thành một tác vụ mất nhiều thời gian (vd refactor lớn, sinh nhiều file), Hook <code>Stop</code> ghi log và/hoặc hiện thông báo để học viên biết ngay mà không cần ngồi canh terminal.</p>
+      <p>Khi Claude Code hoàn thành một tác vụ mất nhiều thời gian (vd refactor lớn, sinh nhiều file), Hook <code>Stop</code> ghi log và/hoặc hiện thông báo để User biết ngay mà không cần ngồi canh terminal.</p>
     </div>
   </div>
 
@@ -74,7 +74,7 @@
   </div>
   <ul class="feature-list">
     <li><strong>Luôn review kỹ nội dung command</strong> trước khi thêm vào <code>settings.json</code> — đặc biệt với Hook copy từ nguồn không tin cậy (repository lạ, script chia sẻ trên mạng chưa kiểm chứng).</li>
-    <li><strong>Tránh để Hook tự ý gửi dữ liệu ra ngoài</strong> (gọi API/webhook không rõ mục đích) mà học viên không kiểm soát được nội dung gửi đi — vì Hook chạy tự động, không có bước xác nhận thủ công như khi model đề xuất chạy một tool thông thường.</li>
+    <li><strong>Tránh để Hook tự ý gửi dữ liệu ra ngoài</strong> (gọi API/webhook không rõ mục đích) mà User không kiểm soát được nội dung gửi đi — vì Hook chạy tự động, không có bước xác nhận thủ công như khi model đề xuất chạy một tool thông thường.</li>
     <li><strong>Test riêng Hook trước khi đưa vào cấu hình chính thức</strong> — chạy thử command trực tiếp trong terminal để chắc chắn không có lỗi cú pháp hoặc hành vi ngoài ý muốn, vì lỗi trong Hook có thể làm gián đoạn luồng làm việc của cả phiên Claude Code.</li>
     <li><strong>Hạn chế phạm vi tác động</strong> — ưu tiên Hook chỉ đọc/kiểm tra thay vì Hook có khả năng ghi/xoá dữ liệu trên phạm vi rộng, trừ khi thực sự cần thiết.</li>
   </ul>

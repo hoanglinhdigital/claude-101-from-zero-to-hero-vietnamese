@@ -3,10 +3,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Quy trình làm việc chuẩn: Explore → Plan → Code → Verify – Claude 101</title>
+  <title>Giới thiệu chương – Claude Code cho Developer – Claude 101</title>
   <link rel="stylesheet" href="../../styles.css" />
-  <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
-  <script src="../../mermaid-config.js"></script>
   <link rel="stylesheet" href="../../prism.css" />
   <script src="../../prism.js"></script>
   <script src="../../script.js"></script>
@@ -16,97 +14,30 @@
   <div class="chapter-breadcrumb">
     <span class="section-part">4. Claude Code cho Developer</span>
     <span class="sep">/</span>
-    <span class="chapter-part">Quy trình làm việc chuẩn: Explore → Plan → Code → Verify</span>
+    <span class="chapter-part">Giới thiệu chương</span>
   </div>
 
   <h2 class="section-heading">Giới thiệu</h2>
   <p class="body-text">
-    Khi giao một tác vụ code cho Claude Code, kết quả tốt nhất không đến từ việc gõ một yêu cầu duy nhất và chờ
-    Claude "làm hết trong một lần" — mà đến từ việc đi theo một <strong>quy trình làm việc chuẩn gồm 4 giai đoạn</strong>:
-    <strong>Explore → Plan → Code → Verify</strong>. Quy trình này giúp Claude Code hiểu đúng ngữ cảnh trước khi sửa
-    code, cho học viên cơ hội duyệt lại kế hoạch trước khi thay đổi được thực thi, và luôn kết thúc bằng một bước
-    kiểm chứng kết quả — thay vì "vibe coding" (code theo cảm tính, tin tưởng mù quáng vào output của AI).
+    Chương này giúp các bạn hiểu & áp dụng Claude Code vào quy trình phát triển phần mềm hàng ngày của một Developer: khởi tạo project
+    từ đầu, tổ chức quy tắc làm việc, đọc hiểu codebase sẵn có, thêm tính năng mới kèm unit test, viết API testing,
+    và tích hợp với Git để review pull request tự động. Toàn bộ chương xoay quanh một project thực hành xuyên suốt —
+    ứng dụng <strong>Quản lý chi tiêu (Expense Management)</strong> xây dựng bằng Next.js + Prisma + MySQL — giúp các bạn trải nghiệm trọn vẹn vòng đời phát triển với sự hỗ trợ của Claude Code.
   </p>
 
-  <h2 class="section-heading">Các tính năng chính</h2>
+  <h2 class="section-heading">Mục tiêu chương</h2>
   <ul class="feature-list">
-    <li><strong>Explore</strong> — Claude Code đọc và tìm hiểu codebase liên quan, chưa sửa bất kỳ file nào.</li>
-    <li><strong>Plan</strong> — Claude Code đề xuất kế hoạch thực hiện chi tiết, học viên đọc và duyệt (approve) trước khi cho thực thi.</li>
-    <li><strong>Code</strong> — Claude Code thực thi thay đổi đúng theo kế hoạch đã được duyệt: sửa file, tạo file mới, chạy lệnh cần thiết.</li>
-    <li><strong>Verify</strong> — Build, chạy test/lint, xem lại <code>git diff</code> để xác nhận thay đổi đúng như mong đợi, không phát sinh lỗi ngoài ý muốn.</li>
-    <li>4 giai đoạn này lặp lại theo vòng — nếu Verify phát hiện vấn đề, quay lại Explore/Plan để điều chỉnh, không nên "vá" tạm bằng một prompt sửa lỗi rời rạc.</li>
+    <li>Nắm được quy trình làm việc chuẩn với Claude Code: <strong>Explore → Plan → Code → Verify</strong>.</li>
+    <li>Dùng Claude Code khởi tạo một project mới với tech stack Next.js + Prisma + MySQL trong thời gian ngắn.</li>
+    <li>Biết cách tổ chức project và định nghĩa quy tắc làm việc cho Claude Code thông qua file <code>CLAUDE.md</code>.</li>
+    <li>Nâng cấp quy trình làm việc bằng Skill và Sub-Agent để tái sử dụng cho các tác vụ lặp lại.</li>
+    <li>Yêu cầu Claude Code thêm tính năng mới và tự viết unit test đi kèm.</li>
+    <li>Dùng Claude Code viết API testing và tích hợp vào workflow phát triển.</li>
+    <li>Hiểu giới hạn và rủi ro khi để Claude Code thao tác trực tiếp với Git.</li>
+    <li>Dùng Claude Code hỗ trợ review pull request tự động.</li>
+    <li>Triển khai hệ thống đã xây dựng lên Cloud AWS.</li>
   </ul>
 
-  <h2 class="section-heading">Mô hình kiến trúc</h2>
-  <div class="mermaid">
-  flowchart LR
-      User(("👤<br/><b>Developer</b>"))
-      Explore["🔍 <b>1. Explore</b><br/>Đọc code, hiểu cấu trúc<br/><i>Chưa sửa gì</i>"]
-      Plan["📋 <b>2. Plan</b><br/>Đề xuất kế hoạch<br/><i>Chờ duyệt (approve)</i>"]
-      Code["<img src='../../assets/svg-icon/ide.svg' style='width:28px;height:28px;'/><br/><b>3. Code</b><br/>Thực thi thay đổi<br/><i>Sửa/tạo file, chạy lệnh</i>"]
-      Verify["✅ <b>4. Verify</b><br/>Build / test / lint<br/><i>Review git diff</i>"]
 
-      User -->|"Giao tác vụ"| Explore
-      Explore --> Plan
-      Plan -->|"Học viên Approve"| Code
-      Plan -->|"Học viên yêu cầu sửa kế hoạch"| Explore
-      Code --> Verify
-      Verify -->|"Đạt yêu cầu"| User
-      Verify -->|"Phát hiện vấn đề"| Explore
-  </div>
-  <p class="arch-caption">Explore → Plan → Code → Verify là một vòng lặp: nếu Verify phát hiện sai lệch, quay lại Explore/Plan để điều chỉnh kế hoạch thay vì chỉ sửa vá tạm ở bước Code.</p>
-
-  <h3 class="sub-heading">Chi tiết từng giai đoạn</h3>
-  <div class="phase-timeline">
-    <div class="phase-item">
-      <strong>Explore</strong>
-      Yêu cầu Claude Code đọc file liên quan, tóm tắt cách hoạt động hiện tại. Không cho phép sửa file ở bước này.
-    </div>
-    <div class="phase-item purple">
-      <strong>Plan</strong>
-      Chuyển sang Plan mode (<code>Shift+Tab</code>). Claude Code trình bày các bước dự kiến thực hiện, học viên đọc kỹ và duyệt hoặc yêu cầu chỉnh sửa kế hoạch.
-    </div>
-    <div class="phase-item orange">
-      <strong>Code</strong>
-      Sau khi kế hoạch được duyệt, Claude Code thực thi: sửa file, tạo file mới, cài package, chạy lệnh cần thiết.
-    </div>
-    <div class="phase-item green">
-      <strong>Verify</strong>
-      Chạy build/test/lint, đọc lại <code>git diff</code> từng file đã đổi để xác nhận đúng phạm vi, không sửa nhầm chỗ không liên quan.
-    </div>
-  </div>
-
-  <div class="alert alert-tip">
-    <strong>Vì sao không nên bỏ qua bước Explore và Plan?</strong> Với codebase nhỏ, một prompt trực tiếp có thể vẫn cho kết quả đúng. Nhưng với codebase lớn hoặc tác vụ ảnh hưởng nhiều file, bỏ qua Explore/Plan khiến Claude Code dễ đoán sai ngữ cảnh (vd: sửa nhầm phiên bản cũ của một hàm đã được refactor ở nơi khác), dẫn đến phải sửa lại nhiều lần — tốn thời gian hơn so với việc dành 1-2 phút đọc kế hoạch trước.
-  </div>
-
-  <h2 class="section-heading">Use Cases</h2>
-  <div class="usecase-grid">
-    <div class="usecase-card">
-      <h4>Thêm tính năng vào codebase lớn</h4>
-      <p>Explore giúp Claude Code hiểu đúng convention hiện có trước khi Plan đề xuất vị trí đặt code mới, tránh phá vỡ cấu trúc sẵn có.</p>
-    </div>
-    <div class="usecase-card">
-      <h4>Sửa bug khó tái hiện</h4>
-      <p>Explore kỹ luồng dữ liệu liên quan đến bug trước khi Plan đề xuất hướng fix, tránh sửa nhầm nguyên nhân triệu chứng thay vì gốc rễ.</p>
-    </div>
-    <div class="usecase-card">
-      <h4>Refactor phạm vi rộng</h4>
-      <p>Plan giúp học viên thấy trước toàn bộ danh sách file sẽ bị ảnh hưởng trước khi cho Claude Code thực thi đồng loạt.</p>
-    </div>
-  </div>
-
-  <h2 class="section-heading">Thông tin bổ sung</h2>
-  <p class="body-text">
-    Trong thực tế, 4 giai đoạn này không nhất thiết cần 4 prompt riêng biệt — Claude Code có thể tự chuyển từ Explore
-    sang Plan trong cùng một phiên trò chuyện khi đang ở Plan mode. Điều quan trọng là học viên luôn <strong>dừng lại
-    ở bước Plan để đọc và duyệt</strong> trước khi cho phép Code thực thi, và luôn có bước Verify cuối cùng — không
-    nên coi phản hồi "đã hoàn thành" của Claude Code là đủ để tin tưởng tuyệt đối.
-  </p>
-  <div class="alert alert-warning">
-    <strong>Lưu ý:</strong> Với các tác vụ đơn giản, lặp lại nhiều lần và rủi ro thấp (vd: đổi tên biến, sửa lỗi chính tả trong comment), có thể rút ngắn quy trình và bỏ qua Plan mode để làm việc nhanh hơn. Tuy nhiên bước Verify (xem lại diff) nên luôn được giữ lại, bất kể tác vụ lớn hay nhỏ.
-  </div>
-
-  <script>mermaid.initialize({ startOnLoad: true, theme: 'default' });</script>
 </body>
 </html>

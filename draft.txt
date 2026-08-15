@@ -1,0 +1,33 @@
+Tạo giúp tôi nội dung bài lab về cách sử dụng Skills và Agent trong dự án. Output to: sections\section_4\chapter_5.html
+Tiêu đề: Nâng cấp quy trình làm việc với Skill và Sub-Agent
+Yêu cầu: Đã hoàn thành việc khởi tạo project, tái cấu trúc và add file CLAUDE.md tại 2 bài lab sau:
+- sections\section_4\chapter_3.html
+- sections\section_4\chapter_4.html
+Lưu ý: Chỉ tập trung vào thực hành vì học viên đã học qua chương giới thiệu về Skill và Agent/Sub-Agent. Chương này chỉ tập trung vào việc ứng dụng skill & Agent/Sub-Agent vào một project thực tế tạo app quản lý chi phí.
+Nội dung của chương gồm:
+# Giới hạn hiện tại của project
+- Chưa hỗ trợ multi-user. Lý do: chưa định nghĩa quy tắc thiết kế Entity cho Prisma, Claude Code "tự biên tự diễn", thiết kế theo hướng đơn giản nhất có 2 bảng Category và Expense.
+- Chưa có phong cách thiết kế UI, không có responsive, không có quy tắc về bảng màu, font chữ, cách sử dụng Icon/Emoji trong ứng dụng.
+- Giao diện quá xấu! Lý do: yêu cầu claude implement tính năng nhưng không có layout, mockup, không có Screen transition rule.
+- Phụ thuộc nhiều vào kỹ thuật promp, nếu quên đưa quy tắc sẽ tạo ra tính năng lệch so với tiêu chuẩn chung (thiết kế, convention...).
+Giải pháp: Tạo các skill & Agent chuyên biệt cho các task thiết kế UI, Coding Frontend, Coding Backend, Thiết kế database sử dụng Prisma, Agent liên quan testing để verify kết quả sau khi implement xong một tính năng.
+
+# Tạo các Skill và Agent cần thiết.
+Hướng dẫn học viên sử dụng tính năng Skill creator, Agent creator sẵn có của Claude CLi để tạo các Skill & Agent sau:
+## Danh sách các skill cần tạo:
+- Skill Frontend Coding giúp thống nhất phong cách thiết kế, responsive, bảng màu, font chữ, emoji, sử dụng Lucide icon, sử dụng Tailwindcss, hạn chế sử dụng css class tự chế. Tách component khi có thể để tăng tính tái sử dụng, lưu vào /src/app/components
+- Skill API Design giúp tạo API theo chuẩn OpenAPI 3.0 swagger theo từng cụm chức năng như account, analysis, auth, category, contact,currency, home, transaction
+- Skill Backend Coding giúp thống nhất cách phân chia APi path, lưu vào /src/app/api/<api-group-name>/<api-path>. Thống nhất cách thiết kế method: GET, POST, PUT, DELETE,... Cách thiết kế và implement query param. Cách query database.
+- Skill Database Design giúp tạo Prisma model theo các quy tắc: không hard delete, chi tiêu Ammount/money sử dụng kiểu Decimal, không sử dụng kiểu float, Enum được định nghĩa trong Prisma, không sử dụng Free string, ForeignKey (FK) phải có @relation một cách tường minh. field bắt buộc cho mọi entity: id: cuid()/uuid(). createdAt, updatedAt, isDeleted. Naming Conventions: Table: lowercase (user, expense, category). Field: camelCase (createdAt, userId). FK: {model}Id (userId, categoryId). Index: idx_{table}_{field}. Thiết kế Index Bắt buộc phải ưu tiên tốc độ truy vấn vì đây là 1 app có hàng triệu người dùng, nếu bất kỳ query nào có khả năng bị chậm khi số lượng user tăng, cần cân nhắc tối ưu và add thêm index.
+
+## Danh sách các Sub-Agent cần tạo:
+- API Testing: Sub-agent có nhiệm vụ tạo ra các script k6 bổ sung vào thư mục `test`, được gọi lại mỗi khi Agent chính làm xong một task coding (Frontend/backend) để tạo và chạy các testcase tương ứng.
+- Database Migrate: Sub-agent có nhiệm vụ chạy lệnh prisma migrate và prisma seed (nếu cần), để migrate và khởi tạo lại data mẫu khi có thay đổi.
+
+# Áp dụng các Skill và Agent để yêu cầu Claude Code implement các tính năng:
+1. Tái cấu trúc toàn bộ Entity model trên prisma theo hướng app có thể phục vụ nhiều user, liên kết các table với User thông qua userid, quản lý system category và user category, rule soft delete, chi tiêu và thu nhập gộp thành 1 Entity riêng là transaction, Quản lý multi Spending Account như Tiền mặt, thẻ ngân hàng, ví điện tử...
+
+2. Tái cấu trúc toàn bộ frontend theo hướng mobile responsive. Có nhiều tab gồm: Add Transaction, Home, Analysis, Setting, Account. *Yêu cầu học viên cung cấp mockup.
+
+3. Tái cấu trúc toàn bộ backend theo hướng multi-user, multi-account, multi-category, multi-transaction type. Tạo các API spec cho từng tính năng, tạo các test case và Test script để verify kết quả.
+

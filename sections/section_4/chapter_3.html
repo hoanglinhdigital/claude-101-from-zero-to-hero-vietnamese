@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Giới hạn, rủi ro và tích hợp Git với Claude Code – Claude 101</title>
+  <title>Lab - Khởi tạo project Expense Management – Claude 101</title>
   <link rel="stylesheet" href="../../styles.css" />
   <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
   <script src="../../mermaid-config.js"></script>
@@ -16,135 +16,225 @@
   <div class="chapter-breadcrumb">
     <span class="section-part">4. Claude Code cho Developer</span>
     <span class="sep">/</span>
-    <span class="chapter-part">Giới hạn, rủi ro và tích hợp Git với Claude Code</span>
+    <span class="chapter-part">Lab - Khởi tạo project Expense Management (Next.js + Prisma + MySQL + Docker)</span>
   </div>
 
-  <h2 class="section-heading">Giới thiệu</h2>
-  <p class="body-text">
-    Claude Code có thể tự động hoá rất nhiều việc, nhưng không phải hành động nào cũng có mức rủi ro giống nhau.
-    Chương này giúp học viên phân biệt <strong>khi nào cần review kỹ</strong> và <strong>khi nào có thể tin tưởng
-    Claude Code tự chạy</strong>, dựa trên mức độ ảnh hưởng của hành động — từ đọc file (an toàn nhất) đến git push
-    (rủi ro cao nhất). Phần sau của chương trình bày cách tích hợp Claude Code với Git: viết commit message, PR
-    description, và hỗ trợ code review.
-  </p>
+  <div class="alert alert-info">
+    <strong>Project nền cho cả Section 4:</strong> Project <code>lab-expense-management</code> được tạo trong bài lab này sẽ được <strong>tái sử dụng</strong> ở các bài Lab tiếp theo (Chapter 6 - thêm tính năng & unit test, Chapter 7 - refactor & tạo Pull Request) và cả ở Section 8 (MCP Server MySQL). Hãy giữ lại thư mục project sau khi hoàn thành, không xoá đi.
+  </div>
 
-  <h2 class="section-heading">Các tính năng chính</h2>
+  <h2 class="section-heading">Mục tiêu</h2>
   <ul class="feature-list">
-    <li><strong>Đọc file</strong> — rủi ro thấp nhất, không thay đổi gì, có thể luôn cho phép tự động.</li>
-    <li><strong>Sửa file cục bộ</strong> — rủi ro trung bình, nên luôn review qua <code>git diff</code> trước khi commit, đặc biệt với file cấu hình hoặc logic nghiệp vụ quan trọng.</li>
-    <li><strong>Chạy lệnh hệ thống</strong> (cài package, chạy script, thao tác database) — rủi ro cao hơn vì có thể gây tác dụng phụ ngoài phạm vi code, cần xem kỹ lệnh trước khi cho phép chạy.</li>
-    <li><strong>Git push / thao tác remote</strong> — rủi ro cao nhất vì ảnh hưởng đến người khác trong team hoặc lên môi trường thật, luôn cần xác nhận thủ công, không nên đặt vào Auto-accept mode.</li>
-    <li>Claude Code có thể hỗ trợ toàn bộ vòng đời Git: soạn commit message theo convention, viết PR description tóm tắt thay đổi, và đưa ra góp ý khi review code người khác.</li>
+    <li>Dùng Claude Code khởi tạo một project Next.js mới (frontend + backend qua API Routes) trong thời gian ngắn.</li>
+    <li>Tích hợp Prisma ORM kết nối MySQL, chạy MySQL local bằng Docker Compose để làm database demo.</li>
+    <li>Yêu cầu Claude Code implement các tính năng cơ bản cho app <strong>Quản lý chi tiêu (Expense Management)</strong>: CRUD khoản chi tiêu, quản lý danh mục (category), tổng hợp chi tiêu theo tháng. <br/></li>
+    <li>Kiểm chứng kết quả trên trình duyệt sau khi hoàn thành.</li>
   </ul>
 
   <h2 class="section-heading">Mô hình kiến trúc</h2>
   <div class="mermaid">
   flowchart LR
-      CC["<img src='../../assets/svg-icon/claude-logo.svg' style='width:30px;height:30px;'/><br/><b>Claude Code</b>"]
-      Read["📖 Đọc file<br/>Rủi ro: Thấp"]
-      Edit["✏️ Sửa file cục bộ<br/>Rủi ro: Trung bình"]
-      Cmd["⚙️ Chạy lệnh hệ thống<br/>Rủi ro: Cao"]
-      Push["🚀 Git push / remote<br/>Rủi ro: Cao nhất"]
-      Dev(("👤<br/><b>Developer</b><br/>Review"))
+      Dev(("<img src='../../assets/svg-icon/developer.svg' style='width:26px;height:26px;'/><br/><b>Developer</b>"))
+      CC["<img src='../../assets/svg-icon/claude-logo.svg' style='width:28px;height:28px;'/><br/><b>Claude Code</b>"]
+      Browser["<img src='../../assets/svg-icon/browser.svg' style='width:28px;height:28px;'/><br/><b>Browser</b><br/>localhost:3000"]
 
-      CC --> Read
-      CC -->|"Cần review diff"| Edit
-      CC -->|"Cần xem lệnh trước khi chạy"| Cmd
-      CC -->|"Luôn cần xác nhận thủ công"| Push
-      Read -.->|"Không cần duyệt"| Dev
-      Edit -->|"Duyệt qua git diff"| Dev
-      Cmd -->|"Duyệt trước khi chạy"| Dev
-      Push -->|"Xác nhận rõ ràng trước khi push"| Dev
-      Dev -->|"Approve"| CC
+      subgraph App["Next.js Project — lab-expense-management"]
+          FE["<img src='../../assets/svg-icon/ide.svg' style='width:26px;height:26px;'/><br/><b>Frontend</b><br/>App Router · React"]
+          API["⚙️ <b>API Routes</b><br/>/api/expenses<br/>/api/categories"]
+          ORM["🔗 <b>Prisma ORM</b><br/>schema.prisma"]
+      end
+
+      DB["<img src='../../assets/svg-icon/container.svg' style='width:28px;height:28px;'/><br/><b>MySQL Container</b><br/>Docker Compose"]
+
+      Dev -->|"Yêu cầu bằng prompt"| CC
+      CC -->|"Sinh code, cấu hình"| App
+      FE --> API
+      API --> ORM
+      ORM -->|"Kết nối qua DATABASE_URL"| DB
+      Browser -->|"HTTP"| FE
   </div>
-  <p class="arch-caption">Mức độ cần review tăng dần theo mức độ ảnh hưởng của hành động — đọc file có thể tự động hoàn toàn, git push luôn cần xác nhận thủ công của con người.</p>
+  <p class="arch-caption">Claude Code sinh toàn bộ mã nguồn Next.js (frontend + API routes), cấu hình Prisma ORM để giao tiếp với MySQL chạy trong Docker container local.</p>
 
-  <h3 class="sub-heading">Khi nào review kỹ, khi nào tin tưởng tự chạy</h3>
-  <table class="compare-table">
-    <thead>
-      <tr><th>Mức độ ảnh hưởng</th><th>Ví dụ hành động</th><th>Mức review cần thiết</th></tr>
-    </thead>
-    <tbody>
-      <tr><td>Đọc file</td><td>Đọc source code, tìm kiếm trong project, xem log</td><td class="yes">Không cần review — an toàn tuyệt đối</td></tr>
-      <tr><td>Sửa file cục bộ</td><td>Sửa component, thêm hàm, cập nhật config</td><td>Review qua <code>git diff</code> trước khi commit</td></tr>
-      <tr><td>Chạy lệnh hệ thống</td><td>Cài package (<code>npm install</code>), chạy migration, xoá file</td><td>Xem lệnh cụ thể trước khi cho phép (Accept Edits mode)</td></tr>
-      <tr><td>Thao tác Git remote</td><td><code>git push</code>, <code>git push --force</code>, tạo PR</td><td class="no">Luôn xác nhận thủ công — không đặt Auto-accept</td></tr>
-    </tbody>
-  </table>
+  <h2 class="section-heading">Yêu cầu trước khi bắt đầu</h2>
+  <ul class="feature-list">
+    <li>Claude Code CLI đã cài đặt và đăng nhập thành công (xem lại Section 2).</li>
+    <li>Node.js phiên bản 18 trở lên đã được cài đặt (<code>node -v</code> chạy được).</li>
+    <li>Docker Desktop đã cài đặt và đang chạy trên máy (<code>docker --version</code> chạy được).</li>
+    <li>Tài khoản <code>Dockerhub</code> để login và pull docker image.</li>
+    <li>MySQL Workbench - để truy cập vào database & kiểm tra data.</li>
+    <li>Terminal: PowerShell / Windows Terminal / Gitbash</li>
+    <li>Kết nối Internet ổn định.</li>
+  </ul>
 
+  <h2 class="section-heading">Các bước thực hành</h2>
+
+  <h3 class="sub-heading">Phần 1: Khởi tạo project qua Claude Code</h3>
+  <ol class="step-list">
+    <li>
+      <div>
+        <strong>Bước 1: Tạo thư mục project và khởi động Claude Code</strong>
+        <p>Đặt tên thư mục cố định <code>lab-expense-management</code> — sẽ dùng lại tên này xuyên suốt các bài lab tiếp theo trong Section 4 và Section 8.</p>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">mkdir D:\lab-expense-management
+cd D:\lab-expense-management
+claude</code></pre>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 2: Yêu cầu Claude Code khởi tạo project Next.js + Prisma + MySQL</strong>
+        <p>Gõ prompt đầy đủ context trong khung nhập lệnh Claude Code — nêu rõ tech stack, cấu trúc mong muốn và yêu cầu tạo Docker Compose cho MySQL.</p>
+        <pre class="command-line" data-prompt=">"><code class="language-text">Khởi tạo một project Next.js mới trong thư mục hiện tại, dùng TypeScript, Tailwind CSS và App Router. Tích hợp Prisma ORM kết nối MySQL. Yêu cầu cụ thể:
+1. Tạo file docker-compose.yml chạy MySQL 8.0 local (container name: expense-mysql, database: expense_db, user: expense_user, password: expense_pass, expose port 3306, có volume lưu data).
+2. Tạo file .env chứa DATABASE_URL kết nối đến MySQL container trên.
+3. Tạo schema Prisma (prisma/schema.prisma) với 2 model: Category (id, name unique) và Expense (id, title, amount kiểu Decimal, note optional, categoryId liên kết Category, spentAt, createdAt, updatedAt).
+4. Sau khi tạo xong, build thử project để đảm bảo không lỗi cấu hình.</code></pre>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 3: Duyệt kế hoạch và xác nhận thực thi</strong>
+        <p>Nếu đang ở Plan mode, đọc qua các bước Claude Code dự kiến thực hiện rồi chọn <strong>Approve</strong>. Ở Accept Edits mode, xác nhận từng bước khi được hỏi (tạo file, cài package <code>@prisma/client</code>, <code>prisma</code>...).</p>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 4: Kiểm tra cấu trúc project vừa được sinh ra</strong>
+        <p>Sau khi Claude Code hoàn thành, kiểm tra các file quan trọng đã được tạo đúng vị trí.</p>
+        <pre class="command-line" data-prompt="PS>" data-output="2, 3, 4, 5, 6"><code class="language-powershell">dir
+app
+prisma
+docker-compose.yml
+.env
+package.json</code></pre>
+      </div>
+    </li>
+  </ol>
+
+  <h3 class="sub-heading">Phần 2: Tham khảo nội dung file cấu hình Claude Code tạo ra</h3>
+  <p class="body-text">Nội dung dưới đây là ví dụ tham khảo cho những gì Claude Code nên sinh ra ở Bước 2 — dùng để đối chiếu, không cần tạo tay các file này.</p>
+  <pre class="file-block"><span class="filename">docker-compose.yml</span><span class="hl">services</span>:
+  <span class="hl">mysql</span>:
+    <span class="hl">image</span>: <span class="str">mysql:8.0</span>
+    <span class="hl">container_name</span>: <span class="str">expense-mysql</span>
+    <span class="hl">restart</span>: <span class="str">unless-stopped</span>
+    <span class="hl">environment</span>:
+      MYSQL_ROOT_PASSWORD: <span class="str">rootpassword</span>
+      MYSQL_DATABASE: <span class="str">expense_db</span>
+      MYSQL_USER: <span class="str">expense_user</span>
+      MYSQL_PASSWORD: <span class="str">expense_pass</span>
+    <span class="hl">ports</span>:
+      - <span class="str">"3306:3306"</span>
+    <span class="hl">volumes</span>:
+      - <span class="str">mysql_data:/var/lib/mysql</span>
+<span class="hl">volumes</span>:
+  <span class="hl">mysql_data</span>:</pre>
+
+  <pre class="file-block"><span class="filename">.env</span><span class="hl">DATABASE_URL</span>=<span class="str">"mysql://expense_user:expense_pass@localhost:3306/expense_db"</span></pre>
+
+  <pre class="file-block"><span class="filename">prisma/schema.prisma</span><span class="cmt">datasource db {</span>
+  provider = <span class="str">"mysql"</span>
+  url      = env(<span class="str">"DATABASE_URL"</span>)
+<span class="cmt">}</span>
+
+<span class="cmt">generator client {</span>
+  provider = <span class="str">"prisma-client-js"</span>
+<span class="cmt">}</span>
+
+<span class="hl">model Category</span> {
+  id        Int       @id @default(autoincrement())
+  name      String    @unique
+  expenses  Expense[]
+  createdAt DateTime  @default(now())
+}
+
+<span class="hl">model Expense</span> {
+  id         Int       @id @default(autoincrement())
+  title      String
+  amount     Decimal   @db.Decimal(12, 2)
+  note       String?
+  categoryId Int
+  category   Category  @relation(fields: [categoryId], references: [id])
+  spentAt    DateTime  @default(now())
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+}</pre>
+
+  <h3 class="sub-heading">Phần 3: Chạy MySQL, migrate database và implement tính năng</h3>
+  <ol class="step-list">
+    <li>
+      <div>
+        <strong>Bước 5: Khởi động MySQL container bằng Docker Compose</strong>
+        <p>Chạy lệnh sau ngay trong thư mục project (nơi có file <code>docker-compose.yml</code>).</p>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">docker compose up -d</code></pre>
+        <p>Kiểm tra container đã chạy thành công.</p>
+        <pre class="command-line" data-prompt="PS>" data-output="2"><code class="language-powershell">docker ps
+CONTAINER ID   IMAGE       ...   PORTS                    NAMES
+abc123def456   mysql:8.0   ...   0.0.0.0:3306->3306/tcp   expense-mysql</code></pre>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 6: Chạy Prisma migration để tạo bảng trong database</strong>
+        <p>Lệnh này đọc <code>prisma/schema.prisma</code>, sinh migration SQL và áp dụng lên MySQL container vừa khởi động.</p>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">npx prisma migrate dev --name init</code></pre>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 7: Yêu cầu Claude Code implement tính năng Quản lý chi tiêu</strong>
+        <p>Vẫn trong phiên làm việc hiện tại (đã có ngữ cảnh về schema và project), giao tiếp tính năng cần implement — nêu rõ hành vi mong đợi cho từng phần.</p>
+        <pre class="command-line" data-prompt=">"><code class="language-text">Implement các tính năng cơ bản cho app Quản lý chi tiêu dựa trên schema Prisma đã có:
+1. Trang chủ (app/page.tsx) hiển thị danh sách khoản chi tiêu (title, amount, category, spentAt) dạng bảng, sắp xếp mới nhất lên đầu.
+2. API route app/api/expenses/route.ts hỗ trợ GET (danh sách) và POST (tạo mới) khoản chi tiêu.
+3. API route app/api/expenses/[id]/route.ts hỗ trợ PUT (sửa) và DELETE (xoá) một khoản chi tiêu theo id.
+4. API route app/api/categories/route.ts hỗ trợ GET (danh sách) và POST (tạo mới) danh mục.
+5. Một form đơn giản trên trang chủ để tạo khoản chi tiêu mới, chọn category từ dropdown.
+6. Một API route app/api/expenses/summary/route.ts trả về tổng chi tiêu theo từng tháng (group by tháng-năm của spentAt).
+Dùng Prisma Client đã cấu hình sẵn, không cần thêm ORM khác.</code></pre>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 8: Duyệt và xác nhận các thay đổi</strong>
+        <p>Đọc qua kế hoạch (nếu ở Plan mode) hoặc xác nhận từng thay đổi (ở Accept Edits mode) trước khi Claude Code ghi file.</p>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 9: Chạy dev server và kiểm tra trên browser</strong>
+        <p>Khởi động Next.js dev server để kiểm tra kết quả thực tế.</p>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">npm run dev</code></pre>
+        <p>Mở trình duyệt tại <code>http://localhost:3000</code>, thử tạo vài danh mục (vd "Ăn uống", "Di chuyển", "Giải trí") và vài khoản chi tiêu để xác nhận CRUD hoạt động đúng.</p>
+      </div>
+    </li>
+  </ol>
+
+  <div class="verify-box">
+    <h4>✅ Kết quả mong đợi</h4>
+    <p class="body-text">Trang chủ hiển thị danh sách khoản chi tiêu vừa tạo, form thêm mới hoạt động, dữ liệu được lưu thực sự vào MySQL container (có thể kiểm tra lại bằng <code>npx prisma studio</code> để xem trực tiếp dữ liệu trong bảng <code>Expense</code> và <code>Category</code>).</p>
+  </div>
+
+  <h2 class="section-heading">Troubleshoot</h2>
   <div class="alert alert-warning">
-    <strong>Nguyên tắc chung:</strong> Mức độ tự động hoá nên tỷ lệ nghịch với mức độ khó hoàn tác (revert) của hành động. Sửa file có thể hoàn tác dễ dàng bằng Git; xoá dữ liệu database hoặc <code>git push --force</code> lên nhánh chung thì rất khó hoặc không thể hoàn tác — luôn cần con người xác nhận rõ ràng trước khi thực thi.
+    <strong>Lỗi:</strong> <code>docker compose up</code> báo lỗi cổng 3306 đã được sử dụng.<br/>
+    <strong>Nguyên nhân:</strong> Máy đã có một MySQL khác (service cài local hoặc container khác) đang chiếm cổng 3306.<br/>
+    <strong>Giải pháp:</strong> Đổi mapping cổng trong <code>docker-compose.yml</code> thành ví dụ <code>"3307:3306"</code>, cập nhật lại <code>DATABASE_URL</code> trong <code>.env</code> tương ứng port mới, sau đó chạy lại <code>docker compose up -d</code>.
+  </div>
+  <div class="alert alert-warning">
+    <strong>Lỗi:</strong> <code>npx prisma migrate dev</code> báo không kết nối được database (<code>Can't reach database server</code>).<br/>
+    <strong>Nguyên nhân:</strong> Container MySQL chưa khởi động xong hoàn toàn (MySQL cần vài giây để sẵn sàng nhận kết nối sau khi container start), hoặc <code>DATABASE_URL</code> trong <code>.env</code> sai thông tin.<br/>
+    <strong>Giải pháp:</strong> Chờ khoảng 10-15 giây sau <code>docker compose up -d</code> rồi thử lại; kiểm tra lại user/password/database trong <code>.env</code> khớp với <code>docker-compose.yml</code>.
+  </div>
+  <div class="alert alert-warning">
+    <strong>Lỗi:</strong> <code>npm run dev</code> báo cổng 3000 đã được sử dụng.<br/>
+    <strong>Nguyên nhân:</strong> Có một Next.js dev server khác (từ lab trước) vẫn đang chạy.<br/>
+    <strong>Giải pháp:</strong> Đóng terminal đang chạy dev server cũ, hoặc chạy <code>npm run dev -- -p 3001</code> để dùng cổng khác.
   </div>
 
-  <h2 class="section-heading">Tích hợp Claude Code với Git</h2>
-  <div class="mermaid">
-  flowchart LR
-      Dev(("👤<br/><b>Developer</b>"))
-      CC["<img src='../../assets/svg-icon/claude-logo.svg' style='width:30px;height:30px;'/><br/><b>Claude Code</b>"]
-      Stage["📂 git add<br/>Staging changes"]
-      Commit["📝 git commit<br/>Message do Claude soạn"]
-      Push["🚀 git push<br/>Lên remote branch"]
-      GH["<img src='../../assets/svg-icon/github.svg' style='width:28px;height:28px;'/><br/><b>GitHub</b>"]
-      PR["📋 gh pr create<br/>PR description do Claude soạn"]
-      Review["🔍 Code review<br/>Claude gợi ý góp ý"]
-
-      Dev -->|"Yêu cầu commit"| CC
-      CC --> Stage --> Commit --> Push --> GH
-      Dev -->|"Yêu cầu tạo PR"| CC
-      CC --> PR --> GH
-      GH --> Review
-      Review -->|"Góp ý"| Dev
+  <h2 class="section-heading">Dọn dẹp resource</h2>
+  <div class="alert alert-warning">
+    <strong>Quan trọng:</strong> Project <code>D:\lab-expense-management</code> sẽ được dùng lại ở Chapter 6, Chapter 7 và Section 8 — <strong>không xoá thư mục project</strong> sau khi hoàn thành bài lab này. Chỉ cần dừng container MySQL khi không thực hành nữa để giải phóng tài nguyên máy.
   </div>
-  <p class="arch-caption">Claude Code hỗ trợ toàn bộ luồng Git từ staging, soạn commit message, push, đến tạo PR qua GitHub CLI (<code>gh</code>) và hỗ trợ review — nhưng bước push/tạo PR vẫn cần Developer xác nhận.</p>
-
-  <h3 class="sub-heading">3 việc Claude Code hỗ trợ tốt trong quy trình Git</h3>
-  <div class="capability-grid">
-    <div class="capability-card">
-      <div class="icon">📝</div>
-      <h4>Viết commit message</h4>
-      <p>Đọc <code>git diff</code> đã staged, tự soạn message theo convention (vd Conventional Commits: <code>feat:</code>, <code>fix:</code>).</p>
-    </div>
-    <div class="capability-card">
-      <div class="icon">📋</div>
-      <h4>Viết PR description</h4>
-      <p>Tóm tắt thay đổi giữa branch hiện tại và branch đích, liệt kê rõ mục đích, phạm vi ảnh hưởng, cách test.</p>
-    </div>
-    <div class="capability-card">
-      <div class="icon">🔍</div>
-      <h4>Hỗ trợ code review</h4>
-      <p>Đọc diff của PR, chỉ ra rủi ro tiềm ẩn, gợi ý cải thiện — hỗ trợ người review, không thay thế hoàn toàn.</p>
-    </div>
-  </div>
-
-  <h2 class="section-heading">Use Cases</h2>
-  <div class="usecase-grid">
-    <div class="usecase-card">
-      <h4>Chuẩn hoá commit message</h4>
-      <p>Team dùng Claude Code để soạn commit message nhất quán theo Conventional Commits, dễ sinh changelog tự động sau này.</p>
-    </div>
-    <div class="usecase-card">
-      <h4>Tăng tốc mở PR</h4>
-      <p>Claude Code tự viết PR description đầy đủ (mục đích, thay đổi chính, cách test) từ diff thực tế, tiết kiệm thời gian soạn thảo.</p>
-    </div>
-    <div class="usecase-card">
-      <h4>Review sơ bộ trước khi gửi người khác</h4>
-      <p>Dùng Claude Code review lại code của mình trước khi gửi PR cho đồng nghiệp, phát hiện sớm lỗi rõ ràng hoặc thiếu test.</p>
-    </div>
-  </div>
-
-  <h2 class="section-heading">Thông tin bổ sung</h2>
-  <p class="body-text">
-    Claude Code không có khả năng "hiểu" toàn bộ ngữ cảnh nghiệp vụ hoặc lịch sử quyết định kỹ thuật của team — vì
-    vậy commit message hoặc PR description do Claude Code soạn nên được xem là <strong>bản nháp tốt</strong>, không
-    phải bản cuối cùng. Với các thay đổi ảnh hưởng đến production hoặc dữ liệu người dùng thật, luôn cần một người
-    có thẩm quyền review và approve trước khi merge, bất kể Claude Code đã tự tin đến đâu.
-  </p>
-  <div class="alert alert-danger">
-    <strong>Không nên:</strong> Đặt Claude Code ở Auto-accept mode rồi để tự chạy <code>git push --force</code>,
-    xoá branch, hoặc thao tác trực tiếp trên nhánh <code>main</code>/<code>production</code>. Những hành động này
-    khó hoặc không thể hoàn tác — luôn giữ ở chế độ cần xác nhận thủ công.
-  </div>
-
   <script>mermaid.initialize({ startOnLoad: true, theme: 'default' });</script>
 </body>
 </html>

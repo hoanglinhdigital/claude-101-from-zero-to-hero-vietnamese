@@ -645,7 +645,7 @@ pre.command-line:hover .copy-btn {
 /* ── Use case grid ── */
 .usecase-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
     gap: 14px;
     margin: 12px 0;
 }

@@ -35,7 +35,7 @@
   <h2 class="section-heading">Mô hình kiến trúc</h2>
   <div class="mermaid">
   flowchart LR
-      Dev(("<img src='../../assets/svg-icon/developer.svg' style='width:26px;height:26px;'/><br/><b>Học viên</b>"))
+      Dev(("<img src='../../assets/svg-icon/developer.svg' style='width:26px;height:26px;'/><br/><b>User</b>"))
       CC["<img src='../../assets/svg-icon/claude-logo.svg' style='width:28px;height:28px;'/><br/><b>Claude Code</b>"]
       Edit["<img src='../../assets/svg-icon/ide.svg' style='width:26px;height:26px;'/><br/>Edit / Write tool<br/>sửa file trong project"]
       Hook["<img src='../../assets/svg-icon/operator.svg' style='width:26px;height:26px;'/><br/><b>PostToolUse Hook</b><br/>matcher: Edit|Write"]
@@ -47,7 +47,7 @@
       Edit -->|"Sau khi tool chạy xong"| Hook
       Hook --> Prettier --> Repo
   </div>
-  <p class="arch-caption">Ngay sau khi Claude Code dùng tool Edit/Write để sửa file, Hook PostToolUse tự động chạy Prettier để định dạng lại code trong project, không cần học viên tự nhắc.</p>
+  <p class="arch-caption">Ngay sau khi Claude Code dùng tool Edit/Write để sửa file, Hook PostToolUse tự động chạy Prettier để định dạng lại code trong project, không cần User tự nhắc.</p>
 
   <h2 class="section-heading">Yêu cầu trước khi bắt đầu</h2>
   <ul class="feature-list">
@@ -123,7 +123,7 @@ npm install --save-dev prettier</code></pre>
     <li>
       <div>
         <strong>Bước 4: Đánh đổi khi chọn cách format toàn bộ project</strong>
-        <p>Lệnh <code>npx prettier --write .</code> format lại <strong>toàn bộ project</strong> mỗi lần Hook chạy, thay vì chỉ đúng 1 file vừa được sửa — đơn giản và chắc chắn chạy được, không cần đọc/phân tích JSON đầu vào. Đánh đổi là Hook sẽ chậm hơn một chút với project lớn, và có thể format cả những file học viên chưa muốn động vào.</p>
+        <p>Lệnh <code>npx prettier --write .</code> format lại <strong>toàn bộ project</strong> mỗi lần Hook chạy, thay vì chỉ đúng 1 file vừa được sửa — đơn giản và chắc chắn chạy được, không cần đọc/phân tích JSON đầu vào. Đánh đổi là Hook sẽ chậm hơn một chút với project lớn, và có thể format cả những file User chưa muốn động vào.</p>
         <div class="alert alert-warning">
           <strong>Phương án chính xác hơn (tuỳ chọn, không bắt buộc trong bài lab):</strong> Có thể viết một script PowerShell nhỏ đọc JSON từ stdin để lấy đúng đường dẫn file vừa được Claude Code sửa, rồi chỉ chạy <code>prettier --write &lt;đường dẫn đó&gt;</code>. Tên field JSON chính xác (đường dẫn file, tên tool...) có thể khác nhau theo phiên bản Claude Code — tham khảo tài liệu chính thức tại <code>docs.claude.com</code> trước khi triển khai theo hướng này cho công việc thật.
         </div>
@@ -163,7 +163,7 @@ Chỉ cần thêm nguyên văn như trên, không cần chuẩn hoá theo coding
 
   <div class="verify-box">
     <h4>✅ Kết quả mong đợi</h4>
-    <p class="body-text">Đoạn code <code>const testHookFormat = {a:1,b:2, c:3}</code> được Claude Code ghi ra ban đầu chưa đúng chuẩn, nhưng ngay sau đó Hook PostToolUse tự động chạy Prettier và <code>git diff</code> cho thấy đoạn code đã được định dạng lại đúng theo <code>.prettierrc</code> (có dấu chấm phẩy, dấu cách chuẩn, dấu nháy đơn) — mà học viên không cần tự chạy lệnh format nào.</p>
+    <p class="body-text">Đoạn code <code>const testHookFormat = {a:1,b:2, c:3}</code> được Claude Code ghi ra ban đầu chưa đúng chuẩn, nhưng ngay sau đó Hook PostToolUse tự động chạy Prettier và <code>git diff</code> cho thấy đoạn code đã được định dạng lại đúng theo <code>.prettierrc</code> (có dấu chấm phẩy, dấu cách chuẩn, dấu nháy đơn) — mà User không cần tự chạy lệnh format nào.</p>
   </div>
 
   <h2 class="section-heading">Troubleshoot</h2>

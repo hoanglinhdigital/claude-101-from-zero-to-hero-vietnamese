@@ -118,7 +118,7 @@ REGION: ap-southeast-1 (Singapore), đặt làm default cho variable "region".
 NAMING/TAG: mọi resource đặt tên theo pattern ${var.project_name}-<loại resource> (vd ${var.project_name}-vpc, ${var.project_name}-web). Mọi resource gắn tag Project = var.project_name và ManagedBy = "Terraform".
 
 RÀNG BUỘC BẢO MẬT (bắt buộc):
-- variables.tf: biến allowed_ssh_cidr KHÔNG có giá trị default, thêm validation block chặn giá trị "0.0.0.0/0" — bắt buộc học viên tự nhập CIDR/IP cụ thể.
+- variables.tf: biến allowed_ssh_cidr KHÔNG có giá trị default, thêm validation block chặn giá trị "0.0.0.0/0" — bắt buộc User tự nhập CIDR/IP cụ thể.
 - Không mở port nào khác ngoài 22 (giới hạn theo allowed_ssh_cidr) và 80 (public) trên security group.
 - IAM policy tuyệt đối không dùng Resource = "*" hay Action = "*".
 
@@ -171,7 +171,7 @@ Sau khi tạo xong toàn bộ file, chạy terraform init và terraform validate
   default = <span class="str">"10.20.0.0/16"</span>
 }
 
-<span class="cmt">// KHÔNG đặt default = "0.0.0.0/0" — bắt buộc học viên tự nhập CIDR IP</span>
+<span class="cmt">// KHÔNG đặt default = "0.0.0.0/0" — bắt buộc User tự nhập CIDR IP</span>
 <span class="cmt">// của mình để tránh vô tình mở SSH cho toàn bộ Internet.</span>
 <span class="hl">variable "allowed_ssh_cidr"</span> {
   type = string

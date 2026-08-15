@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lab: Custom Slash Command trong Claude Code – Claude 101</title>
+  <link rel="stylesheet" href="../../styles.css" />
+  <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+  <script src="../../mermaid-config.js"></script>
+  <link rel="stylesheet" href="../../prism.css" />
+  <script src="../../prism.js"></script>
+  <script src="../../script.js"></script>
+</head>
+<body class="chapter-body">
+
+  <div class="chapter-breadcrumb">
+    <span class="section-part">3. Claude Skills & Agent</span>
+    <span class="sep">/</span>
+    <span class="chapter-part">Lab - Custom Slash Command</span>
+  </div>
+
+  <h2 class="section-heading">Mục tiêu</h2>
+  <ul class="feature-list">
+    <li>Hiểu định nghĩa <strong>Custom Slash Command</strong> — một prompt được đóng gói thành file Markdown, gọi lại được bằng lệnh <code>/tên-command</code> ngay trong phiên Claude Code.</li>
+    <li>Phân biệt các cách cài đặt: tạo <strong>thủ công</strong> (project scope hoặc user scope) và cài qua <strong>Plugin</strong> từ Marketplace.</li>
+    <li>Tự tạo một Custom Slash Command đơn giản, có tham số (<code>$ARGUMENTS</code>), dùng để sinh commit message theo chuẩn Conventional Commits.</li>
+    <li>Cài đặt và sử dụng thử một Slash Command có sẵn từ một Plugin trên Claude Code Marketplace.</li>
+  </ul>
+
+  <h2 class="section-heading">So sánh Slash Command và Skill</h2>
+  <p class="body-text">
+    Cả Slash Command và Skill đều là file Markdown đóng gói sẵn nội dung để tái sử dụng, nhưng khác nhau về cách kích hoạt và mức độ chủ động của Claude khi quyết định dùng chúng.
+  </p>
+  <table class="compare-table">
+    <thead>
+      <tr><th>Tiêu chí</th><th>Slash Command</th><th>Skill</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Bản chất</td><td>Một prompt đóng gói sẵn, gọi lại bằng cú pháp <code>/tên-command</code></td><td>Một bộ hướng dẫn/kiến thức chuyên biệt, được nạp thêm vào context khi phù hợp</td></tr>
+      <tr><td>Cách kích hoạt</td><td>Thủ công — User phải gõ đúng <code>/tên-command</code>, không tự động</td><td>Tự động — Claude tự so khớp yêu cầu hiện tại với <code>description</code> của Skill để quyết định có nạp hay không</td></tr>
+      <tr><td>Tham số đầu vào</td><td>Nhận tham số trực tiếp qua <code>$ARGUMENTS</code> ngay sau tên lệnh</td><td>Không có tham số cố định, Claude tự trích xuất thông tin cần thiết từ ngữ cảnh cuộc hội thoại</td></tr>
+      <tr><td>Vị trí lưu trữ</td><td><code>.claude/commands/</code> (project scope) hoặc <code>~/.claude/commands/</code> (user scope)</td><td><code>.claude/skills/</code> (project scope) hoặc <code>~/.claude/skills/</code> (user scope)</td></tr>
+      <tr><td>Cấu trúc nội dung</td><td>Một file <code>.md</code> đơn, chủ yếu là phần prompt cố định</td><td>Có thể là một thư mục gồm nhiều file (hướng dẫn, script, tài nguyên đính kèm), không chỉ một prompt đơn thuần</td></tr>
+      <tr><td>Cài đặt qua Plugin</td><td>Có — Plugin có thể đóng gói sẵn Slash Command</td><td>Có — Plugin có thể đóng gói sẵn Skill, cùng cơ chế Marketplace</td></tr>
+      <tr><td>Phù hợp cho</td><td>Thao tác lặp lại, biết trước thời điểm cần gọi, muốn kiểm soát chủ động việc kích hoạt</td><td>Kiến thức/quy trình chuyên biệt cần Claude tự nhận diện đúng ngữ cảnh mà không cần User nhớ tên lệnh</td></tr>
+    </tbody>
+  </table>
+    <div class="alert alert-warning">
+    <strong>Lưu ý 1:</strong> Nếu cả command và skill trùng tên, skill sẽ được ưu tiên sử dụng. <br/>
+    <strong>Lưu ý 2:</strong> Anthropic khuyến nghị dùng skill cho việc tạo mới, còn command cũ vẫn chạy bình thường không cần migrate ngay (theo dõi thông báo từ Anthropic để biết khi nào cần chuyển sang skill).
+  </div>
+
+  <h2 class="section-heading">Kiến trúc tổng quan</h2>
+  <div class="mermaid">
+  flowchart LR
+      User(("👤<br/><b>Học viên</b>"))
+      Main["<img src='../../assets/svg-icon/claude-logo.svg' style='width:30px;height:30px;'/><br/><b>Main Agent</b><br/>Phiên Claude Code"]
+      subgraph Manual["📂 Cách 1: Tạo thủ công"]
+          FileCmd["📄 <b>.claude/commands/</b><br/>commit-msg.md<br/>(project scope)"]
+      end
+      subgraph PluginWay["🧩 Cách 2: Cài qua Plugin"]
+          MP["<img src='../../assets/svg-icon/github.svg' style='width:26px;height:26px;'/><br/><b>Marketplace</b><br/>/plugin marketplace add"]
+          PluginCmd["📦 <b>Plugin</b><br/>chứa sẵn Slash Command"]
+      end
+
+      User -->|"tạo file .md"| FileCmd
+      User -->|"/plugin install"| MP --> PluginCmd
+      FileCmd -->|"nạp khi khởi động phiên"| Main
+      PluginCmd -->|"nạp sau /reload-plugins"| Main
+      User -->|"gõ /commit-msg ..."| Main
+  </div>
+  <p class="arch-caption">Dù tạo thủ công hay cài qua Plugin, kết quả cuối cùng giống nhau: một file Markdown định nghĩa Slash Command được Claude Code phát hiện và đăng ký vào phiên làm việc, gọi lại được bằng <code>/tên-command</code>.</p>
+
+  <h2 class="section-heading">Yêu cầu trước khi bắt đầu</h2>
+  <ul class="feature-list">
+    <li>Claude Code CLI đã cài đặt và đăng nhập thành công (xem lại Section 2) — kiểm tra bằng <code>claude --version</code>.</li>
+    <li>Có một project bất kỳ để thực hành, ví dụ tái sử dụng lại <code>D:\lab-claude-skill</code> ở các bài Lab trước, hoặc tạo mới.</li>
+  </ul>
+
+  <h2 class="section-heading">Các bước thực hành</h2>
+
+  <h3 class="sub-heading">Phần 1: Tạo Custom Slash Command thủ công</h3>
+  <p class="body-text">
+    Custom Slash Command thủ công là một file <code>.md</code> đặt trong thư mục <code>.claude/commands/</code>. Tên file (không tính đuôi <code>.md</code>) chính là tên lệnh gọi sau dấu <code>/</code>. Nội dung file là phần prompt sẽ được gửi cho Claude khi lệnh được gọi, có thể chứa YAML frontmatter (<code>description</code>, <code>argument-hint</code>...) và biến <code>$ARGUMENTS</code> để nhận tham số truyền vào từ dòng lệnh.
+  </p>
+  <ol class="step-list">
+    <li>
+      <div>
+        <strong>Bước 1: Di chuyển vào project sẽ dùng command</strong>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">cd D:\lab-claude-skill</code></pre>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 2: Tạo thư mục chứa command ở project scope</strong>
+        <p>Command đặt trong <code>.claude/commands/</code> tại thư mục project chỉ áp dụng cho project này (project scope) — phù hợp khi command gắn liền quy ước riêng của repo, có thể commit vào Git để chia sẻ cho cả team.</p>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">mkdir .claude\commands</code></pre>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 3: Tạo file định nghĩa command <code>commit-msg.md</code></strong>
+        <p>Tạo file mới tại <code>.claude/commands/commit-msg.md</code> với nội dung sau. Phần <code>$ARGUMENTS</code> sẽ được thay bằng toàn bộ nội dung học viên gõ sau tên lệnh.</p>
+        <pre class="command-line" data-prompt=""><code class="language-markdown">---
+description: Sinh commit message theo chuẩn Conventional Commits từ mô tả ngắn
+argument-hint: [mô tả thay đổi]
+---
+
+Dựa trên mô tả sau: "$ARGUMENTS"
+
+Hãy chạy `git diff --staged` để xem thay đổi thực tế đang được staged, sau đó
+sinh ra một commit message theo chuẩn Conventional Commits (`feat`, `fix`,
+`refactor`, `docs`, `chore`...), gồm:
+1. Dòng subject ngắn gọn (dưới 72 ký tự).
+2. Một đoạn body 1-2 câu giải thích lý do thay đổi (why), không lặp lại what.
+
+Chỉ in ra commit message, không thực hiện commit.</code></pre>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 4: Khởi động Claude Code và kiểm tra command đã được nhận diện</strong>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">claude</code></pre>
+        <pre class="command-line" data-prompt=">"><code class="language-text">/help</code></pre>
+        <p>Lệnh <code>/commit-msg</code> phải xuất hiện trong danh sách slash command, nằm ở nhóm command của project (đánh dấu <code>(project)</code>).</p>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 5: Thử staged một thay đổi bất kỳ và gọi command</strong>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">git add .</code></pre>
+        <pre class="command-line" data-prompt=">"><code class="language-text">/commit-msg thêm slash command tạo commit message tự động</code></pre>
+        <p>Claude sẽ chạy <code>git diff --staged</code> để đọc thay đổi thực tế, rồi trả về một commit message theo đúng cấu trúc Conventional Commits đã khai báo trong file lệnh.</p>
+      </div>
+    </li>
+  </ol>
+
+  <div class="alert alert-tip">
+    <strong>Project scope vs User scope:</strong> File đặt tại <code>.claude/commands/</code> trong project chỉ dùng được trong project đó (project scope). Nếu muốn command dùng được ở <strong>mọi</strong> project trên máy, đặt file tại <code>~/.claude/commands/</code> (user scope) — cú pháp file giống hoàn toàn, chỉ khác vị trí thư mục.
+  </div>
+
+  <h3 class="sub-heading">Phần 2: Cài đặt Slash Command có sẵn từ Plugin trên Marketplace</h3>
+  <p class="body-text">
+    Ngoài tự viết, học viên có thể cài đặt các Slash Command đã được đóng gói sẵn bên trong một <strong>Plugin</strong> từ Claude Code Marketplace — tương tự cách cài Skill qua Plugin đã học ở bài trước. Một Plugin có thể chứa nhiều Slash Command, Skill, Sub-agent, Hook cùng lúc.
+  </p>
+  <ol class="step-list">
+    <li>
+      <div>
+        <strong>Bước 6: Đăng ký marketplace chính thức của Anthropic</strong>
+        <p>Vẫn trong phiên Claude Code tại project <code>D:\lab-claude-skill</code>, đăng ký kho <code>anthropics/skills</code> làm marketplace (nếu chưa đăng ký ở bài Lab trước).</p>
+        <pre class="command-line" data-prompt=">"><code class="language-text">/plugin marketplace add anthropics/skills</code></pre>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 7: Duyệt danh sách Plugin có kèm Slash Command</strong>
+        <p>Mở giao diện quản lý Plugin, chuyển sang tab <strong>Discover</strong>, chọn marketplace <code>anthropic-agent-skills</code>. Chọn một Plugin bất kỳ và nhấn <code>Enter</code> để xem chi tiết — phần <strong>Commands</strong> trong màn hình chi tiết liệt kê các Slash Command mà Plugin đó cung cấp.</p>
+        <pre class="command-line" data-prompt=">"><code class="language-text">/plugin</code></pre>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 8: Cài đặt Plugin trực tiếp bằng lệnh</strong>
+        <p>Ví dụ cài Plugin <code>example-skills</code> — Plugin này minh hoạ cách đóng gói Skill kèm Slash Command.</p>
+        <pre class="command-line" data-prompt=">"><code class="language-text">/plugin install example-skills@anthropic-agent-skills</code></pre>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 9: Nạp lại Plugin và kiểm tra Slash Command mới</strong>
+        <pre class="command-line" data-prompt=">"><code class="language-text">/reload-plugins</code></pre>
+        <pre class="command-line" data-prompt=">"><code class="language-text">/help</code></pre>
+        <p>Các Slash Command do Plugin cung cấp sẽ xuất hiện trong danh sách <code>/help</code>, đánh dấu tên Plugin nguồn (ví dụ <code>(plugin: example-skills)</code>). Gọi thử một trong các lệnh đó theo đúng cú pháp và <code>argument-hint</code> hiển thị khi gõ <code>/</code>.</p>
+      </div>
+    </li>
+  </ol>
+
+  <div class="verify-box">
+    <h4>✅ Kết quả mong đợi</h4>
+    <p class="body-text">Lệnh <code>/help</code> hiển thị đầy đủ cả <code>/commit-msg</code> (tạo thủ công ở Phần 1, đánh dấu project scope) và (các) Slash Command đến từ Plugin vừa cài ở Phần 2. Gọi <code>/commit-msg &lt;mô tả&gt;</code> với một thay đổi đã <code>git add</code> trả về đúng một commit message theo chuẩn Conventional Commits, không thực hiện commit thật.</p>
+  </div>
+
+  <h2 class="section-heading">Troubleshoot</h2>
+  <div class="alert alert-warning">
+    <strong>Lỗi:</strong> <code>/commit-msg</code> không xuất hiện trong <code>/help</code> sau khi tạo file.<br/>
+    <strong>Nguyên nhân:</strong> File không nằm đúng đường dẫn <code>.claude/commands/commit-msg.md</code>, sai đuôi file (không phải <code>.md</code>), hoặc phiên Claude Code đang chạy từ trước khi file được tạo.<br/>
+    <strong>Giải pháp:</strong> Kiểm tra lại bằng <code>dir .claude\commands</code>, đảm bảo tên file khớp tên lệnh muốn gọi, sau đó thoát (<code>/exit</code>) và mở lại phiên Claude Code.
+  </div>
+  <div class="alert alert-warning">
+    <strong>Lỗi:</strong> Gọi <code>/commit-msg mô tả gì đó</code> nhưng Claude không thấy nội dung mô tả.<br/>
+    <strong>Nguyên nhân:</strong> File lệnh thiếu biến <code>$ARGUMENTS</code>, hoặc gõ sai cú pháp (thiếu khoảng trắng giữa tên lệnh và nội dung).<br/>
+    <strong>Giải pháp:</strong> Mở lại <code>commit-msg.md</code>, xác nhận có dòng chứa <code>$ARGUMENTS</code>, gõ lại đúng dạng <code>/commit-msg nội dung mô tả</code>.
+  </div>
+  <div class="alert alert-warning">
+    <strong>Lỗi:</strong> Sau <code>/plugin install</code>, Slash Command của Plugin vẫn không gọi được.<br/>
+    <strong>Nguyên nhân:</strong> Quên chạy <code>/reload-plugins</code> sau khi cài, nên Plugin chưa được nạp vào phiên hiện tại.<br/>
+    <strong>Giải pháp:</strong> Chạy <code>/reload-plugins</code> như Bước 9, hoặc thoát và mở lại phiên Claude Code.
+  </div>
+  <div class="alert alert-warning">
+    <strong>Lỗi:</strong> Đặt cùng tên command ở cả project scope và user scope, không rõ lệnh nào được ưu tiên.<br/>
+    <strong>Nguyên nhân:</strong> Command trùng tên được định nghĩa ở nhiều nơi (project, user, hoặc Plugin).<br/>
+    <strong>Giải pháp:</strong> Claude Code ưu tiên command ở project scope trước user scope; nếu trùng cả với Plugin, nên đổi tên một trong hai để tránh nhầm lẫn — kiểm tra nguồn gốc command đang được dùng qua nhãn hiển thị trong <code>/help</code>.
+  </div>
+
+  <h2 class="section-heading">Dọn dẹp resource</h2>
+  <div class="alert alert-info">Bài lab này chỉ tạo file cấu hình và đăng ký marketplace trên máy local, không tạo resource cloud, không phát sinh chi phí ngoài usage theo gói cước Claude đang sử dụng. Có thể dọn dẹp nếu không cần dùng tiếp:</div>
+  <pre class="command-line" data-prompt="PS>"><code class="language-powershell"># Gỡ Plugin đã cài (chạy trong phiên Claude Code)
+/plugin uninstall example-skills@anthropic-agent-skills
+
+# Xoá Slash Command tạo thủ công ở Phần 1 (PowerShell)
+Remove-Item -Force D:\lab-claude-skill\.claude\commands\commit-msg.md</code></pre>
+
+  <script>mermaid.initialize({ startOnLoad: true, theme: 'default' });</script>
+</body>
+</html>

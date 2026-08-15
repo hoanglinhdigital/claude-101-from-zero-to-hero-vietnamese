@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Kỹ thuật viết yêu cầu (prompt) rõ ràng cho tác vụ code – Claude 101</title>
+  <title>Quy trình làm việc chuẩn: Explore → Plan → Code → Verify – Claude 101</title>
   <link rel="stylesheet" href="../../styles.css" />
   <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
   <script src="../../mermaid-config.js"></script>
@@ -16,100 +16,110 @@
   <div class="chapter-breadcrumb">
     <span class="section-part">4. Claude Code cho Developer</span>
     <span class="sep">/</span>
-    <span class="chapter-part">Kỹ thuật viết yêu cầu (prompt) rõ ràng cho tác vụ code</span>
+    <span class="chapter-part">Quy trình làm việc chuẩn: Explore → Plan → Code → Verify</span>
   </div>
 
   <h2 class="section-heading">Giới thiệu</h2>
   <p class="body-text">
-    Chất lượng kết quả của Claude Code phụ thuộc rất lớn vào chất lượng của prompt đầu vào. Một prompt mơ hồ khiến
-    Claude Code phải tự đoán ngữ cảnh — dễ chọn sai file, sai phạm vi ảnh hưởng, hoặc hỏi lại nhiều lần làm chậm tiến
-    độ. Chương này trình bày kỹ thuật viết prompt rõ ràng cho 3 loại tác vụ code phổ biến: <strong>thêm tính năng
-    (feature)</strong>, <strong>sửa lỗi (bugfix)</strong> và <strong>refactor</strong>.
+    Khi giao một tác vụ code cho Claude Code, kết quả tốt nhất không đến từ việc gõ một yêu cầu duy nhất và chờ
+    Claude "làm hết trong một lần" — mà đến từ việc đi theo một <strong>quy trình làm việc chuẩn gồm 4 giai đoạn</strong>:
+    <strong>Explore → Plan → Code → Verify</strong>. Quy trình này giúp Claude Code hiểu đúng ngữ cảnh trước khi sửa
+    code, cho User cơ hội duyệt lại kế hoạch trước khi thay đổi được thực thi, và luôn kết thúc bằng một bước
+    kiểm chứng kết quả — thay vì "vibe coding" (code theo cảm tính, tin tưởng mù quáng vào output của AI).
   </p>
-
+  <div class="figure-centered">
+    <img src="../../assets/images/quy-trinh-4-buoc-minh-hoa-by-gemini.png" alt="Minh họa AI Agent" />
+    <p class="figure-title">Minh họa quy trình 4 bước khi làm việc với Claude Code</p>
+  </div>
   <h2 class="section-heading">Các tính năng chính</h2>
   <ul class="feature-list">
-    <li>Một prompt rõ ràng cho tác vụ code cần đủ 3 phần: <strong>Context</strong> (file/module liên quan), <strong>Hành vi mong đợi</strong> (kết quả cụ thể sau khi hoàn thành), và <strong>Ràng buộc</strong> (những gì không được thay đổi, convention cần tuân theo).</li>
-    <li>Với <strong>feature</strong>: nêu rõ tính năng làm gì, đặt ở đâu trong cấu trúc project, có phụ thuộc vào tính năng/module nào đã có sẵn hay không.</li>
-    <li>Với <strong>bugfix</strong>: nêu rõ hành vi hiện tại (sai) vs hành vi mong đợi (đúng), bước tái hiện lỗi, và file/log liên quan nếu có.</li>
-    <li>Với <strong>refactor</strong>: nêu rõ mục tiêu refactor (dễ đọc hơn, tách logic, giảm trùng lặp...) và cam kết <strong>không thay đổi hành vi hiện tại</strong> — đây là ràng buộc quan trọng nhất của loại tác vụ này.</li>
-    <li>Nên chỉ định rõ file/đường dẫn cụ thể nếu đã biết, thay vì để Claude Code tự tìm kiếm toàn bộ project — giúp tiết kiệm thời gian và context.</li>
+    <li><strong>Explore</strong> — Claude Code đọc và tìm hiểu codebase liên quan, chưa sửa bất kỳ file nào.</li>
+    <li><strong>Plan</strong> — Claude Code đề xuất kế hoạch thực hiện chi tiết, User đọc, thực hiện chỉnh sửa nếu cần và duyệt (approve) trước khi cho thực thi.<br/>
+      Bước này User có thể yêu cầu Claude Code ghi kế hoạch ra một file riêng (vd: <code>/docs/plan/frontend/login-screen-plan.md</code>) để đọc/review/chỉnh sửa trước khi Claude thực thi, hoặc để User tham khảo sau này.
+    </li>
+    <li><strong>Code</strong> — Claude Code thực thi thay đổi đúng theo kế hoạch đã được duyệt: sửa file, tạo file mới, chạy các lệnh cần thiết trong quá trình thực thi.</li>
+    <li><strong>Verify</strong> — Build, chạy test/lint, xem lại <code>git diff</code> để xác nhận thay đổi đúng như mong đợi, không phát sinh lỗi ngoài ý muốn. <br/>
+      Ngoài ra có thể chạy lại các bộ API Testing, Regrestion Testing để xác nhận thay đổi không làm phá vỡ logic cũ. <br/>
+      [Optional]Cập nhật lại trạng thái các đầu mục TODO trong plan (nếu User chọn ghi ra file).</li>
+    <li>4 giai đoạn này lặp lại theo vòng — nếu Verify phát hiện vấn đề, quay lại Explore/Plan để điều chỉnh, không nên "vá" tạm bằng một prompt sửa lỗi rời rạc.</li>
   </ul>
 
   <h2 class="section-heading">Mô hình kiến trúc</h2>
   <div class="mermaid">
-  flowchart TD
-      Dev(("👤<br/><b>Developer</b>"))
-      Vague["💬 <b>Prompt mơ hồ</b><br/>Thiếu context, không rõ<br/>hành vi mong đợi"]
-      Clear["💬 <b>Prompt rõ ràng</b><br/>Context + Hành vi mong đợi<br/>+ Ràng buộc"]
-      CC["<img src='../../assets/svg-icon/claude-logo.svg' style='width:30px;height:30px;'/><br/><b>Claude Code</b>"]
-      Guess["❓ Tự đoán ngữ cảnh<br/>Hỏi lại nhiều lần<br/>hoặc sửa sai chỗ"]
-      Exact["✅ Thực thi đúng ngay<br/>Ít cần hỏi lại"]
+  flowchart LR
+      User(("👤<br/><b>Developer</b>"))
+      Explore["🔍 <b>1. Explore</b><br/>Đọc code, hiểu cấu trúc<br/><i>Chưa sửa gì</i>"]
+      Plan["📋 <b>2. Plan</b><br/>Đề xuất kế hoạch<br/><i>Chờ duyệt (approve)</i>"]
+      Code["<img src='../../assets/svg-icon/ide.svg' style='width:28px;height:28px;'/><br/><b>3. Code</b><br/>Thực thi thay đổi<br/><i>Sửa/tạo file, chạy lệnh</i>"]
+      Verify["✅ <b>4. Verify</b><br/>Build / test / lint<br/><i>Review git diff</i>"]
 
-      Dev --> Vague --> CC
-      Dev --> Clear --> CC
-      CC -->|"Thiếu thông tin"| Guess
-      CC -->|"Đủ thông tin"| Exact
-      Guess -->|"Phải làm lại"| Dev
-      Exact -->|"Duyệt & merge"| Dev
+      User -->|"Giao Task"| Explore
+      Explore -->|"Tạo Plan"| Plan
+      Plan -->|"User Approve"| Code
+      Plan -->|"[Optional]User yêu cầu sửa kế hoạch"| Explore
+      Code --> Verify
+      Verify -->|"Đạt yêu cầu"| User
+      Verify -->|"Phát hiện vấn đề"| Explore
   </div>
-  <p class="arch-caption">Prompt mơ hồ đẩy phần "đoán ngữ cảnh" sang cho Claude Code — dễ dẫn đến sửa sai chỗ hoặc phải hỏi lại nhiều lần; prompt rõ ràng giúp Claude Code thực thi đúng ngay từ lần đầu.</p>
+  <p class="arch-caption">Explore → Plan → Code → Verify là một vòng lặp: nếu Verify phát hiện sai lệch, quay lại Explore/Plan để điều chỉnh kế hoạch thay vì chỉ sửa vá tạm ở bước Code.</p>
 
-  <h3 class="sub-heading">So sánh Prompt mơ hồ và Prompt rõ ràng</h3>
-  <table class="compare-table">
-    <thead>
-      <tr><th>Loại tác vụ</th><th>Prompt mơ hồ</th><th>Prompt rõ ràng</th></tr>
-    </thead>
-    <tbody>
-      <tr>
-        <td><strong>Feature</strong></td>
-        <td>"Thêm chức năng lọc cho trang danh sách chi tiêu."</td>
-        <td>"Thêm bộ lọc theo khoảng ngày (từ ngày - đến ngày) cho trang <code>app/expenses/page.tsx</code>. Bộ lọc gọi API route <code>app/api/expenses/route.ts</code> hiện có bằng query param <code>from</code>/<code>to</code>. Không thay đổi cấu trúc bảng hiển thị hiện tại, chỉ thêm 2 input date phía trên bảng."</td>
-      </tr>
-      <tr>
-        <td><strong>Bugfix</strong></td>
-        <td>"Trang chi tiêu bị lỗi, sửa giúp."</td>
-        <td>"Khi tạo khoản chi tiêu với số tiền âm (vd -100), app vẫn lưu thành công vào database thay vì báo lỗi validate. Hành vi mong đợi: API route <code>app/api/expenses/route.ts</code> phải trả lỗi 400 với message rõ ràng khi <code>amount &lt;= 0</code>. Không thay đổi logic validate của field khác."</td>
-      </tr>
-      <tr>
-        <td><strong>Refactor</strong></td>
-        <td>"Code chỗ tính tổng chi tiêu dài quá, dọn lại giúp."</td>
-        <td>"Tách logic tính tổng chi tiêu theo tháng đang nằm trực tiếp trong component <code>ExpenseSummary.tsx</code> ra một hàm riêng trong <code>lib/expense-service.ts</code>. Giữ nguyên hành vi và kết quả hiển thị hiện tại — đây là refactor thuần, không đổi logic tính toán."</td>
-      </tr>
-    </tbody>
-  </table>
+  <h3 class="sub-heading">Chi tiết từng giai đoạn</h3>
+  <div class="phase-timeline">
+    <div class="phase-item">
+      <strong>Explore</strong>
+      Yêu cầu Claude Code đọc file liên quan, tóm tắt cách hoạt động hiện tại. Không cho phép sửa file ở bước này.
+    </div>
+    <div class="phase-item purple">
+      <strong>Plan</strong>
+      Chuyển sang <i>Plan mode</i> (<code>Shift+Tab</code>). Claude Code trình bày các bước dự kiến thực hiện, User đọc kỹ và duyệt hoặc yêu cầu chỉnh sửa kế hoạch.<br/>
+      *Nếu bạn muốn Claude Code ghi plan ra một file riêng, hãy yêu cầu ở bước này. File plan sẽ được tạo ra trong repo, và Claude Code sẽ đọc lại file này trước khi thực thi ở bước Code (Có thể chuyển sang mode <i>Accept Edit</i>).
+    </div>
+    <div class="phase-item orange">
+      <strong>Code</strong>
+      Sau khi kế hoạch được duyệt, Claude Code thực thi: sửa file, tạo file mới, cài package, chạy lệnh cần thiết.
+    </div>
+    <div class="phase-item green">
+      <strong>Verify</strong>
+      Chạy build/test/lint, đọc lại <code>git diff</code> từng file đã đổi để xác nhận đúng phạm vi, không sửa nhầm chỗ không liên quan.
+    </div>
+  </div>
 
   <div class="alert alert-tip">
-    <strong>Mẹo:</strong> Nếu chưa chắc file nào liên quan, có thể yêu cầu Claude Code tự tìm trước ("tìm giúp file nào xử lý validate số tiền chi tiêu") rồi mới viết prompt chi tiết ở bước tiếp theo — đây chính là kết hợp với giai đoạn Explore đã học ở chương trước.
+    <strong>Vì sao không nên bỏ qua bước Explore và Plan?</strong> Với codebase nhỏ, một prompt trực tiếp có thể vẫn cho kết quả đúng. Nhưng với codebase lớn hoặc tác vụ ảnh hưởng nhiều file, bỏ qua Explore/Plan khiến Claude Code dễ đoán sai ngữ cảnh (vd: sửa nhầm phiên bản cũ của một hàm đã được refactor ở nơi khác), dẫn đến phải sửa lại nhiều lần — tốn thời gian hơn so với việc dành 2-5 phút đọc kế hoạch trước.
   </div>
 
   <h2 class="section-heading">Use Cases</h2>
   <div class="usecase-grid">
     <div class="usecase-card">
-      <h4>Feature request từ Product Owner</h4>
-      <p>Chuyển yêu cầu nghiệp vụ mơ hồ thành prompt kỹ thuật cụ thể có context file, giúp Claude Code hiện thực hoá đúng ý định ban đầu.</p>
+      <h4>Phát triển tính năng mới</h4>
+      <p>User có thể duyệt trước Plan của Claude tạo ra xem có đang đi đúng hướng, tuân thủ các convention của dự án không trước khi bắt đầu. Tránh Claude Code implement không đúng dẫn đến phải re-work tốn thời gian & chi phí token</p>
     </div>
     <div class="usecase-card">
-      <h4>Bugfix từ báo cáo lỗi ngắn</h4>
-      <p>Bổ sung bước tái hiện lỗi và hành vi mong đợi trước khi giao cho Claude Code, giảm số lần phải sửa lại.</p>
+      <h4>Thêm tính năng vào codebase lớn</h4>
+      <p>Explore giúp Claude Code hiểu đúng convention hiện có trước khi Plan đề xuất vị trí đặt code mới, tránh phá vỡ cấu trúc sẵn có.</p>
     </div>
     <div class="usecase-card">
-      <h4>Refactor an toàn</h4>
-      <p>Ràng buộc rõ "không đổi hành vi" giúp Claude Code tự kiểm tra lại bằng test hiện có trước khi báo hoàn thành.</p>
+      <h4>Sửa bug khó tái hiện</h4>
+      <p>Explore kỹ luồng dữ liệu liên quan đến bug trước khi Plan đề xuất hướng fix, tránh sửa nhầm nguyên nhân triệu chứng thay vì gốc rễ.</p>
+    </div>
+    <div class="usecase-card">
+      <h4>Refactor phạm vi rộng</h4>
+      <p>Plan giúp User thấy trước toàn bộ danh sách file sẽ bị ảnh hưởng trước khi cho Claude Code thực thi đồng loạt. *AI có thể mắc sai lầm, hãy yêu cầu Claude liệt kê toàn bộ các thao tác sẽ phát sinh vd Thêm/Xóa/Sửa file.. để User có thể review & duyệt</p>
     </div>
   </div>
 
   <h2 class="section-heading">Thông tin bổ sung</h2>
   <p class="body-text">
-    Không cần viết prompt dài dòng cho mọi tác vụ — với việc nhỏ, rõ ràng tự nhiên (vd "đổi tên biến <code>amt</code>
-    thành <code>amount</code> trong file X"), một câu ngắn là đủ. Kỹ thuật viết prompt rõ ràng nên áp dụng có chọn lọc:
-    dùng đầy đủ 3 phần (Context – Hành vi mong đợi – Ràng buộc) cho tác vụ có rủi ro sai lệch cao hoặc ảnh hưởng nhiều
-    file; tác vụ đơn giản, phạm vi hẹp thì không cần cầu kỳ.
+    Trong thực tế, 4 giai đoạn này không nhất thiết cần 4 prompt riêng biệt — Claude Code có thể tự chuyển từ Explore
+    sang Plan trong cùng một phiên trò chuyện khi đang ở Plan mode. Điều quan trọng là User luôn <strong>dừng lại
+    ở bước Plan để đọc và duyệt</strong> trước khi cho phép Code thực thi, và luôn có bước Verify cuối cùng — không
+    nên coi phản hồi "đã hoàn thành" của Claude Code là đủ để tin tưởng tuyệt đối.
   </p>
-  <div class="alert alert-info">
-    Nếu project đã có file <code>CLAUDE.md</code> mô tả convention chung (đã học ở Section 2), phần "Ràng buộc" trong
-    prompt có thể được rút ngắn vì Claude Code đã tự đọc convention đó mỗi phiên làm việc — chỉ cần nêu ràng buộc
-    riêng biệt cho tác vụ hiện tại.
+  <p class="body-text">
+    Các quy tắc làm việc như: Yêu cầu Claude tạo ra file plan theo cấu trúc quy định sẵn, liệt kê thay đổi sẽ thực thi, đặt câu hỏi lại cho user, tuân thủ các rule khi thiết kế database, API, màn hình... hoàn toàn có thể được thêm vào file CLAUDE.md một cách linh hoạt (vì sẽ được nạp vào context cho mọi phiên làm việc).
+  </p>
+  <div class="alert alert-warning">
+    <strong>Lưu ý:</strong> Với các tác vụ đơn giản, lặp lại nhiều lần và rủi ro thấp (vd: đổi tên biến, sửa lỗi chính tả trong comment), có thể rút ngắn quy trình và bỏ qua Plan mode để làm việc nhanh hơn. Tuy nhiên bước Verify (xem lại diff) nên luôn được giữ lại, bất kể tác vụ lớn hay nhỏ.
   </div>
 
   <script>mermaid.initialize({ startOnLoad: true, theme: 'default' });</script>

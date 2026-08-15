@@ -45,7 +45,7 @@
       </tr>
       <tr>
         <td><code>UserPromptSubmit</code></td>
-        <td>Khi học viên gửi một prompt mới trong phiên làm việc — trước khi model bắt đầu xử lý prompt đó.</td>
+        <td>Khi User gửi một prompt mới trong phiên làm việc — trước khi model bắt đầu xử lý prompt đó.</td>
       </tr>
       <tr>
         <td><code>Stop</code></td>
@@ -76,7 +76,7 @@
   <div class="mermaid">
   flowchart LR
       Start(["🚀<br/><b>SessionStart</b><br/>Claude Code khởi động"])
-      UserPrompt["<img src='../../assets/svg-icon/user.svg' style='width:26px;height:26px;'/><br/><b>UserPromptSubmit</b><br/>Học viên gửi prompt"]
+      UserPrompt["<img src='../../assets/svg-icon/user.svg' style='width:26px;height:26px;'/><br/><b>UserPromptSubmit</b><br/>User gửi prompt"]
       Model["<img src='../../assets/svg-icon/claude-logo.svg' style='width:28px;height:28px;'/><br/>Model xử lý,<br/>quyết định gọi tool"]
       PreHook["<img src='../../assets/svg-icon/operator.svg' style='width:26px;height:26px;'/><br/><b>PreToolUse</b><br/>trước khi tool chạy"]
       ToolExec["<img src='../../assets/svg-icon/task.svg' style='width:26px;height:26px;'/><br/>Tool thực thi<br/>(Edit, Bash, Write...)"]

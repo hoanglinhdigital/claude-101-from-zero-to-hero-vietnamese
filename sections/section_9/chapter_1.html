@@ -40,7 +40,7 @@
   <h2 class="section-heading">Mô hình kiến trúc</h2>
   <div class="mermaid">
   flowchart TB
-      Prompt(["👤<br/><b>Học viên gửi yêu cầu</b>"])
+      Prompt(["👤<br/><b>User gửi yêu cầu</b>"])
       Model["<img src='../../assets/svg-icon/claude-logo.svg' style='width:30px;height:30px;'/><br/><b>Claude Code (Model)</b>"]
 
       subgraph ModelDriven["🧠 Model tự quyết định — Skill / Sub-agent"]
@@ -72,7 +72,7 @@
       <tr>
         <td>Ai quyết định chạy?</td>
         <td>Model tự quyết định, dựa trên việc so khớp <code>description</code> với yêu cầu hiện tại</td>
-        <td>Model (Main Agent) tự quyết định gọi qua Task tool, hoặc học viên chỉ định rõ qua <code>/agents</code></td>
+        <td>Model (Main Agent) tự quyết định gọi qua Task tool, hoặc User chỉ định rõ qua <code>/agents</code></td>
         <td>Luôn chạy khi điều kiện (event + matcher) khớp — không cần model "muốn" hay "nhớ" gọi</td>
       </tr>
       <tr>

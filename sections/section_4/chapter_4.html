@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Lab - Khởi tạo project Expense Management – Claude 101</title>
+  <title>Lab - Tổ chức project và định nghĩa quy tắc làm việc thông qua CLAUDE.md – Claude 101</title>
   <link rel="stylesheet" href="../../styles.css" />
   <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
   <script src="../../mermaid-config.js"></script>
@@ -16,227 +16,271 @@
   <div class="chapter-breadcrumb">
     <span class="section-part">4. Claude Code cho Developer</span>
     <span class="sep">/</span>
-    <span class="chapter-part">Lab - Khởi tạo project Expense Management (Next.js + Prisma + MySQL)</span>
+    <span class="chapter-part">Lab - Tổ chức project và định nghĩa quy tắc làm việc thông qua CLAUDE.md</span>
   </div>
 
   <div class="alert alert-info">
-    <strong>Project nền cho cả Section 4:</strong> Project <code>lab-expense-management</code> được tạo trong bài lab này sẽ được <strong>tái sử dụng</strong> ở các bài Lab tiếp theo (Chapter 6 - thêm tính năng & unit test, Chapter 7 - refactor & tạo Pull Request) và cả ở Section 8 (MCP Server MySQL). Hãy giữ lại thư mục project sau khi hoàn thành, không xoá đi.
+    <strong>Tiếp nối Chapter 4.2:</strong> Bài lab này dùng lại project <code>D:\lab-expense-management</code> đã tạo ở Chapter 4.2. Nếu chưa hoàn thành Chapter 4.2, hãy quay lại thực hiện trước khi bắt đầu.
   </div>
-
+  <h2 class="section-heading">Hạn chế của bài lab trước:</h2>
+  <ul class="feature-list">
+    <li>Quy trình Explore - Plan - Code -Review hoàn toàn phụ thuộc vào hành vi mặc định của Claude Code</li>
+    <li>Việc chuyển từ Plan sang Code, Review thực hiện thủ công thông qua thay đổi mode</li>
+    <li>Chưa có file CLAUDE.md giới thiệu về project cũng như tech-stack, khiến Claude Code phải explore lại từ đầu để khám phá code base mỗi khi nhận yêu cầu mới.</li>
+    <li>Chưa có các quy tắc chặt chẽ giúp Claude Code tuân thủ trong suốt quá trình Plan/Code/Review</li>
+  </ul>
   <h2 class="section-heading">Mục tiêu</h2>
   <ul class="feature-list">
-    <li>Dùng Claude Code khởi tạo một project Next.js mới (frontend + backend qua API Routes) trong thời gian ngắn.</li>
-    <li>Tích hợp Prisma ORM kết nối MySQL, chạy MySQL local bằng Docker Compose để làm database demo.</li>
-    <li>Yêu cầu Claude Code implement các tính năng cơ bản cho app <strong>Quản lý chi tiêu (Expense Management)</strong>: CRUD khoản chi tiêu, quản lý danh mục (category), tổng hợp chi tiêu theo tháng.</li>
-    <li>Kiểm chứng kết quả trên trình duyệt sau khi hoàn thành.</li>
+    <li>Tái cấu trúc project <code>lab-expense-management</code> để có nơi lưu trữ rõ ràng cho: input requirement, kế hoạch (plan) do Claude Code tạo ra, tài liệu API spec, mockup màn hình và cấu hình database.</li>
+    <li>Viết file <code>CLAUDE.md</code> định nghĩa quy tắc làm việc cho Claude Code trong toàn bộ dự án: cấu trúc thư mục, command thường dùng, version stack, kiến trúc App Router, nguyên tắc thiết kế database, và quy trình <strong>Explore → Plan → Code → Verify</strong> tuỳ biến theo từng loại tác vụ (Frontend, Backend/Database, Infra).</li>
+    <li>Thử nghiệm implement một tính năng mới để kiểm chứng Claude Code tuân thủ đúng các quy tắc đã định nghĩa, và biết cách chỉnh sửa <code>CLAUDE.md</code> khi phát hiện Claude Code làm sai quy tắc.</li>
   </ul>
 
   <h2 class="section-heading">Mô hình kiến trúc</h2>
   <div class="mermaid">
-  flowchart LR
+  flowchart TD
       Dev(("<img src='../../assets/svg-icon/developer.svg' style='width:26px;height:26px;'/><br/><b>Developer</b>"))
       CC["<img src='../../assets/svg-icon/claude-logo.svg' style='width:28px;height:28px;'/><br/><b>Claude Code</b>"]
-      Browser["<img src='../../assets/svg-icon/browser.svg' style='width:28px;height:28px;'/><br/><b>Browser</b><br/>localhost:3000"]
+      MD["📄 <b>CLAUDE.md</b><br/><i>Nạp tự động vào context<br/>của mọi phiên làm việc</i>"]
 
-      subgraph App["Next.js Project — lab-expense-management"]
-          FE["<img src='../../assets/svg-icon/ide.svg' style='width:26px;height:26px;'/><br/><b>Frontend</b><br/>App Router · React"]
-          API["⚙️ <b>API Routes</b><br/>/api/expenses<br/>/api/categories"]
-          ORM["🔗 <b>Prisma ORM</b><br/>schema.prisma"]
+      subgraph Project["lab-expense-management/"]
+          Database["🗄️ <b>database/</b><br/>docker-compose.yml"]
+          Docs["📁 <b>docs/</b><br/>api-spec/ · mockup/"]
+          Plans["📋 <b>plans/</b><br/>backend/ · frontend/ · infra/"]
+          Prisma["🔗 <b>prisma/</b><br/>schema · migrations"]
+          Src["<img src='../../assets/svg-icon/ide.svg' style='width:26px;height:26px;'/><br/><b>src/</b><br/>App Router<br/>Components<br/>Services<br/>Data"]
       end
 
-      DB["<img src='../../assets/svg-icon/container.svg' style='width:28px;height:28px;'/><br/><b>MySQL Container</b><br/>Docker Compose"]
-
-      Dev -->|"Yêu cầu bằng prompt"| CC
-      CC -->|"Sinh code, cấu hình"| App
-      FE --> API
-      API --> ORM
-      ORM -->|"Kết nối qua DATABASE_URL"| DB
-      Browser -->|"HTTP"| FE
+      Dev -->|"Giao task bằng prompt"| CC
+      CC -->|"Đọc quy tắc trước mỗi task"| MD
+      MD -.->|"quy định cấu trúc & rule"| Project
+      CC -->|"Explore / ghi Plan / Code / Verify"| Plans
+      Plans -.->|"tham chiếu"| Docs
+      CC --> Src
+      CC --> Prisma
+      CC --> Database
   </div>
-  <p class="arch-caption">Claude Code sinh toàn bộ mã nguồn Next.js (frontend + API routes), cấu hình Prisma ORM để giao tiếp với MySQL chạy trong Docker container local.</p>
+  <p class="arch-caption"><code>CLAUDE.md</code> đóng vai trò "bộ nhớ quy tắc" — được Claude Code đọc tự động ở đầu mỗi phiên làm việc, đảm bảo mọi task (dù là Frontend, Backend hay Infra) đều tuân theo cùng một cấu trúc thư mục và quy trình.</p>
 
   <h2 class="section-heading">Yêu cầu trước khi bắt đầu</h2>
   <ul class="feature-list">
-    <li>Claude Code CLI đã cài đặt và đăng nhập thành công (xem lại Section 2).</li>
-    <li>Node.js phiên bản 18 trở lên đã được cài đặt (<code>node -v</code> chạy được).</li>
-    <li>Docker Desktop đã cài đặt và đang chạy trên máy (<code>docker --version</code> chạy được).</li>
-    <li>Terminal: PowerShell hoặc Windows Terminal.</li>
-    <li>Kết nối Internet ổn định để cài package và pull Docker image.</li>
+    <li>Đã hoàn thành Chapter 4.2 — project <code>D:\lab-expense-management</code> chạy được, MySQL container đang hoạt động.</li>
   </ul>
 
   <h2 class="section-heading">Các bước thực hành</h2>
 
-  <h3 class="sub-heading">Phần 1: Khởi tạo project qua Claude Code</h3>
+  <h3 class="sub-heading">Phần 1: Tái cấu trúc project cùng Claude Code</h3>
   <ol class="step-list">
     <li>
       <div>
-        <strong>Bước 1: Tạo thư mục project và khởi động Claude Code</strong>
-        <p>Đặt tên thư mục cố định <code>lab-expense-management</code> — sẽ dùng lại tên này xuyên suốt các bài lab tiếp theo trong Section 4 và Section 8.</p>
-        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">mkdir D:\lab-expense-management
-cd D:\lab-expense-management
+        <strong>Bước 1: Mở lại project và khởi động Claude Code</strong>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">cd D:\lab-expense-management
 claude</code></pre>
       </div>
     </li>
     <li>
       <div>
-        <strong>Bước 2: Yêu cầu Claude Code khởi tạo project Next.js + Prisma + MySQL</strong>
-        <p>Gõ prompt đầy đủ context trong khung nhập lệnh Claude Code — nêu rõ tech stack, cấu trúc mong muốn và yêu cầu tạo Docker Compose cho MySQL.</p>
-        <pre class="command-line" data-prompt=">"><code class="language-text">Khởi tạo một project Next.js mới trong thư mục hiện tại, dùng TypeScript, Tailwind CSS và App Router. Tích hợp Prisma ORM kết nối MySQL. Yêu cầu cụ thể:
-1. Tạo file docker-compose.yml chạy MySQL 8.0 local (container name: expense-mysql, database: expense_db, user: expense_user, password: expense_pass, expose port 3306, có volume lưu data).
-2. Tạo file .env chứa DATABASE_URL kết nối đến MySQL container trên.
-3. Tạo schema Prisma (prisma/schema.prisma) với 2 model: Category (id, name unique) và Expense (id, title, amount kiểu Decimal, note optional, categoryId liên kết Category, spentAt, createdAt, updatedAt).
-4. Sau khi tạo xong, build thử project để đảm bảo không lỗi cấu hình.</code></pre>
+        <strong>Bước 2: Yêu cầu Claude Code tái cấu trúc thư mục project</strong>
+        <p>Mô tả rõ cấu trúc thư mục mong muốn và lý do — Claude Code cần biết mục đích của từng thư mục để đề xuất đúng vị trí di chuyển file hiện có (ví dụ <code>docker-compose.yml</code>).</p>
+        <pre class="command-line" data-prompt=">"><code class="language-text">Tái cấu trúc lại project hiện tại theo layout dưới đây, không thay đổi logic code đang có, chỉ di chuyển/tạo file và cập nhật đường dẫn tham chiếu nếu cần:
+
+1. /docs/api-spec — thư mục rỗng, sẽ chứa các file OpenAPI 3.0 spec cho từng API sau này.
+2. /docs/mockup — thư mục rỗng, sẽ chứa thư mục con theo tên màn hình/tính năng, mỗi thư mục chứa mockup do tôi cung cấp trước khi lên plan.
+3. /plans/backend — thư mục rỗng, sẽ chứa file .md là kế hoạch cho từng feature backend.
+4. /plans/frontend — thư mục rỗng, sẽ chứa file .md là kế hoạch cho từng màn hình frontend.
+5. /plans/infra — thư mục rỗng, sẽ chứa file .md là kế hoạch cho các tác vụ hạ tầng (Terraform, CI/CD, deploy AWS).
+6. /prisma — giữ nguyên vị trí hiện tại ở root, không di chuyển.
+7. /infra — thư mục rỗng, sẽ chứa các file cấu hình hạ tầng (Terraform, CI/CD, deploy AWS) sau này.
+    </code>
+  </pre>
       </div>
     </li>
     <li>
       <div>
         <strong>Bước 3: Duyệt kế hoạch và xác nhận thực thi</strong>
-        <p>Nếu đang ở Plan mode, đọc qua các bước Claude Code dự kiến thực hiện rồi chọn <strong>Approve</strong>. Ở Accept Edits mode, xác nhận từng bước khi được hỏi (tạo file, cài package <code>@prisma/client</code>, <code>prisma</code>...).</p>
+        <p>Đọc qua danh sách file Claude Code dự kiến tạo/di chuyển sau đó <strong>Approve</strong>.</p>
       </div>
     </li>
     <li>
       <div>
-        <strong>Bước 4: Kiểm tra cấu trúc project vừa được sinh ra</strong>
-        <p>Sau khi Claude Code hoàn thành, kiểm tra các file quan trọng đã được tạo đúng vị trí.</p>
-        <pre class="command-line" data-prompt="PS>" data-output="2, 3, 4, 5, 6"><code class="language-powershell">dir
-app
-prisma
-docker-compose.yml
-.env
-package.json</code></pre>
+        <strong>Bước 4: Kiểm tra cấu trúc project sau khi tái cấu trúc (chạy lệnh sau = Powershell)</strong>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">tree /F /A</code></pre>
+        <div class="file-tree">
+          <span class="dir">lab-expense-management/</span><br/>
+          &nbsp;&nbsp;<span class="dir">docs/</span><br/>
+          &nbsp;&nbsp;&nbsp;&nbsp;<span class="dir">api-spec/</span> <span class="desc">— OpenAPI spec từng API</span><br/>
+          &nbsp;&nbsp;&nbsp;&nbsp;<span class="dir">mockup/</span> <span class="desc">— mockup màn hình do user cung cấp</span><br/>
+          &nbsp;&nbsp;<span class="dir">plans/</span><br/>
+          &nbsp;&nbsp;&nbsp;&nbsp;<span class="dir">backend/</span> <span class="desc">— plan cho feature backend</span><br/>
+          &nbsp;&nbsp;&nbsp;&nbsp;<span class="dir">frontend/</span> <span class="desc">— plan cho từng màn hình</span><br/>
+          &nbsp;&nbsp;&nbsp;&nbsp;<span class="dir">infra/</span> <span class="desc">— plan cho hạ tầng/CI-CD</span><br/>
+          &nbsp;&nbsp;<span class="dir">prisma/</span><br/>
+          &nbsp;&nbsp;&nbsp;&nbsp;<span class="file">schema.prisma</span><br/>
+          &nbsp;&nbsp;<span class="dir">src/</span> <span class="note">(hoặc app/ tuỳ Claude Code sinh ban đầu)</span><br/>
+          &nbsp;&nbsp;<span class="dir">infra/</span><br/>
+          &nbsp;&nbsp;<span class="file">.env</span>
+        </div>
+</code></pre>
       </div>
     </li>
   </ol>
 
-  <h3 class="sub-heading">Phần 2: Tham khảo nội dung file cấu hình Claude Code tạo ra</h3>
-  <p class="body-text">Nội dung dưới đây là ví dụ tham khảo cho những gì Claude Code nên sinh ra ở Bước 2 — dùng để đối chiếu, không cần tạo tay các file này.</p>
-  <pre class="file-block"><span class="filename">docker-compose.yml</span><span class="hl">services</span>:
-  <span class="hl">mysql</span>:
-    <span class="hl">image</span>: <span class="str">mysql:8.0</span>
-    <span class="hl">container_name</span>: <span class="str">expense-mysql</span>
-    <span class="hl">restart</span>: <span class="str">unless-stopped</span>
-    <span class="hl">environment</span>:
-      MYSQL_ROOT_PASSWORD: <span class="str">rootpassword</span>
-      MYSQL_DATABASE: <span class="str">expense_db</span>
-      MYSQL_USER: <span class="str">expense_user</span>
-      MYSQL_PASSWORD: <span class="str">expense_pass</span>
-    <span class="hl">ports</span>:
-      - <span class="str">"3306:3306"</span>
-    <span class="hl">volumes</span>:
-      - <span class="str">mysql_data:/var/lib/mysql</span>
-<span class="hl">volumes</span>:
-  <span class="hl">mysql_data</span>:</pre>
-
-  <pre class="file-block"><span class="filename">.env</span><span class="hl">DATABASE_URL</span>=<span class="str">"mysql://expense_user:expense_pass@localhost:3306/expense_db"</span></pre>
-
-  <pre class="file-block"><span class="filename">prisma/schema.prisma</span><span class="cmt">datasource db {</span>
-  provider = <span class="str">"mysql"</span>
-  url      = env(<span class="str">"DATABASE_URL"</span>)
-<span class="cmt">}</span>
-
-<span class="cmt">generator client {</span>
-  provider = <span class="str">"prisma-client-js"</span>
-<span class="cmt">}</span>
-
-<span class="hl">model Category</span> {
-  id        Int       @id @default(autoincrement())
-  name      String    @unique
-  expenses  Expense[]
-  createdAt DateTime  @default(now())
-}
-
-<span class="hl">model Expense</span> {
-  id         Int       @id @default(autoincrement())
-  title      String
-  amount     Decimal   @db.Decimal(12, 2)
-  note       String?
-  categoryId Int
-  category   Category  @relation(fields: [categoryId], references: [id])
-  spentAt    DateTime  @default(now())
-  createdAt  DateTime  @default(now())
-  updatedAt  DateTime  @updatedAt
-}</pre>
-
-  <h3 class="sub-heading">Phần 3: Chạy MySQL, migrate database và implement tính năng</h3>
+  <h3 class="sub-heading">Phần 2: Viết CLAUDE.md định nghĩa quy tắc làm việc</h3>
   <ol class="step-list">
     <li>
       <div>
-        <strong>Bước 5: Khởi động MySQL container bằng Docker Compose</strong>
-        <p>Chạy lệnh sau ngay trong thư mục project (nơi có file <code>docker-compose.yml</code>).</p>
-        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">docker compose up -d</code></pre>
-        <p>Kiểm tra container đã chạy thành công.</p>
-        <pre class="command-line" data-prompt="PS>" data-output="2"><code class="language-powershell">docker ps
-CONTAINER ID   IMAGE       ...   PORTS                    NAMES
-abc123def456   mysql:8.0   ...   0.0.0.0:3306->3306/tcp   expense-mysql</code></pre>
+        <strong>Bước 5: Yêu cầu Claude Code sinh file CLAUDE.md</strong>
+        <p>Liệt kê đầy đủ các mục cần có trong prompt — CLAUDE.md càng rõ ràng, cụ thể thì Claude Code càng tuân thủ chính xác ở các task sau này.</p>
+        <pre class="command-line" data-prompt=">"><code class="language-text">Tạo file CLAUDE.md ở thư mục gốc project, định nghĩa quy tắc làm việc cho Claude Code trong toàn bộ dự án này. Nội dung gồm các mục sau:
+
+1. Giới thiệu ngắn gọn cấu trúc project (docs/api-spec, docs/mockup, plans/backend, plans/frontend, plans/infra, prisma/, src/).
+2. Các command npm thường dùng: npm run dev (start dev server), npm run build (build production), npm run lint (chạy ESLint), và các lệnh Prisma liên quan (migrate dev, studio).
+3. Version cố định của stack: Next.js, React (React Compiler bật), TypeScript (strict mode), Tailwind CSS, Prisma — lấy đúng version đang có trong package.json của project hiện tại.
+4. Kiến trúc App Router: toàn bộ source code nằm trong /src, root layout tại src/app/layout.tsx, không dùng Pages Router, TypeScript strict mode bắt buộc không được dùng any nếu không giải thích lý do.
+5. Nơi lưu tài liệu: input mockup nằm ở /docs/mockup/<ten-man-hinh>, API spec OpenAPI 3.0 nằm ở /docs/api-spec, kế hoạch (plan) nằm ở /plans/backend, /plans/frontend, /plans/infra tương ứng.
+6. Nguyên tắc thiết kế database dùng Prisma: mọi thay đổi schema phải qua migration, không sửa tay database, đặt tên model PascalCase số ít, field camelCase, luôn có createdAt/updatedAt, không xoá migration đã áp dụng.
+7. Quy trình bắt buộc Explore → Plan → Code → Verify
+Rule chung:
+   - Explore: đọc code, hiểu cấu trúc, không sửa file.
+   - Plan: đề xuất kế hoạch chi tiết, User đọc và duyệt trước khi Code. Các file plan (ten_task.md) phải liệt kê các hạng mục thực hiện theo dạng gạch đầu dòng gồm Thêm File, Sửa file, Xóa file.
+   - Code: thực thi thay đổi đúng theo kế hoạch đã duyệt.
+   - Verify: build, chạy test/lint, xem lại git diff để xác nhận thay đổi đúng như mong đợi.
+   - Mỗi file plan phải có checklist dạng "- [ ] tên task", Claude Code phải tick "- [x]" sau khi hoàn thành từng task tương ứng.
+   - Mỗi file phải có danh sách các test case (nếu có) để User kiểm tra sau khi Code xong.
+Rule riêng cho 3 loại task:
+   - Frontend/Screen: đọc mockup trong docs/mockup trước khi Plan, nếu user có chỉ định mockup cho màn hình, chỉ đọc đúng mockup cần thiết, ghi plan vào plans/frontend/<ten-man-hinh>.md.
+   - Backend/API/Database: nếu chưa có API spec thì phải đề xuất OpenAPI spec ghi vào docs/api-spec trước, chờ duyệt rồi mới Plan; ghi plan vào plans/backend/<ten-feature>.md.
+   - Infra: ghi plan vào plans/infra/<ten-feature>.md, không tự ý apply lên môi trường thật khi chưa được xác nhận ở bước Plan.
+
+Sau khi viết xong, đọc lại toàn bộ nội dung CLAUDE.md một lượt và tóm tắt cho tôi các điểm chính.</code></pre>
       </div>
     </li>
     <li>
       <div>
-        <strong>Bước 6: Chạy Prisma migration để tạo bảng trong database</strong>
-        <p>Lệnh này đọc <code>prisma/schema.prisma</code>, sinh migration SQL và áp dụng lên MySQL container vừa khởi động.</p>
-        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">npx prisma migrate dev --name init</code></pre>
+        <strong>Bước 6: Đối chiếu nội dung CLAUDE.md</strong>
+        <p>Nội dung dưới đây là ví dụ tham khảo cho những gì Claude Code nên sinh ra ở Bước 5 — dùng để đối chiếu..</p>
+        <p class="alert alert-warning"><strong>Tip:</strong> Các bạn có thể copy paste luôn file CLAUDE.md dưới đây để sử dụng mà không cần bước promp ở trên. Ngoài ra, nếu file CLAUDE.md do Claude Code tạo ra thiếu nội dung gì, hãy bổ sung trực tiếp thay vì tiếp tục prompt yêu cầu Claude bổ sung.</p>
+        <pre class="file-block"><span class="filename">CLAUDE.md</span><span class="cmt"># CLAUDE.md — Expense Management Project</span>
+
+<span class="cmt">## Cấu trúc project</span>
+- <span class="hl">docs/api-spec/</span> — OpenAPI 3.0 spec cho từng API
+- <span class="hl">docs/mockup/&lt;ten-man-hinh&gt;/</span> — mockup do user cung cấp trước khi lên plan
+- <span class="hl">plans/backend/</span>, <span class="hl">plans/frontend/</span>, <span class="hl">plans/infra/</span> — kế hoạch do Claude Code tạo, chờ duyệt
+- <span class="hl">prisma/</span> — schema.prisma, migrations
+- <span class="hl">src/</span> — toàn bộ source code (App Router)
+
+<span class="cmt">## Command thường dùng</span>
+- <span class="str">npm run dev</span> — chạy dev server (localhost:3000)
+- <span class="str">npm run build</span> — build production
+- <span class="str">npm run lint</span> — chạy ESLint
+- <span class="str">npx prisma migrate dev --name &lt;mo-ta&gt;</span> — tạo & áp dụng migration
+- <span class="str">npx prisma studio</span> — xem/sửa data trực quan
+
+<span class="cmt">## Version stack</span>
+- Next.js 15.x (App Router) · React 19 (React Compiler bật)
+- TypeScript 5.x — <span class="hl">strict: true</span> bắt buộc
+- Tailwind CSS 4.x · Prisma ORM 6.x
+
+<span class="cmt">## Kiến trúc App Router</span>
+- Toàn bộ source nằm trong <span class="hl">/src</span> (app/, components/, lib/, types/, data/, services/, constants/, context/)
+- Root layout: <span class="hl">src/app/layout.tsx</span>
+- Không dùng Pages Router. Không dùng <span class="hl">any</span> nếu không giải thích lý do bằng comment.
+
+<span class="cmt">## Nguyên tắc thiết kế database (Prisma)</span>
+- Mọi thay đổi schema phải qua <span class="hl">migrate dev</span>, không sửa tay database
+- Model PascalCase số ít, field camelCase, luôn có createdAt/updatedAt
+- Không xoá migration đã áp dụng — tạo migration mới để sửa
+
+<span class="cmt">## Quy trình bắt buộc: Explore → Plan → Code → Verify</span>
+1. Explore trước, không sửa file khi đang explore
+2. Ghi plan ra đúng thư mục /plans tương ứng, có checklist <span class="hl">- [ ]</span>
+3. Chờ user duyệt plan trước khi Code
+4. Verify: build + lint trước khi báo hoàn thành
+5. Tick <span class="hl">- [x]</span> vào plan sau khi hoàn thành từng task
+
+<span class="cmt">### Rule riêng — Frontend/Screen</span>
+- Đọc mockup trong <span class="hl">docs/mockup/&lt;ten-man-hinh&gt;</span> trước khi Plan (nếu có)
+- List up all components, props, state, data flow, edge cases.
+- List logic xử lý, query params, validation, error handling, và các test case.
+- Ghi plan vào <span class="hl">plans/frontend/&lt;ten-man-hinh&gt;.md</span>
+
+<span class="cmt">### Rule riêng — Backend/API/Database</span>
+- Nếu chưa có API spec, đề xuất OpenAPI spec ghi vào <span class="hl">docs/api-spec</span> trước, chờ duyệt
+- List up all components, props, state, data flow, edge cases.
+- List logic xử lý, query params, validation, error handling, và các test case.
+- Ghi plan vào <span class="hl">plans/backend/&lt;ten-feature&gt;.md</span>
+- Thay đổi schema Prisma → tạo migration ngay trong cùng task
+
+<span class="cmt">### Rule riêng — Infra</span>
+- Ghi plan vào <span class="hl">plans/infra/&lt;ten-feature&gt;.md</span>
+- Không tự ý apply lên môi trường thật khi chưa được xác nhận rõ ràng ở bước Plan
+
+<span class="cmt">## Không làm</span>
+- Không tự ý đổi cấu trúc thư mục đã định nghĩa ở trên
+- Không cài thêm package ngoài phạm vi task mà không hỏi trước</pre>
+      </div>
+    </li>
+  </ol>
+
+  <div class="alert alert-tip">
+    <strong>Vì sao nên chia rule theo Frontend / Backend / Infra thay vì viết chung một quy trình?</strong> Mỗi loại task có input và rủi ro khác nhau — Frontend cần đọc mockup, Backend cần thống nhất API spec trước khi code (tránh FE/BE hiểu sai hợp đồng dữ liệu), Infra có rủi ro cao nhất vì có thể ảnh hưởng tài nguyên thật. Rule riêng giúp Claude Code phản ứng đúng theo ngữ cảnh thay vì áp dụng một quy trình cứng nhắc cho mọi tình huống.
+  </div>
+
+  <h3 class="sub-heading">Phần 3: Thử nghiệm áp dụng CLAUDE.md qua một tính năng mới</h3>
+  <ol class="step-list">
+    <li>
+      <div>
+        <strong>Bước 7: Giao một tính năng mới, không nhắc lại quy trình</strong>
+        <p>Vì <code>CLAUDE.md</code> đã được Claude Code tự động nạp vào context, prompt lần này chỉ cần mô tả tính năng — không cần lặp lại yêu cầu "hãy viết plan trước" hay "ghi vào file .md" như các bài lab trước.</p>
+        <pre class="command-line" data-prompt=">"><code class="language-text">Thêm tính năng lọc danh sách khoản chi tiêu trên trang chủ theo category và khoảng thời gian (từ ngày - đến ngày). Kết quả lọc hiển thị lại bảng danh sách và tổng số tiền của các khoản đang được lọc.</code></pre>
       </div>
     </li>
     <li>
       <div>
-        <strong>Bước 7: Yêu cầu Claude Code implement tính năng Quản lý chi tiêu</strong>
-        <p>Vẫn trong phiên làm việc hiện tại (đã có ngữ cảnh về schema và project), giao tiếp tính năng cần implement — nêu rõ hành vi mong đợi cho từng phần.</p>
-        <pre class="command-line" data-prompt=">"><code class="language-text">Implement các tính năng cơ bản cho app Quản lý chi tiêu dựa trên schema Prisma đã có:
-1. Trang chủ (app/page.tsx) hiển thị danh sách khoản chi tiêu (title, amount, category, spentAt) dạng bảng, sắp xếp mới nhất lên đầu.
-2. API route app/api/expenses/route.ts hỗ trợ GET (danh sách) và POST (tạo mới) khoản chi tiêu.
-3. API route app/api/expenses/[id]/route.ts hỗ trợ PUT (sửa) và DELETE (xoá) một khoản chi tiêu theo id.
-4. API route app/api/categories/route.ts hỗ trợ GET (danh sách) và POST (tạo mới) danh mục.
-5. Một form đơn giản trên trang chủ để tạo khoản chi tiêu mới, chọn category từ dropdown.
-6. Một API route app/api/expenses/summary/route.ts trả về tổng chi tiêu theo từng tháng (group by tháng-năm của spentAt).
-Dùng Prisma Client đã cấu hình sẵn, không cần thêm ORM khác.</code></pre>
+        <strong>Bước 8: Quan sát Claude Code tự tạo file plan đúng vị trí</strong>
+        <p>Vì đây vừa có phần API (backend) vừa có phần giao diện (frontend), quan sát xem Claude Code có tách plan thành 2 file đúng theo rule đã định nghĩa hay không.</p>
+        <pre class="command-line" data-prompt="PS>" data-output="2, 3"><code class="language-powershell">dir plans/backend, plans/frontend
+plans/backend/filter-expenses.md
+plans/frontend/dashboard-filter.md</code></pre>
+        <div class="alert alert-warning">
+          <strong>Nếu Claude Code không tạo file plan hoặc đặt sai thư mục:</strong> đây là dấu hiệu rule trong <code>CLAUDE.md</code> chưa đủ rõ ràng. Yêu cầu Claude Code dừng lại, không code trực tiếp, và bổ sung câu rõ ràng hơn vào <code>CLAUDE.md</code> — ví dụ: "Bắt buộc ghi plan ra file .md trước khi sửa bất kỳ file code nào, kể cả tác vụ nhỏ." Đây chính là bước tự hoàn thiện quy tắc dự án theo kinh nghiệm thực tế.
+        </div>
       </div>
     </li>
     <li>
       <div>
-        <strong>Bước 8: Duyệt và xác nhận các thay đổi</strong>
-        <p>Đọc qua kế hoạch (nếu ở Plan mode) hoặc xác nhận từng thay đổi (ở Accept Edits mode) trước khi Claude Code ghi file.</p>
+        <strong>Bước 9: Đọc và duyệt plan</strong>
+        <p>Mở 2 file plan vừa tạo, kiểm tra checklist các task, chỉnh sửa trực tiếp trong file nếu muốn thay đổi phạm vi (ví dụ thêm/bớt điều kiện lọc), sau đó xác nhận cho Claude Code tiếp tục thực thi (Accept Edits mode hoặc trả lời "OK, thực hiện theo plan này").</p>
       </div>
     </li>
     <li>
       <div>
-        <strong>Bước 9: Chạy dev server và kiểm tra trên browser</strong>
-        <p>Khởi động Next.js dev server để kiểm tra kết quả thực tế.</p>
+        <strong>Bước 10: Verify — build, lint và kiểm tra checklist</strong>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">npm run lint
+npm run build</code></pre>
+        <p>Mở lại 2 file plan, xác nhận các dòng checklist đã được Claude Code tự tick <code>- [x]</code> tương ứng với phần đã hoàn thành. Sau đó chạy dev server và kiểm tra tính năng lọc trên trình duyệt.</p>
         <pre class="command-line" data-prompt="PS>"><code class="language-powershell">npm run dev</code></pre>
-        <p>Mở trình duyệt tại <code>http://localhost:3000</code>, thử tạo vài danh mục (vd "Ăn uống", "Di chuyển", "Giải trí") và vài khoản chi tiêu để xác nhận CRUD hoạt động đúng.</p>
       </div>
     </li>
   </ol>
 
   <div class="verify-box">
     <h4>✅ Kết quả mong đợi</h4>
-    <p class="body-text">Trang chủ hiển thị danh sách khoản chi tiêu vừa tạo, form thêm mới hoạt động, dữ liệu được lưu thực sự vào MySQL container (có thể kiểm tra lại bằng <code>npx prisma studio</code> để xem trực tiếp dữ liệu trong bảng <code>Expense</code> và <code>Category</code>).</p>
+    <p class="body-text">Project có cấu trúc thư mục rõ ràng theo <code>database/</code>, <code>docs/</code>, <code>plans/</code>, <code>prisma/</code>, <code>src/</code>. File <code>CLAUDE.md</code> tồn tại ở root và được Claude Code tuân thủ khi thực hiện task mới: tự tạo file plan đúng thư mục (<code>plans/backend</code>, <code>plans/frontend</code>), tự tick checklist sau khi hoàn thành, và tính năng lọc khoản chi tiêu hoạt động đúng trên <code>http://localhost:3000</code>.</p>
   </div>
 
   <h2 class="section-heading">Troubleshoot</h2>
   <div class="alert alert-warning">
-    <strong>Lỗi:</strong> <code>docker compose up</code> báo lỗi cổng 3306 đã được sử dụng.<br/>
-    <strong>Nguyên nhân:</strong> Máy đã có một MySQL khác (service cài local hoặc container khác) đang chiếm cổng 3306.<br/>
-    <strong>Giải pháp:</strong> Đổi mapping cổng trong <code>docker-compose.yml</code> thành ví dụ <code>"3307:3306"</code>, cập nhật lại <code>DATABASE_URL</code> trong <code>.env</code> tương ứng port mới, sau đó chạy lại <code>docker compose up -d</code>.
-  </div>
-  <div class="alert alert-warning">
-    <strong>Lỗi:</strong> <code>npx prisma migrate dev</code> báo không kết nối được database (<code>Can't reach database server</code>).<br/>
-    <strong>Nguyên nhân:</strong> Container MySQL chưa khởi động xong hoàn toàn (MySQL cần vài giây để sẵn sàng nhận kết nối sau khi container start), hoặc <code>DATABASE_URL</code> trong <code>.env</code> sai thông tin.<br/>
-    <strong>Giải pháp:</strong> Chờ khoảng 10-15 giây sau <code>docker compose up -d</code> rồi thử lại; kiểm tra lại user/password/database trong <code>.env</code> khớp với <code>docker-compose.yml</code>.
-  </div>
-  <div class="alert alert-warning">
-    <strong>Lỗi:</strong> <code>npm run dev</code> báo cổng 3000 đã được sử dụng.<br/>
-    <strong>Nguyên nhân:</strong> Có một Next.js dev server khác (từ lab trước) vẫn đang chạy.<br/>
-    <strong>Giải pháp:</strong> Đóng terminal đang chạy dev server cũ, hoặc chạy <code>npm run dev -- -p 3001</code> để dùng cổng khác.
+    <strong>Lỗi:</strong> Claude Code code thẳng vào file mà không ghi plan trước, dù <code>CLAUDE.md</code> đã yêu cầu.<br/>
+    <strong>Nguyên nhân:</strong> Rule trong <code>CLAUDE.md</code> nằm rải rác, dùng từ ngữ chung chung ("nên", "cố gắng") thay vì bắt buộc, hoặc file <code>CLAUDE.md</code> quá dài khiến rule quan trọng bị "loãng".<br/>
+    <strong>Giải pháp:</strong> Dùng từ khoá dứt khoát ("bắt buộc", "luôn luôn", "không được") cho các rule quan trọng, đặt quy trình Explore → Plan → Code → Verify ở vị trí dễ thấy (đầu file hoặc heading riêng), tránh nhét quá nhiều thông tin không liên quan vào cùng một file.
   </div>
 
-  <h2 class="section-heading">Dọn dẹp resource</h2>
   <div class="alert alert-warning">
-    <strong>Quan trọng:</strong> Project <code>D:\lab-expense-management</code> sẽ được dùng lại ở Chapter 6, Chapter 7 và Section 8 — <strong>không xoá thư mục project</strong> sau khi hoàn thành bài lab này. Chỉ cần dừng container MySQL khi không thực hành nữa để giải phóng tài nguyên máy.
+    <strong>Lỗi:</strong> Claude Code tạo file plan nhưng ghi sai thư mục (ví dụ để chung <code>plans/backend</code> và <code>plans/frontend</code> vào một file).<br/>
+    <strong>Nguyên nhân:</strong> Prompt giao task không tách rõ phần nào là backend/API, phần nào là frontend/UI.<br/>
+    <strong>Giải pháp:</strong> Với các tính năng liên quan cả hai (full-stack), có thể chủ động yêu cầu Claude Code "tách plan backend và frontend thành 2 file riêng theo đúng CLAUDE.md" ngay trong prompt giao task, thay vì chờ Claude Code tự suy luận.
   </div>
-  <pre class="command-line" data-prompt="PS>"><code class="language-powershell">cd D:\lab-expense-management
-docker compose down</code></pre>
-  <p class="note-text">Khi muốn thực hành lại từ đầu (bao gồm xoá luôn dữ liệu MySQL đã lưu trong volume), dùng lệnh sau — chỉ nên chạy khi thực sự không cần giữ dữ liệu cũ:</p>
-  <pre class="command-line" data-prompt="PS>"><code class="language-powershell">docker compose down -v</code></pre>
 
   <script>mermaid.initialize({ startOnLoad: true, theme: 'default' });</script>
 </body>

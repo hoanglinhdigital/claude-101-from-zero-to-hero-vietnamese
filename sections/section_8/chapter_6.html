@@ -28,7 +28,7 @@
   <div class="alert alert-warning">
     <strong>Về tên gọi MCP Server MySQL:</strong> Không có một MCP Server MySQL "chính thức" duy nhất từ Anthropic —
     có nhiều MCP Server MySQL do cộng đồng phát triển. Bài lab trình bày cấu trúc <code>.mcp.json</code> tổng quát
-    với placeholder <code>&lt;ten-goi-mcp-mysql&gt;</code> — học viên tự tìm một MCP Server MySQL phù hợp trên MCP
+    với placeholder <code>&lt;ten-goi-mcp-mysql&gt;</code> — User tự tìm một MCP Server MySQL phù hợp trên MCP
     registry/GitHub tại thời điểm thực hành (từ khoá gợi ý: "mcp server mysql"), ưu tiên Server có tài liệu rõ ràng
     về cách cấu hình kết nối (host/port/user/password/database) và có ghi rõ hỗ trợ thao tác nào (chỉ đọc hay cả ghi).
   </div>
@@ -38,7 +38,7 @@
     <li>Cấu hình một MCP Server kết nối MySQL cho database <code>expense_db</code> của project <code>lab-expense-management</code>.</li>
     <li>Áp dụng nguyên tắc least privilege (đã học ở Chapter 3): tạo riêng một user MySQL chỉ có quyền đọc cho MCP Server, không dùng lại user có toàn quyền CRUD của ứng dụng.</li>
     <li>Yêu cầu Claude Code thêm một khoản chi tiêu mới qua API của ứng dụng như bình thường (ghi dữ liệu).</li>
-    <li>Dùng chính MCP Server MySQL để Claude Code tự chạy câu SQL SELECT kiểm chứng dữ liệu vừa ghi có đúng trong bảng <code>Expense</code> không — không cần học viên tự mở MySQL Workbench kiểm tra tay.</li>
+    <li>Dùng chính MCP Server MySQL để Claude Code tự chạy câu SQL SELECT kiểm chứng dữ liệu vừa ghi có đúng trong bảng <code>Expense</code> không — không cần User tự mở MySQL Workbench kiểm tra tay.</li>
   </ul>
 
   <h2 class="section-heading">Kiến trúc tổng quan</h2>
@@ -173,7 +173,7 @@ mysql-expense: npx -y &lt;ten-goi-mcp-mysql&gt; - ✓ Connected</code></pre>
 
   <div class="verify-box">
     <h4>✅ Kết quả mong đợi</h4>
-    <p class="body-text">Claude Code tự khép kín vòng lặp <strong>ghi dữ liệu qua API → tự truy vấn kiểm chứng qua MCP Server MySQL → xác nhận đúng/sai</strong> mà không cần học viên tự mở MySQL Workbench hoặc chạy lệnh SQL tay. Dòng dữ liệu mới trong bảng <code>Expense</code> khớp đúng với yêu cầu ban đầu (title, amount, category, spentAt).</p>
+    <p class="body-text">Claude Code tự khép kín vòng lặp <strong>ghi dữ liệu qua API → tự truy vấn kiểm chứng qua MCP Server MySQL → xác nhận đúng/sai</strong> mà không cần User tự mở MySQL Workbench hoặc chạy lệnh SQL tay. Dòng dữ liệu mới trong bảng <code>Expense</code> khớp đúng với yêu cầu ban đầu (title, amount, category, spentAt).</p>
   </div>
 
   <h2 class="section-heading">Troubleshoot</h2>
