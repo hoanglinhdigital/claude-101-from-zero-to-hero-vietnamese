@@ -1714,7 +1714,7 @@ code {
 
 /* ── Diagram label (caption below mermaid diagrams) ── */
 .diagram-label {
-  text-align: center; font-size: 12px; color: #64748b;
+  text-align: center; font-size: 16px; color: #64748b;
   margin: -4px 0 16px; font-style: italic;
 }
 

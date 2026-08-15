@@ -14,7 +14,7 @@ mermaid.initialize({
     primaryTextColor:   '#1e1b4b',
     primaryBorderColor: '#4f46e5',
     lineColor:          '#6366f1',
-    fontSize:           '14px',
+    fontSize:           '18px',
     lineHeight:         '1',
     nodePadding:        '6',
     fill:               '#f0f4ff',
@@ -35,5 +35,6 @@ mermaid.initialize({
     // subGraphTitleMargin: { top: 5, bottom: 30 },
     clusterBkgnd: '#f0f4ff',
     clusterBorder: '#4f46e5',
+    fontSize: 18,
   },
 });

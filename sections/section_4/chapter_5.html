@@ -92,7 +92,6 @@
   <h2 class="section-heading">Yêu cầu trước khi bắt đầu</h2>
   <ul class="feature-list">
     <li>Project <code>D:\lab-expense-management</code> chạy được (<code>npm run dev</code>), MySQL container đang hoạt động, file <code>CLAUDE.md</code> đã có ở root.</li>
-    <li>Claude Code CLI phiên bản mới (hỗ trợ lệnh <code>/agents</code> và Skill <code>skill-creator</code>).</li>
     <li><strong>Grafana k6</strong> đã cài đặt để chạy test script — kiểm tra bằng <code>k6 version</code>. Nếu chưa có, cài bằng <code>winget install k6 --source winget</code>.</li>
     <li>Một công cụ để tạo mockup màn hình (Figma, Excalidraw, Drawio, hoặc đơn giản là ảnh chụp/vẽ tay). Bước tái cấu trúc frontend sẽ cần đến.</li>
   </ul>
@@ -115,7 +114,7 @@ claude</code></pre>
         <strong>Bước 2: Gọi Skill creator</strong>
         <p><code>skill-creator</code> là Skill có sẵn của Claude Code, chuyên dùng để tạo Skill mới đúng cấu trúc (thư mục + <code>SKILL.md</code> + frontmatter hợp lệ). Gọi bằng slash command:</p>
         <pre class="command-line" data-prompt=">"><code class="language-text">/skill-creator</code></pre>
-        <p>Nếu môi trường của bạn chưa có slash command này, chỉ cần prompt trực tiếp — Claude Code sẽ tự kích hoạt Skill creator vì prompt khớp với description của nó:</p>
+        <p> Hoặc nếu môi trường của bạn chưa có slash command này, chỉ cần prompt trực tiếp — Claude Code sẽ tự kích hoạt Skill creator vì prompt khớp với description của nó:</p>
         <pre class="command-line" data-prompt=">"><code class="language-text">Tạo giúp tôi một skill mới ở phạm vi project (.claude/skills)</code></pre>
       </div>
     </li>
@@ -475,15 +474,19 @@ Sau khi thiết kế xong, in ra sơ đồ quan hệ giữa các bảng và danh
         <strong>Bước 15: Chuẩn bị mockup cho từng tab</strong>
         <p class="alert alert-warning"><strong>Bước này cần bạn tự làm, không giao cho Claude Code.</strong> Đây là bài học quan trọng nhất về giới hạn của AI: Claude Code không thể đoán được giao diện bạn muốn. Không có mockup thì kết quả vẫn sẽ "xấu" như trước, dù Skill có tốt đến đâu.</p>
         <p>Tạo mockup cho 5 tab (có thể vẽ bằng Figma, Excalidraw, hoặc chụp ảnh bản vẽ tay), rồi lưu vào đúng thư mục theo quy ước đã định nghĩa trong <code>CLAUDE.md</code>:</p>
+        <strong>Có thể sử dụng mockup do mình chuẩn bị sẵn tại đường link sau (hoặc tham khảo một vài app Quản lý chi tiêu trên thị trường):</strong>
+        <a href="https://github.com/hoanglinhdigital/claude-101-from-zero-to-hero-vietnamese/tree/master/sourcecode/section_4/expense-management-mockup" target="_blank">
+          https://github.com/hoanglinhdigital/claude-101-from-zero-to-hero-vietnamese/tree/master/sourcecode/section_4/expense-management-mockup
+        </a>
         <div class="file-tree">
           <span class="dir">docs/mockup/</span><br/>
-          &nbsp;&nbsp;<span class="dir">add-transaction/</span> <span class="desc">— form nhập giao dịch: chọn type, số tiền, category, account, ngày, ghi chú</span><br/>
+          &nbsp;&nbsp;<span class="dir">record/</span> <span class="desc">— form nhập giao dịch: chọn type, số tiền, category, account, ngày, ghi chú</span><br/>
           &nbsp;&nbsp;<span class="dir">home/</span> <span class="desc">— tổng quan số dư, thu/chi tháng này, danh sách giao dịch gần đây</span><br/>
           &nbsp;&nbsp;<span class="dir">report/</span> <span class="desc">— biểu đồ chi tiêu theo category, xu hướng theo tháng</span><br/>
           &nbsp;&nbsp;<span class="dir">account/</span> <span class="desc">— danh sách nguồn tiền, số dư từng account, thêm/sửa account</span><br/>
           &nbsp;&nbsp;<span class="dir">setting/</span> <span class="desc">— quản lý category, đơn vị tiền tệ, thông tin tài khoản</span>
+          &nbsp;&nbsp;<span class="dir">history/</span> <span class="desc">— danh sách chi tiết chi phí, thu nhập theo các khoảng thời gian</span>
         </div>
-        <p class="note-text">Chưa có mockup? Có thể tạm dùng ảnh chụp màn hình của một app quản lý chi tiêu bạn thích làm tham chiếu — mục tiêu là cho Claude Code một <em>ràng buộc thị giác</em> cụ thể thay vì để nó tự đoán.</p>
       </div>
     </li>
 
