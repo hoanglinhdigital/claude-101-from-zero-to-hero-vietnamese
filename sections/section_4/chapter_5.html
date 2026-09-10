@@ -40,7 +40,7 @@
   <h2 class="section-heading">Mục tiêu</h2>
   <ul class="feature-list">
     <li>Dùng tính năng <strong>Skill creator</strong> có sẵn của Claude Code để tạo 4 Skill chuyên biệt: <code>frontend-coding</code>, <code>api-design</code>, <code>backend-coding</code>, <code>database-design</code>.</li>
-    <li>Dùng lệnh <code>/agents</code> (Agent creator) để tạo 2 Sub-agent: <code>api-testing</code> và <code>database-migrate</code>.</li>
+    <li>Dùng <strong>prompt</strong> để yêu cầu Claude Code tạo 2 Sub-agent ở phạm vi project (<code>.claude/agents/</code>): <code>api-testing</code> và <code>database-migrate</code>.</li>
     <li>Áp dụng bộ Skill + Sub-agent vừa tạo để tái cấu trúc project thành một ứng dụng quản lý chi tiêu <strong>multi-user, multi-account, multi-category</strong> thực thụ — cả database, frontend lẫn backend.</li>
     <li>Cảm nhận rõ sự khác biệt: cùng một prompt ngắn, kết quả trước và sau khi có Skill khác nhau như thế nào.</li>
   </ul>
@@ -326,22 +326,28 @@ description: Áp dụng khi tạo mới hoặc sửa Prisma model, schema.prisma
     <strong>Mẹo viết description cho Skill:</strong> Description phải mô tả <em>khi nào dùng</em>, không phải <em>skill làm gì</em>. Viết "Áp dụng khi tạo/sửa Prisma model, schema.prisma, index" sẽ được kích hoạt chính xác hơn nhiều so với "Skill thiết kế database". Nên nhắc đến cả tên file và từ khoá cụ thể mà bạn hay dùng trong prompt.
   </div>
 
-  <h3 class="sub-heading">Phần 2: Tạo 2 Sub-agent bằng Agent creator</h3>
+  <h3 class="sub-heading">Phần 2: Tạo 2 Sub-agent bằng prompt</h3>
+
+  <div class="alert alert-info">
+    <strong>Lưu ý phiên bản:</strong> Các bản Claude Code mới đã <strong>gỡ bỏ wizard <code>/agents</code></strong>. Nếu bạn gõ <code>/agents</code> sẽ nhận được thông báo <em>"The /agents wizard has been removed"</em>. Cách làm hiện tại: <strong>yêu cầu thẳng Claude tạo Sub-agent bằng prompt</strong>, hoặc tự tạo file Markdown trong <code>.claude/agents/</code> (phạm vi project) hay <code>~/.claude/agents/</code> (dùng cho mọi project). Bài lab này dùng cách prompt — nhanh hơn và Claude tự sinh frontmatter hợp lệ.
+  </div>
 
   <ol class="step-list">
     <li>
       <div>
-        <strong>Bước 8: Mở trình quản lý Sub-agent</strong>
-        <p>Claude Code có sẵn giao diện tạo Sub-agent qua slash command <code>/agents</code>. Chọn <strong>Create new agent</strong> → <strong>Project</strong> (lưu vào <code>.claude/agents/</code> để commit được lên Git cho cả team dùng chung).</p>
-        <pre class="command-line" data-prompt=">"><code class="language-text">/agents</code></pre>
+        <strong>Bước 8: Chuẩn bị thư mục agent trong project</strong>
+        <p>Sub-agent ở <strong>phạm vi project</strong> nằm trong <code>.claude/agents/</code> — nhờ vậy commit lên Git được và cả team dùng chung. Claude sẽ tự tạo thư mục này khi tạo agent đầu tiên, nhưng bạn có thể tạo trước cho chắc:</p>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">New-Item -ItemType Directory -Force .claude\agents</code></pre>
       </div>
     </li>
 
     <li>
       <div>
         <strong>Bước 9: Tạo Sub-agent <code>api-testing</code></strong>
-        <p>Khi trình tạo agent hỏi mô tả, dán nội dung sau. Claude Code sẽ tự sinh file Markdown kèm frontmatter hợp lệ.</p>
-        <pre class="command-line" data-prompt=">"><code class="language-text">Tên agent: api-testing
+        <p>Dán nguyên prompt sau vào Claude Code. Câu đầu tiên là phần quan trọng nhất: nó nói rõ <em>tạo sub-agent</em>, <em>lưu ở đâu</em> (project scope), phần còn lại là nội dung agent.</p>
+        <pre class="command-line" data-prompt=">"><code class="language-text">Tạo cho tôi một sub-agent ở phạm vi project (lưu vào .claude/agents/api-testing.md) theo đúng đặc tả dưới đây. Viết file Markdown kèm frontmatter hợp lệ gồm name, description, tools; phần thân là system prompt của agent.
+
+Tên agent: api-testing
 
 Mô tả (description): Sử dụng agent này SAU KHI hoàn thành mọi task coding backend hoặc frontend có liên quan đến API, để sinh và chạy test script kiểm chứng kết quả. Chủ động gọi agent này ngay khi vừa implement xong một API hoặc một màn hình gọi API.
 
@@ -367,7 +373,10 @@ Nhiệm vụ chi tiết của agent:
     <li>
       <div>
         <strong>Bước 10: Tạo Sub-agent <code>database-migrate</code></strong>
-        <pre class="command-line" data-prompt=">"><code class="language-text">Tên agent: database-migrate
+        <p>Làm tương tự với agent thứ hai:</p>
+        <pre class="command-line" data-prompt=">"><code class="language-text">Tạo cho tôi một sub-agent ở phạm vi project (lưu vào .claude/agents/database-migrate.md) theo đúng đặc tả dưới đây. Viết file Markdown kèm frontmatter hợp lệ gồm name, description, tools; phần thân là system prompt của agent.
+
+Tên agent: database-migrate
 
 Mô tả (description): Sử dụng agent này mỗi khi file prisma/schema.prisma có thay đổi, để chạy migration và khởi tạo lại dữ liệu mẫu. Chủ động gọi ngay sau khi sửa xong schema.
 
@@ -395,10 +404,24 @@ Quy tắc an toàn BẮT BUỘC:
         <pre class="command-line" data-prompt="PS>" data-output="2, 3"><code class="language-powershell">dir .claude\agents
 api-testing.md
 database-migrate.md</code></pre>
-        <p>Chạy lại <code>/agents</code> trong Claude Code — cả hai phải xuất hiện trong danh sách với đúng phạm vi <em>Project</em>.</p>
+        <p>Mở thử <code>.claude/agents/api-testing.md</code> và kiểm tra phần frontmatter ở đầu file có đủ 3 trường sau:</p>
+        <pre class="command-line" data-prompt="" data-output="1-6"><code class="language-yaml">---
+name: api-testing
+description: Sử dụng agent này SAU KHI hoàn thành mọi task coding backend hoặc frontend có liên quan đến API...
+tools: Read, Write, Edit, Glob, Grep, Bash
+---</code></pre>
+        <p>Cuối cùng, hỏi Claude Code để chắc chắn nó đã nhận diện được agent:</p>
+        <pre class="command-line" data-prompt=">"><code class="language-text">Liệt kê các sub-agent hiện có trong project này kèm phạm vi (project hay user) của từng agent.</code></pre>
+        <div class="alert alert-warning">
+          <strong>Nếu Claude chưa thấy agent mới:</strong> khởi động lại Claude Code (thoát rồi chạy lại <code>claude</code>) — danh sách Sub-agent được nạp khi phiên làm việc bắt đầu.
+        </div>
       </div>
     </li>
   </ol>
+
+  <div class="alert alert-tip">
+    <strong>Sửa Sub-agent về sau:</strong> vì Sub-agent chỉ là một file Markdown, bạn có thể sửa trực tiếp <code>.claude/agents/&lt;tên&gt;.md</code>, hoặc nhờ Claude: <em>"Cập nhật sub-agent api-testing: bổ sung bước kiểm tra dev server đang chạy trước khi chạy k6"</em>.
+  </div>
 
   <div class="alert alert-info">
     <strong>Skill hay Sub-agent — chọn cái nào?</strong> Dùng <strong>Skill</strong> khi bạn muốn <em>agent chính</em> làm việc theo một tiêu chuẩn (viết code đúng chuẩn ngay từ đầu). Dùng <strong>Sub-agent</strong> khi công việc <em>tốn nhiều context nhưng chỉ cần trả về kết luận ngắn</em> — như chạy test rồi báo pass/fail, hay chạy migration rồi báo kết quả. Sub-agent có context riêng, nên nó không làm "đầy" context của phiên làm việc chính.
@@ -422,9 +445,9 @@ database-migrate.md</code></pre>
    - USER: category do user tự tạo, bắt buộc có userId.
    Category có: name, icon (emoji), color, type (áp dụng cho INCOME hay EXPENSE), và hỗ trợ category cha - con (parentId).
 
-3. Transaction: gộp cả chi tiêu và thu nhập vào MỘT model Transaction duy nhất, phân biệt bằng enum TransactionType (INCOME, EXPENSE, TRANSFER). Mỗi transaction có: amount, date, note, userId, accountId, categoryId. Với TRANSFER thì có thêm toAccountId.
+3. Transaction: tất cả các giao dịch như Chi tiêu, Thu nhập, transfer, cho mượn, mượn đều được gộp vào MỘT model Transaction duy nhất, phân biệt bằng enum TransactionType (INCOME, EXPENSE, TRANSFER, BORROW, LEND). Mỗi transaction có: amount, date, note, userId, fromAccountId, categoryId. Với TRANSFER thì có thêm toAccountId. Với BORROW/LEND thì có thêm contactId để liên kết với người vay/mượn.
 
-4. Multi Spending Account: model Account đại diện cho nguồn tiền của user — Tiền mặt, Thẻ ngân hàng, Ví điện tử, Thẻ tín dụng (enum AccountType). Mỗi Account có: name, type, initialBalance, currency, icon, isDefault.
+4. Multi Spending Account: model Account đại diện cho nguồn tiền của user — Cash, Bank Account, Saving Account, E-Wallet, Credit card (enum AccountType). Mỗi Account có: name, type, initialBalance, currency, icon, isDefault. Type AccountType có thể là: CASH, BANK_ACCOUNT, SAVING_ACCOUNT, E_WALLET, CREDIT_CARD, IC_CARD,... Mỗi user có thể có nhiều account.
 
 5. Toàn bộ hệ thống áp dụng soft delete.
 
@@ -462,7 +485,7 @@ Sau khi thiết kế xong, in ra sơ đồ quan hệ giữa các bảng và danh
         <p>Nếu description của Sub-agent viết tốt, Claude Code sẽ <em>tự động</em> gọi nó ngay sau khi sửa schema. Nếu không, gọi thủ công:</p>
         <pre class="command-line" data-prompt=">"><code class="language-text">Dùng sub-agent database-migrate để chạy migration cho schema mới, đặt tên migration là restructure_multi_user. Sau đó tạo file prisma/seed.ts sinh dữ liệu mẫu gồm: 2 user, mỗi user có 3 account (Tiền mặt, Thẻ ngân hàng, Ví điện tử), 10 system category và 30 transaction rải đều trong 3 tháng gần nhất. Chạy seed luôn.</code></pre>
         <pre class="command-line" data-prompt="PS>"><code class="language-powershell">npx prisma studio</code></pre>
-        <p>Mở <code>http://localhost:5555</code> và xác nhận các bảng <code>user</code>, <code>account</code>, <code>category</code>, <code>transaction</code> đã có dữ liệu mẫu.</p>
+        <p>Mở <code>http://localhost:5555</code> và xác nhận các bảng <code>user</code>, <code>account</code>, <code>category</code>, <code>transaction</code> đã có dữ liệu mẫu. *Lưu ý: Số port 5555 có thể được prisma chọn ngẫu nhiên.</p>
       </div>
     </li>
   </ol>
@@ -480,10 +503,10 @@ Sau khi thiết kế xong, in ra sơ đồ quan hệ giữa các bảng và danh
         </a>
         <div class="file-tree">
           <span class="dir">docs/mockup/</span><br/>
-          &nbsp;&nbsp;<span class="dir">record/</span> <span class="desc">— form nhập giao dịch: chọn type, số tiền, category, account, ngày, ghi chú</span><br/>
           &nbsp;&nbsp;<span class="dir">home/</span> <span class="desc">— tổng quan số dư, thu/chi tháng này, danh sách giao dịch gần đây</span><br/>
-          &nbsp;&nbsp;<span class="dir">report/</span> <span class="desc">— biểu đồ chi tiêu theo category, xu hướng theo tháng</span><br/>
           &nbsp;&nbsp;<span class="dir">account/</span> <span class="desc">— danh sách nguồn tiền, số dư từng account, thêm/sửa account</span><br/>
+          &nbsp;&nbsp;<span class="dir">record/</span> <span class="desc">— form nhập giao dịch: chọn type, số tiền, category, account, ngày, ghi chú</span><br/>
+          &nbsp;&nbsp;<span class="dir">report/</span> <span class="desc">— biểu đồ chi tiêu theo category, xu hướng theo tháng</span><br/>
           &nbsp;&nbsp;<span class="dir">setting/</span> <span class="desc">— quản lý category, đơn vị tiền tệ, thông tin tài khoản</span>
           &nbsp;&nbsp;<span class="dir">history/</span> <span class="desc">— danh sách chi tiết chi phí, thu nhập theo các khoảng thời gian</span>
         </div>
@@ -493,19 +516,17 @@ Sau khi thiết kế xong, in ra sơ đồ quan hệ giữa các bảng và danh
     <li>
       <div>
         <strong>Bước 16: Giao task tái cấu trúc frontend</strong>
-        <pre class="command-line" data-prompt=">"><code class="language-text">Tái cấu trúc toàn bộ frontend theo hướng mobile-first responsive, dựa trên mockup trong docs/mockup.
+        <pre class="command-line" data-prompt=">"><code class="language-text">Tái cấu trúc toàn bộ frontend theo hướng mobile-first responsive, dựa trên mockup trong docs/mockup/navigation-bar.png và docs\mockup\screen-transition.png.
 
-Ứng dụng có 5 tab điều hướng chính:
+Ứng dụng có 5 tab điều hướng chính (thứ tự từ trái sang phải):
 1. Home — tổng quan số dư tất cả account, tổng thu/tổng chi tháng hiện tại, danh sách giao dịch gần đây.
-2. Report — biểu đồ chi tiêu theo category và xu hướng theo tháng, có bộ lọc khoảng thời gian và account.
-3. Add Transaction — form thêm giao dịch, đây là hành động chính, đặt ở vị trí nổi bật nhất trên tab bar.
-4. Account — danh sách nguồn tiền và số dư từng nguồn, thêm/sửa/xoá account.
+2. Account — danh sách nguồn tiền và số dư từng nguồn, thêm/sửa/xoá account.
+3. Record — form thêm giao dịch, đây là hành động chính, đặt ở vị trí chính giữa, nổi bật nhất trên tab bar.
+4. Report — biểu đồ chi tiêu theo category và xu hướng theo tháng, có bộ lọc khoảng thời gian và account.
 5. Setting — quản lý category (system và user), đơn vị tiền tệ, thông tin người dùng.
 
-Yêu cầu:
-- Đọc mockup của từng màn hình trong docs/mockup/&lt;ten-tab&gt; trước khi lên plan.
-- Ghi plan vào plans/frontend/ theo đúng quy ước trong CLAUDE.md, mỗi tab một file.
-- Chờ tôi duyệt plan rồi mới bắt đầu code.</code></pre>
+Tất cả các màn hình tạm thời chưa implement chức năng, chỉ để 1 dòng chữ "To be implemented" ở giữa màn hình. Mỗi tab có icon Lucide tương ứng, không dùng emoji. Khi mở rộng cửa sổ qua breakpoint md:, chuyển tab bar thành sidebar bên trái.
+</code></pre>
       </div>
     </li>
 
@@ -515,24 +536,72 @@ Yêu cầu:
         <p>Mở các file trong <code>plans/frontend/</code>, kiểm tra danh sách component dự kiến tách ra. Sau khi duyệt và Claude Code code xong, verify:</p>
         <pre class="command-line" data-prompt="PS>"><code class="language-powershell">npm run lint
 npm run dev</code></pre>
-        <p>Mở <code>http://localhost:3000</code>, bật DevTools → chế độ Device toolbar → chọn <strong>iPhone SE (375px)</strong>. Kiểm tra:</p>
+        <p>Mở <code>http://localhost:3000</code>, bật DevTools → chế độ Device toolbar → chọn <strong>iPhone 14 pro max</strong>. Kiểm tra:</p>
         <ul class="feature-list-sm">
           <li>Bottom tab bar hiển thị trên mobile, chuyển thành sidebar khi mở rộng cửa sổ qua breakpoint <code>md:</code>.</li>
           <li>Icon là Lucide (nét mảnh, đồng nhất) — không phải emoji ở các nút chức năng.</li>
-          <li>Số tiền thu hiển thị màu emerald, số tiền chi hiển thị màu rose, có phân cách hàng nghìn.</li>
           <li>Không có phần tử nào bị tràn ngang gây scroll ngang.</li>
         </ul>
-        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">dir src\app\components</code></pre>
-        <p>Thư mục này phải có các component tái sử dụng được tách ra (ví dụ <code>TransactionItem.tsx</code>, <code>AccountCard.tsx</code>, <code>AmountText.tsx</code>, <code>TabBar.tsx</code>, <code>EmptyState.tsx</code>) — bằng chứng cho thấy rule "tách component" trong Skill đã có tác dụng.</p>
       </div>
     </li>
+    <li>
+      <div>
+        <strong>Bước 18: Làm tương tự cho các màn hình chi tiết như: Login/Logout/Forgot password, Record, Home, Account, Report, Setting</strong>
+        <p>Giao task cho Claude Code tách component, tạo màn hình chi tiết theo mockup, duyệt plan trước khi code. </p>
+        <strong>Promp mẫu sử dụng cho các màn hình:</strong>
+        <pre class="command-line" data-prompt="PS>">
+          <code class="language-markdown">
+Implement màn hình chi tiết "Auth" gồm Login, Register, Forgor password và các component liên quan theo mockup trong docs/mockup/auth.
+          </code>
+        </pre>         
+        <pre class="command-line" data-prompt="PS>">
+          <code class="language-markdown">
+Implement màn hình chi tiết "Record" và các component liên quan theo mockup trong docs/mockup/record.
+          </code>
+        </pre>
+        <pre class="command-line" data-prompt="PS>">
+          <code class="language-markdown">
+Implement màn hình chi tiết "Home" và các component liên quan theo mockup trong docs/mockup/home.
+          </code>
+        </pre>    
+        <pre class="command-line" data-prompt="PS>">
+          <code class="language-markdown">
+Implement màn hình chi tiết "Account" và các component liên quan theo mockup trong docs/mockup/account.
+          </code>
+        </pre>    
+        <pre class="command-line" data-prompt="PS>">
+          <code class="language-markdown">
+Implement màn hình chi tiết "Report" và các component liên quan theo mockup trong docs/mockup/report.
+          </code>
+        </pre>    
+        <pre class="command-line" data-prompt="PS>">
+          <code class="language-markdown">
+Implement màn hình chi tiết cho popup "History" và các component liên quan theo mockup trong docs/mockup/report.
+          </code>
+        </pre>           
+        <pre class="command-line" data-prompt="PS>">
+          <code class="language-markdown">
+Implement màn hình chi tiết "Setting" và các component liên quan theo mockup trong docs/mockup/history.
+          </code>
+        </pre>
+        <p><b>Sau khi Claude code xong, verify:</b></p>
+        <p>Mở <code>http://localhost:3000</code>, bật DevTools → chế độ Device toolbar → chọn <strong>iPhone 14 pro max</strong>. Kiểm tra:</p>
+        <ul class="feature-list-sm">
+          <li>Layout sinh ra có đúng như mockup đã thiết kế? Hỗ trợ cả 2 layout PC/Mobile?</li>
+          <li>Cách sử dụng Icon có thống nhất?</li>
+          <li>Cách phối màu có đúng như định nghĩa trong skill frontend-coding?</li>
+          <li>Cách tổ chức các component trong source code có đảm bảo tính tái sử dụng?</li>
+        </ul>
+      </div>
+    </li>
+
   </ol>
 
   <h4>3.3 — Tái cấu trúc backend theo hướng multi-user</h4>
   <ol class="step-list">
     <li>
       <div>
-        <strong>Bước 18: Sinh API spec trước khi code</strong>
+        <strong>Bước 19: Sinh API spec trước khi code</strong>
         <p>Skill <code>api-design</code> quy định: spec trước, code sau. Hãy để nó làm đúng việc đó.</p>
         <pre class="command-line" data-prompt=">"><code class="language-text">Thiết kế API spec cho toàn bộ ứng dụng theo hướng multi-user, multi-account, multi-category, multi-transaction-type. Sinh spec cho các cụm chức năng: auth, account, category, transaction, report, home, currency.
 
@@ -546,15 +615,25 @@ Nghiệp vụ chính cần bao phủ:
 - currency: danh sách đơn vị tiền tệ hỗ trợ.
 
 Sinh xong thì tóm tắt danh sách endpoint theo từng cụm để tôi duyệt trước khi implement.</code></pre>
-        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">dir docs\api-spec</code></pre>
+<p>Promp bổ sung yêu cầu tách API của màn hình Home:</p>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">
+Tách API của màn hình home /api-spec/home.yaml thành các API độc lập sau thay vì sử dụng 1 API duy nhất lấy nhiều thông tin:
+  - Total balance (/report/total-balance GET)
+  - Expense vs Income (/report/expense-vs-income GET) mặc định lấy từ ngày 1- ngày cuối cùng của tháng hiện tại.
+  - Expense by category (/report/expense-by-category GET). Chỉ group theo category parent (level 1).
+  - Exchange rate utility (/utility/exchange-rate GET). Trả về danh sách các tỷ giá quy đổi tính theo đơn vị tiền tệ mặc định của
+  user.
+  - Expense analysis (/report/expense-analysis GET) Mặc định trả về báo cáo chi tiêu group theo tháng trong 6 tháng gần nhất.
+  - Money lend/borrow (/report/money-lend-borrow GET). Mặc định trả về 5 giao dịch Lend/Borrow với số tiền lớn nhất.          
+        </code></pre>
       </div>
     </li>
 
     <li>
       <div>
-        <strong>Bước 19: Implement backend theo spec đã duyệt</strong>
-        <pre class="command-line" data-prompt=">"><code class="language-text">Implement toàn bộ backend theo đúng các file spec đã duyệt trong docs/api-spec. Ghi plan vào plans/backend/ theo từng cụm chức năng trước, chờ tôi duyệt rồi mới code.
-
+        <strong>Bước 20: Implement backend theo spec đã duyệt</strong>
+        <pre class="command-line" data-prompt=">"><code class="language-text">
+Implement toàn bộ backend theo đúng các file spec đã duyệt trong docs/api-spec. Ghi plan vào plans/backend/ theo từng cụm chức năng trước, chờ tôi duyệt rồi mới code.
 Lưu ý nghiệp vụ:
 - Mọi API (trừ nhóm auth) đều phải xác định người dùng đang đăng nhập và chỉ thao tác trên dữ liệu của chính người đó.
 - Category SYSTEM: mọi user đều đọc được nhưng không được sửa hay xoá.
@@ -569,7 +648,7 @@ Lưu ý nghiệp vụ:
 
     <li>
       <div>
-        <strong>Bước 20: Gọi Sub-agent <code>api-testing</code> để verify</strong>
+        <strong>Bước 21: Gọi Sub-agent <code>api-testing</code> để verify</strong>
         <p>Đây là lúc Sub-agent phát huy tác dụng: nó chạy trong context riêng, đọc spec, sinh script, chạy k6 và chỉ trả về bảng kết quả — agent chính không phải "gánh" toàn bộ output dài dòng của k6.</p>
         <pre class="command-line" data-prompt=">"><code class="language-text">Dùng sub-agent api-testing để sinh và chạy test cho toàn bộ API vừa implement. Ưu tiên kiểm tra kỹ phần phân quyền: user A tuyệt đối không được truy cập dữ liệu của user B.</code></pre>
         <pre class="command-line" data-prompt="PS>"><code class="language-powershell">dir test /S /B</code></pre>
@@ -584,68 +663,89 @@ Lưu ý nghiệp vụ:
 
     <li>
       <div>
-        <strong>Bước 21: Xử lý khi có testcase fail</strong>
+        <strong>Bước 22: Xử lý khi có testcase fail</strong>
         <p>Sub-agent <code>api-testing</code> được thiết kế để <strong>không tự sửa code nghiệp vụ</strong> — nó chỉ báo cáo. Đây là chủ ý: agent viết test mà được phép sửa code thì sẽ có xu hướng "sửa cho test pass" thay vì sửa đúng lỗi. Khi có fail, giao lại cho agent chính:</p>
-        <pre class="command-line" data-prompt=">"><code class="language-text">Sửa các lỗi mà sub-agent api-testing vừa báo cáo. Sau khi sửa xong, gọi lại sub-agent api-testing để chạy lại đúng những testcase đã fail.</code></pre>
+        <pre class="command-line" data-prompt=">">
+          <code class="language-text">
+Sửa các lỗi mà sub-agent api-testing vừa báo cáo. Sau khi sửa xong, gọi lại sub-agent api-testing để chạy lại đúng những testcase đã fail.
+          </code>
+        </pre>
       </div>
     </li>
-  </ol>
+    <li>
+      <div>
+        <strong>Bước 23: Kết nối frontend với backend API đã hoàn chỉnh</strong>
+        <p>Promp mẫu: </p>
+        <pre class="command-line" data-prompt=">">
+          <code class="language-text">
+Thay thế toàn bộ dữ liệu giả trong frontend bằng các API thực tế đã implement. Mọi API đều phải xác định người dùng đang đăng nhập và chỉ thao tác trên dữ liệu của chính người đó. Các validation về dữ liệu hiện tại trên Frontend giữ nguyên. Hiển thị lỗi khi backend trả về vd 400, 401, 403, 404. 
+          </code>
+        </pre>
+      </div>
+    </li>
+  </ol>  
 
   <div class="verify-box">
     <h4>✅ Kết quả mong đợi</h4>
     <p class="body-text">
-      Thư mục <code>.claude/skills/</code> có đủ 4 Skill và <code>.claude/agents/</code> có đủ 2 Sub-agent, tất cả đều xuất hiện khi gọi <code>/agents</code>.
-      <code>prisma/schema.prisma</code> có các model <code>User</code>, <code>Account</code>, <code>Category</code>, <code>Transaction</code> — dùng <code>Decimal</code> cho tiền, có enum, có <code>isDeleted</code>, có index composite, không còn dòng <code>Float</code> nào.
-      Giao diện chạy tốt ở 375px với bottom tab bar và 5 tab, dùng Lucide icon và đúng bảng màu đã quy định.
-      Thư mục <code>src/app/api/</code> tổ chức theo cụm chức năng, <code>docs/api-spec/</code> có file OpenAPI tương ứng, và <code>test/</code> có script k6 chạy pass — bao gồm cả testcase xác nhận user A không đọc được dữ liệu của user B.
+      Tạo thành công 4 Skills và 2 Sub-agent. Tái cấu trúc xong project theo hướng multi-user, multi-account, multi-category, multi-transaction-type. Frontend responsive theo mockup. Backend đúng spec, pass tất cả testcase do Sub-agent <code>api-testing</code> sinh ra.
     </p>
   </div>
 
-  <h2 class="section-heading">Điều gì đã thay đổi?</h2>
-  <table class="compare-table">
-    <thead>
-      <tr><th>Vấn đề</th><th>Trước (chỉ có CLAUDE.md)</th><th>Sau (có Skill + Sub-agent)</th></tr>
-    </thead>
-    <tbody>
-      <tr><td>Thiết kế database</td><td>Claude tự quyết, 2 bảng đơn giản, dùng Float cho tiền</td><td>Skill <code>database-design</code> ép đúng Decimal, enum, soft delete, index</td></tr>
-      <tr><td>Giao diện</td><td>Mỗi màn hình một kiểu, không responsive</td><td>Skill <code>frontend-coding</code> + mockup ⇒ đồng nhất, mobile-first</td></tr>
-      <tr><td>Hợp đồng API</td><td>Frontend và backend tự hiểu, dễ lệch</td><td>Skill <code>api-design</code> ⇒ OpenAPI spec chốt trước khi code</td></tr>
-      <tr><td>Độ dài prompt</td><td>Phải nhắc lại toàn bộ quy tắc mỗi lần</td><td>Chỉ mô tả nghiệp vụ, tiêu chuẩn tự được nạp</td></tr>
-      <tr><td>Kiểm chứng kết quả</td><td>Kiểm tra thủ công bằng mắt</td><td>Sub-agent <code>api-testing</code> sinh & chạy k6 tự động</td></tr>
-      <tr><td>Chi phí context</td><td>Rule nằm hết trong CLAUDE.md, luôn tốn token</td><td>Skill nạp theo ngữ cảnh, Sub-agent có context riêng</td></tr>
-    </tbody>
-  </table>
+  <h1 class="section-heading">Tổng kết bài lab</h1>
 
-  <h2 class="section-heading">Troubleshoot</h2>
+  <p>Bài lab này khép lại chuỗi 3 bài về project <code>lab-expense-management</code>: từ <em>khởi tạo project</em> → <em>tổ chức thư mục và viết <code>CLAUDE.md</code></em> → và đến đây là <em>chuẩn hoá quy trình làm việc bằng Skill và Sub-agent</em>. Từ một ứng dụng 2 bảng, giao diện tự phát, ta đã có một ứng dụng multi-user hoàn chỉnh được sinh ra theo tiêu chuẩn định sẵn.</p>
 
-  <div class="alert alert-warning">
-    <strong>Lỗi:</strong> Claude Code không tự kích hoạt Skill, vẫn code theo cách cũ.<br/>
-    <strong>Nguyên nhân:</strong> <code>description</code> trong frontmatter viết chung chung, không chứa từ khoá xuất hiện trong prompt của bạn; hoặc phiên Claude Code đã mở từ trước khi Skill được tạo.<br/>
-    <strong>Giải pháp:</strong> Thoát và mở lại <code>claude</code>. Viết lại description dạng "Áp dụng khi..." kèm tên file và từ khoá cụ thể (<code>schema.prisma</code>, <code>route.ts</code>, <code>component</code>). Trong lúc chờ, có thể ép dùng bằng cách gọi tên Skill trực tiếp trong prompt: "dùng skill database-design để...".
+  <h3 class="sub-heading">Những gì bạn đã thực hành</h3>
+  <ul class="feature-list">
+    <li><strong>Tạo Skill bằng <code>skill-creator</code>.</strong> 4 Skill ở phạm vi project: <code>frontend-coding</code> (Tailwind, bảng màu, Lucide, responsive mobile-first), <code>api-design</code> (OpenAPI 3.0 theo cụm chức năng), <code>backend-coding</code> (API path, HTTP method, query param, quy tắc Prisma query), <code>database-design</code> (Decimal, enum, soft delete, index).</li>
+    <li><strong>Tạo Sub-agent bằng prompt</strong>: <code>api-testing</code> sinh & chạy script k6, <code>database-migrate</code> chạy migration và seed dữ liệu.</li>
+    <li><strong>Tái cấu trúc database</strong> thành <code>User</code> · <code>Account</code> · <code>Category</code> · <code>Transaction</code> · <code>Contact</code> với enum <code>TransactionType</code>, <code>AccountType</code>, <code>CategoryScope</code> và soft delete toàn hệ thống. Đáp ứng bussiness logic của một app multi-user, quản lý giao dịch hoàn chỉnh, có các yếu tố bảo mật cơ bản.</li>
+    <li><strong>Tái cấu trúc frontend</strong> mobile-first với 5 tab điều hướng, chuyển thành sidebar từ breakpoint <code>md:</code>, dựa trên mockup do chính bạn chuẩn bị.</li>
+    <li><strong>Tái cấu trúc backend</strong> theo quy trình <em> tạo API spec trước — code sau</em>, rồi verify bằng Sub-agent <code>api-testing</code> và nối frontend với API thật.</li>
+  </ul>
+
+  <h3 class="sub-heading">Những gì bạn đã học</h3>
+  <div class="usecase-grid">
+    <div class="usecase-card">
+      <h4>🎯 Tiêu chuẩn nên nằm trong file, không nằm trong prompt</h4>
+      <p>Mọi thứ bạn phải nhắc lại ở mỗi lần prompt đều là ứng viên để đưa vào Skill. Prompt chỉ nên mô tả <em>nghiệp vụ</em>; <em>cách làm</em> để Skill lo. Đó là lý do các prompt ở Phần 3 ngắn hơn hẳn hai bài lab trước mà kết quả lại tốt hơn.</p>
+    </div>
+    <div class="usecase-card">
+      <h4>📄 CLAUDE.md và Skill có vai trò khác nhau</h4>
+      <p><code>CLAUDE.md</code> luôn được nạp nên chỉ chứa rule chung nhất. Skill nạp theo ngữ cảnh nên chứa được tiêu chuẩn dài và chi tiết mà không làm phình context ở những phiên không cần đến.</p>
+    </div>
+    <div class="usecase-card">
+      <h4>🔑 Description quyết định Skill có được kích hoạt hay không</h4>
+      <p>Viết description dạng "Áp dụng khi..." kèm tên file và từ khoá cụ thể (<code>schema.prisma</code>, <code>route.ts</code>, <code>component</code>) chính xác hơn nhiều so với mô tả chung chung như "Skill thiết kế database".</p>
+    </div>
+    <div class="usecase-card">
+      <h4>🧩 Skill để làm đúng chuẩn, Sub-agent để tiết kiệm context</h4>
+      <p>Skill nạp vào context của agent chính để code đúng ngay từ đầu. Sub-agent chạy trong context riêng cho các việc tốn nhiều output nhưng chỉ cần trả về kết luận ngắn — chạy k6, chạy migration.</p>
+    </div>
+    <div class="usecase-card">
+      <h4>🚧 Giới hạn quyền của agent cũng là một thiết kế</h4>
+      <p><code>api-testing</code> bị cấm sửa code nghiệp vụ, <code>database-migrate</code> bị cấm tự chạy <b>migrate reset</b>. <br/>Agent viết test mà được sửa code sẽ có xu hướng "sửa cho test pass" thay vì sửa đúng lỗi.</p>
+    </div>
+    <div class="usecase-card">
+      <h4>✏️ Skill không thay thế được mockup</h4>
+      <p>Skill quy định <em>phong cách</em> (màu, font, icon, responsive) nhưng không quy định được <em>bố cục</em>. Không có mockup thì Claude Code vẫn phải đoán giao diện. Hai thứ này bổ sung cho nhau.</p>
+    </div>
   </div>
 
-  <div class="alert alert-warning">
-    <strong>Lỗi:</strong> Nhiều Skill cùng được nạp một lúc, Claude Code áp dụng rule mâu thuẫn nhau.<br/>
-    <strong>Nguyên nhân:</strong> Phạm vi của các Skill bị chồng lấn — ví dụ <code>backend-coding</code> cũng nói về Prisma, trùng với <code>database-design</code>.<br/>
-    <strong>Giải pháp:</strong> Phân định rõ: <code>database-design</code> chỉ nói về <em>schema và model</em>; <code>backend-coding</code> chỉ nói về <em>cách viết query và route</em>. Khi cần tham chiếu chéo, ghi một dòng dẫn sang Skill kia thay vì chép lại nội dung.
+  <div class="alert alert-tip">
+    <strong>Nguyên tắc quan trọng nhất rút ra:</strong> khi kết quả sai, hãy <strong>sửa Skill, đừng sửa prompt</strong>. Sửa prompt chỉ chữa được một lần; sửa Skill chữa cho mọi lần sau và cho cả team khi bạn commit <code>.claude/</code> lên Git.
   </div>
 
-  <div class="alert alert-warning">
-    <strong>Lỗi:</strong> Sub-agent <code>api-testing</code> báo toàn bộ testcase fail với lỗi <code>connection refused</code>.<br/>
-    <strong>Nguyên nhân:</strong> Dev server chưa chạy — k6 gửi request thật qua HTTP tới <code>localhost:3000</code>.<br/>
-    <strong>Giải pháp:</strong> Mở một cửa sổ terminal riêng chạy <code>npm run dev</code> và giữ nguyên, sau đó mới gọi Sub-agent. Có thể bổ sung vào file <code>.claude/agents/api-testing.md</code> một bước "kiểm tra dev server đang chạy trước khi chạy k6, nếu chưa thì báo cho user".
-  </div>
-
-  <div class="alert alert-warning">
-    <strong>Lỗi:</strong> <code>prisma migrate dev</code> dừng lại và cảnh báo sẽ mất dữ liệu.<br/>
-    <strong>Nguyên nhân:</strong> Schema mới thay đổi lớn (thêm cột <code>userId</code> bắt buộc vào bảng đã có dữ liệu) nên không migrate được nếu giữ dữ liệu cũ.<br/>
-    <strong>Giải pháp:</strong> Đây là dữ liệu lab nên có thể chấp nhận xoá. Xác nhận thủ công rồi chạy <code>npx prisma migrate reset</code> và seed lại. Lưu ý Sub-agent <code>database-migrate</code> đã được thiết kế để <strong>không</strong> tự chạy lệnh này — quyết định xoá dữ liệu luôn phải là của bạn.
-  </div>
-
-  <div class="alert alert-warning">
-    <strong>Lỗi:</strong> Frontend sinh ra vẫn không giống mong đợi dù đã có Skill <code>frontend-coding</code>.<br/>
-    <strong>Nguyên nhân:</strong> Skill quy định <em>phong cách</em> (màu, font, icon, responsive) nhưng không quy định được <em>bố cục</em>. Không có mockup thì bố cục vẫn do Claude Code tự đoán.<br/>
-    <strong>Giải pháp:</strong> Bổ sung mockup vào <code>docs/mockup/&lt;ten-man-hinh&gt;</code> rồi yêu cầu code lại đúng màn hình đó. Skill và mockup là hai thứ bổ sung cho nhau, không thay thế nhau được.
+  <div class="verify-box">
+    <h4>✅ Checklist tự đánh giá trước khi sang chương tiếp theo</h4>
+    <ul class="feature-list-sm">
+      <li>Giải thích được khi nào nên viết Skill, khi nào nên viết Sub-agent, khi nào chỉ cần <code>CLAUDE.md</code>.</li>
+      <li>Tự viết được một Skill mới đúng cấu trúc <code>.claude/skills/&lt;tên&gt;/SKILL.md</code> với frontmatter hợp lệ.</li>
+      <li>Tự viết được một Sub-agent với <code>name</code>, <code>description</code>, <code>tools</code> và giới hạn quyền phù hợp.</li>
+      <li>Nhận ra được trên màn hình Claude Code lúc nào Skill được nạp và lúc nào Sub-agent được gọi.</li>
+      <li>Biết cách chẩn đoán khi Skill không được kích hoạt và sửa lại <code>description</code> cho đúng.</li>
+    </ul>
   </div>
 
   <script>mermaid.initialize({ startOnLoad: true, theme: 'default' });</script>

@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Lab - Thêm tính năng mới & viết unit test – Claude 101</title>
+  <title>Giới hạn, rủi ro và tích hợp Git với Claude Code – Claude 101</title>
   <link rel="stylesheet" href="../../styles.css" />
   <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
   <script src="../../mermaid-config.js"></script>
@@ -16,161 +16,114 @@
   <div class="chapter-breadcrumb">
     <span class="section-part">4. Claude Code cho Developer</span>
     <span class="sep">/</span>
-    <span class="chapter-part">Lab - Thêm tính năng mới & viết unit test</span>
+    <span class="chapter-part">Giới hạn, rủi ro và tích hợp Git với Claude Code</span>
   </div>
 
-  <div class="alert alert-info">
-    Bài lab này <strong>tiếp tục dùng project <code>D:\lab-expense-management</code></strong> đã tạo ở Chapter 4. Nếu chưa hoàn thành Chapter 4, hãy quay lại thực hiện trước khi bắt đầu bài lab này.
-  </div>
+  <h2 class="section-heading">Giới thiệu</h2>
+  <p class="body-text">
+    Claude Code có thể tự động hoá rất nhiều việc, nhưng không phải hành động nào cũng có mức rủi ro giống nhau.
+    Chương này giúp User phân biệt <strong>khi nào cần review kỹ</strong> và <strong>khi nào có thể tin tưởng
+    Claude Code tự chạy</strong>, dựa trên mức độ ảnh hưởng của hành động — từ đọc file (an toàn nhất) đến git push
+    (rủi ro cao nhất). Phần sau của chương trình bày cách tích hợp Claude Code với Git: viết commit message, PR
+    description, và hỗ trợ code review.
+  </p>
 
-  <h2 class="section-heading">Mục tiêu</h2>
+  <h2 class="section-heading">Các tính năng chính</h2>
   <ul class="feature-list">
-    <li>Dùng Claude Code thêm một tính năng mới vào project có sẵn: <strong>xuất CSV danh sách chi tiêu theo tháng</strong>.</li>
-    <li>Yêu cầu Claude Code viết unit test (Jest) cho phần logic của tính năng vừa thêm.</li>
-    <li>Biết cách tách logic thuần (pure function) ra khỏi API route để dễ viết unit test hơn.</li>
-    <li>Chạy test và đọc kết quả để xác nhận tính năng hoạt động đúng ở cả trường hợp bình thường và edge case.</li>
+    <li><strong>Đọc file</strong> — rủi ro <b>thấp nhất</b>, không thay đổi gì, có thể luôn cho phép tự động.</li>
+    <li><strong>Sửa file cục bộ</strong> — rủi ro <b>trung bình</b>, nên luôn review qua <code>git diff</code> trước khi commit, đặc biệt với file cấu hình hoặc logic nghiệp vụ quan trọng.</li>
+    <li><strong>Chạy lệnh hệ thống</strong> (cài package, chạy script, thao tác database) — rủi ro <b>cao</b> hơn vì có thể gây tác dụng phụ ngoài phạm vi code, cần xem kỹ lệnh trước khi cho phép chạy.</li>
+    <li><strong>Git push / thao tác remote</strong> — rủi ro <b>cao nhất</b> vì ảnh hưởng đến người khác trong team hoặc lên môi trường thật, luôn cần xác nhận thủ công, không nên đặt vào Auto-accept mode.</li>
+    <li>Claude Code có thể hỗ trợ toàn bộ vòng đời Git: soạn commit message theo convention, viết PR description tóm tắt thay đổi, và đưa ra góp ý khi review code người khác.</li>
   </ul>
 
   <h2 class="section-heading">Mô hình kiến trúc</h2>
   <div class="mermaid">
   flowchart LR
-      Dev(("<img src='../../assets/svg-icon/developer.svg' style='width:26px;height:26px;'/><br/><b>Developer</b>"))
-      CC["<img src='../../assets/svg-icon/claude-logo.svg' style='width:28px;height:28px;'/><br/><b>Claude Code</b>"]
+      CC["<img src='../../assets/svg-icon/claude-logo.svg' style='width:30px;height:30px;'/><br/><b>Claude Code</b>"]
+      Read["📖 Đọc file<br/>Rủi ro: Thấp"]
+      Edit["✏️ Sửa file cục bộ<br/>Rủi ro: Trung bình"]
+      Cmd["⚙️ Chạy lệnh hệ thống<br/>Rủi ro: Cao"]
+      Push["🚀 Git push / remote<br/>Rủi ro: Cao nhất"]
+      Dev(("👤<br/><b>Developer</b><br/>Review"))
 
-      subgraph App["Next.js Project — lab-expense-management"]
-          Route["⚙️ <b>API Route</b><br/>/api/expenses/export"]
-          Lib["🧩 <b>lib/csv-export.ts</b><br/>buildExpensesCsv() — pure function"]
-          Test["🧪 <b>__tests__/csv-export.test.ts</b><br/>Jest unit test"]
-      end
-
-      Runner["<img src='../../assets/svg-icon/task.svg' style='width:26px;height:26px;'/><br/><b>Jest Runner</b><br/>npm test"]
-
-      Dev -->|"Yêu cầu thêm tính năng + test"| CC
-      CC -->|"Sinh code"| Route
-      CC -->|"Tách logic thuần"| Lib
-      CC -->|"Sinh test case"| Test
-      Route --> Lib
-      Test -->|"Gọi trực tiếp, không cần chạy server"| Lib
-      Test --> Runner
-      Runner -->|"Kết quả pass/fail"| Dev
+      CC --> Read
+      CC -->|"Cần review diff"| Edit
+      CC -->|"Cần xem lệnh trước khi chạy"| Cmd
+      CC -->|"Luôn cần xác nhận thủ công"| Push
+      Read -.->|"Không cần duyệt"| Dev
+      Edit -->|"Duyệt qua git diff"| Dev
+      Cmd -->|"Duyệt trước khi chạy"| Dev
+      Push -->|"Xác nhận rõ ràng trước khi push"| Dev
+      Dev -->|"Approve"| CC
   </div>
-  <p class="arch-caption">Logic tạo CSV được tách thành hàm thuần <code>buildExpensesCsv()</code> trong <code>lib/csv-export.ts</code> — không phụ thuộc Next.js request/response, giúp Jest gọi và kiểm tra trực tiếp mà không cần khởi động server.</p>
+  <p class="arch-caption">Mức độ cần review tăng dần theo mức độ ảnh hưởng của hành động — đọc file có thể tự động hoàn toàn, git push luôn cần xác nhận thủ công của con người.</p>
 
-  <h2 class="section-heading">Yêu cầu trước khi bắt đầu</h2>
-  <ul class="feature-list">
-    <li>Đã hoàn thành Chapter 4 — project <code>D:\lab-expense-management</code> đã chạy được, MySQL container đang hoạt động.</li>
-    <li>Claude Code CLI đã cài đặt và đăng nhập thành công.</li>
-    <li>Terminal: PowerShell hoặc Windows Terminal.</li>
-  </ul>
+  <h3 class="sub-heading">Khi nào review kỹ, khi nào tin tưởng tự chạy</h3>
+  <table class="compare-table">
+    <thead>
+      <tr><th>Mức độ ảnh hưởng</th><th>Ví dụ hành động</th><th>Mức review cần thiết</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Đọc file</td><td>Đọc source code, tìm kiếm trong project, xem log</td><td class="yes">Không cần review — an toàn tuyệt đối</td></tr>
+      <tr><td>Sửa file cục bộ</td><td>Sửa component, thêm hàm, cập nhật config</td><td>Review qua <code>git diff</code> trước khi commit</td></tr>
+      <tr><td>Chạy lệnh hệ thống</td><td>Cài package (<code>npm install</code>), chạy migration, xoá file</td><td>Xem lệnh cụ thể trước khi cho phép (Accept Edits mode)</td></tr>
+      <tr><td>Thao tác Git remote</td><td><code>git push</code>, <code>git push --force</code>, tạo PR</td><td class="no">Luôn xác nhận thủ công — không đặt Auto-accept</td></tr>
+    </tbody>
+  </table>
 
-  <h2 class="section-heading">Các bước thực hành</h2>
-
-  <h3 class="sub-heading">Phần 1: Khởi động lại project</h3>
-  <ol class="step-list">
-    <li>
-      <div>
-        <strong>Bước 1: Vào thư mục project, khởi động MySQL và Claude Code</strong>
-        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">cd D:\lab-expense-management
-docker compose up -d
-claude</code></pre>
-      </div>
-    </li>
-  </ol>
-
-  <h3 class="sub-heading">Phần 2: Thêm tính năng xuất CSV</h3>
-  <ol class="step-list">
-    <li>
-      <div>
-        <strong>Bước 2: Yêu cầu Claude Code thêm tính năng xuất CSV, tách logic thuần riêng</strong>
-        <p>Nêu rõ ràng buộc quan trọng nhất: logic tạo nội dung CSV phải nằm trong một hàm thuần, không phụ thuộc vào Next.js request/response, để có thể viết unit test dễ dàng.</p>
-        <pre class="command-line" data-prompt=">"><code class="language-text">Thêm tính năng xuất CSV danh sách chi tiêu theo tháng cho project. Yêu cầu cụ thể:
-1. Tạo file lib/csv-export.ts chứa hàm thuần buildExpensesCsv(expenses: Expense[]): string — nhận vào danh sách khoản chi tiêu (đã có category name kèm theo), trả về nội dung CSV dạng string với header "Ngày,Danh mục,Tiêu đề,Số tiền". Hàm này KHÔNG được gọi Prisma hay import bất cứ gì liên quan Next.js, chỉ nhận dữ liệu qua tham số và trả về string.
-2. Xử lý đúng trường hợp title hoặc category name có chứa dấu phẩy (escape bằng dấu ngoặc kép theo chuẩn CSV).
-3. Nếu danh sách rỗng, trả về CSV chỉ có dòng header, không lỗi.
-4. Tạo API route app/api/expenses/export/route.ts, nhận query param "month" (định dạng YYYY-MM, optional), lấy dữ liệu từ Prisma theo tháng đó (hoặc toàn bộ nếu không truyền month), gọi buildExpensesCsv() để tạo nội dung, trả về response với Content-Type "text/csv" và header Content-Disposition để browser tải file xuống.
-5. Thêm một nút "Xuất CSV" trên trang chủ (app/page.tsx), gọi route trên và tải file khi bấm.</code></pre>
-      </div>
-    </li>
-    <li>
-      <div>
-        <strong>Bước 3: Duyệt kế hoạch và xác nhận thực thi</strong>
-        <p>Đọc qua các file Claude Code dự kiến tạo/sửa (<code>lib/csv-export.ts</code>, <code>app/api/expenses/export/route.ts</code>, <code>app/page.tsx</code>) trước khi cho phép ghi thay đổi.</p>
-      </div>
-    </li>
-  </ol>
-
-  <h3 class="sub-heading">Phần 3: Yêu cầu viết unit test</h3>
-  <ol class="step-list">
-    <li>
-      <div>
-        <strong>Bước 4: Yêu cầu cài đặt và cấu hình Jest (nếu project chưa có)</strong>
-        <pre class="command-line" data-prompt=">"><code class="language-text">Kiểm tra project đã có Jest chưa. Nếu chưa, cài đặt và cấu hình Jest cho project Next.js + TypeScript này (dùng ts-jest hoặc next/jest, tuỳ cách nào phù hợp hơn với cấu hình hiện tại), thêm script "test": "jest" vào package.json.</code></pre>
-      </div>
-    </li>
-    <li>
-      <div>
-        <strong>Bước 5: Yêu cầu viết unit test cho hàm buildExpensesCsv()</strong>
-        <p>Nêu rõ các case cần bao phủ: happy path, escape dấu phẩy, danh sách rỗng — để Claude Code không bỏ sót edge case.</p>
-        <pre class="command-line" data-prompt=">"><code class="language-text">Viết unit test cho hàm buildExpensesCsv() trong lib/csv-export.ts, đặt tại __tests__/csv-export.test.ts. Bao phủ tối thiểu các case:
-1. Danh sách có 2-3 khoản chi tiêu bình thường -> đúng số dòng, đúng thứ tự cột, đúng giá trị.
-2. Một khoản chi tiêu có title hoặc category chứa dấu phẩy (vd "Ăn uống, giải trí") -> phải được escape đúng bằng dấu ngoặc kép, không làm lệch cột khi mở bằng Excel.
-3. Danh sách rỗng -> trả về đúng 1 dòng header, không có dòng dữ liệu, không throw lỗi.
-4. Số tiền có phần thập phân (vd 125000.50) -> hiển thị đúng định dạng số trong CSV.
-Chạy thử test sau khi viết xong để xác nhận toàn bộ pass.</code></pre>
-      </div>
-    </li>
-    <li>
-      <div>
-        <strong>Bước 6: Chạy test và đọc kết quả</strong>
-        <p>Tự chạy lại lệnh test để xác nhận độc lập, không chỉ tin vào báo cáo của Claude Code.</p>
-        <pre class="command-line" data-prompt="PS>" data-output="2, 3, 4, 5"><code class="language-powershell">npm test
-PASS  __tests__/csv-export.test.ts
-  buildExpensesCsv
-    ✓ tạo đúng CSV với danh sách chi tiêu bình thường
-    ✓ escape đúng giá trị chứa dấu phẩy
-    ✓ trả về CSV chỉ có header khi danh sách rỗng
-    ✓ giữ đúng định dạng số thập phân</code></pre>
-      </div>
-    </li>
-    <li>
-      <div>
-        <strong>Bước 7: Kiểm tra tính năng trên browser</strong>
-        <p>Chạy dev server và thử bấm nút "Xuất CSV" để xác nhận file được tải xuống đúng với dữ liệu thực tế trong database.</p>
-        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">npm run dev</code></pre>
-        <p>Mở <code>http://localhost:3000</code>, bấm nút <strong>Xuất CSV</strong>, mở file vừa tải xuống bằng Excel hoặc Notepad để kiểm tra nội dung đúng định dạng.</p>
-      </div>
-    </li>
-  </ol>
-
-  <div class="verify-box">
-    <h4>✅ Kết quả mong đợi</h4>
-    <p class="body-text">Toàn bộ test case trong <code>__tests__/csv-export.test.ts</code> pass khi chạy <code>npm test</code>. Nút "Xuất CSV" trên trang chủ tải xuống đúng file <code>.csv</code> chứa danh sách chi tiêu, mở được bằng Excel không bị lệch cột dù có dữ liệu chứa dấu phẩy.</p>
-  </div>
-
-  <h2 class="section-heading">Troubleshoot</h2>
   <div class="alert alert-warning">
-    <strong>Lỗi:</strong> <code>npm test</code> báo lỗi không nhận cú pháp TypeScript hoặc import module.<br/>
-    <strong>Nguyên nhân:</strong> Cấu hình Jest chưa khớp với TypeScript/ESM của project Next.js (thiếu preset <code>ts-jest</code> hoặc <code>next/jest</code>).<br/>
-    <strong>Giải pháp:</strong> Yêu cầu Claude Code kiểm tra lại file <code>jest.config.js</code>/<code>jest.config.ts</code>, đảm bảo dùng đúng preset tương ứng với <code>tsconfig.json</code> hiện có của project.
-  </div>
-  <div class="alert alert-warning">
-    <strong>Lỗi:</strong> Test case escape dấu phẩy vẫn fail dù đã sửa code.<br/>
-    <strong>Nguyên nhân:</strong> Logic escape CSV chưa xử lý đúng chuẩn (cần bọc cả field trong ngoặc kép nếu field chứa dấu phẩy, và escape luôn dấu ngoặc kép có sẵn trong field bằng cách nhân đôi).<br/>
-    <strong>Giải pháp:</strong> Yêu cầu Claude Code đọc lại chuẩn RFC 4180 cho định dạng CSV và sửa lại hàm <code>buildExpensesCsv()</code> cho đúng, chạy lại <code>npm test</code> để xác nhận.
-  </div>
-  <div class="alert alert-warning">
-    <strong>Lỗi:</strong> File CSV tải xuống bị lỗi font tiếng Việt khi mở bằng Excel.<br/>
-    <strong>Nguyên nhân:</strong> Thiếu BOM (Byte Order Mark) UTF-8 ở đầu file, Excel mặc định đọc sai encoding.<br/>
-    <strong>Giải pháp:</strong> Yêu cầu Claude Code thêm ký tự BOM (<code>﻿</code>) vào đầu nội dung CSV trước khi trả về response trong API route.
+    <strong>Nguyên tắc chung:</strong> Mức độ tự động hoá nên tỷ lệ nghịch với mức độ khó hoàn tác (revert) của hành động. Sửa file có thể hoàn tác dễ dàng bằng Git; xoá dữ liệu database hoặc <code>git push --force</code> lên nhánh chung (main/master) thì rất khó hoặc không thể hoàn tác — luôn cần con người xác nhận rõ ràng trước khi thực thi.
   </div>
 
-  <h2 class="section-heading">Dọn dẹp resource</h2>
-  <div class="alert alert-warning">
-    <strong>Quan trọng:</strong> Project <code>D:\lab-expense-management</code> sẽ tiếp tục được dùng ở Chapter 7 — <strong>không xoá thư mục project</strong>. Chỉ cần dừng container MySQL khi tạm nghỉ.
-  </div>
-  <pre class="command-line" data-prompt="PS>"><code class="language-powershell">cd D:\lab-expense-management
-docker compose down</code></pre>
+  <h2 class="section-heading">Tích hợp Claude Code với Git</h2>
+  <div class="mermaid">
+  flowchart LR
+      Dev(("👤<br/><b>Developer</b>"))
+      CC["<img src='../../assets/svg-icon/claude-logo.svg' style='width:30px;height:30px;'/><br/><b>Claude Code</b>"]
+      Stage["📂 git add<br/>Staging changes"]
+      Commit["📝 git commit<br/>Message do Claude soạn"]
+      Push["🚀 git push<br/>Lên remote branch"]
+      GH["<img src='../../assets/svg-icon/github.svg' style='width:28px;height:28px;'/><br/><b>GitHub</b>"]
+      PR["📋 gh pr create<br/>PR description do Claude soạn"]
+      Review["🔍 Code review<br/>Claude gợi ý góp ý"]
 
+      Dev -->|"Yêu cầu commit"| CC
+      CC --> Stage --> Commit --> Push --> GH
+      Dev -->|"Yêu cầu tạo PR"| CC
+      CC --> PR --> GH
+      GH --> Review
+      Review -->|"Góp ý"| Dev
+  </div>
+  <p class="arch-caption">Claude Code hỗ trợ toàn bộ luồng Git từ staging, soạn commit message, push, đến tạo PR qua GitHub CLI (<code>gh</code>) và hỗ trợ review — nhưng bước push/tạo PR vẫn cần Developer xác nhận.</p>
+
+  <h3 class="sub-heading">3 việc Claude Code hỗ trợ tốt trong quy trình Git</h3>
+  <div class="capability-grid">
+    <div class="capability-card">
+      <div class="icon">📝</div>
+      <h4>Viết commit message</h4>
+      <p>Đọc <code>git diff</code> đã staged, tự soạn message theo convention (vd Conventional Commits: <code>feat:</code>, <code>fix:</code>).</p>
+    </div>
+    <div class="capability-card">
+      <div class="icon">📋</div>
+      <h4>Viết Pull Request(PR) description</h4>
+      <p>Tóm tắt thay đổi giữa branch hiện tại và branch đích, liệt kê rõ mục đích, phạm vi ảnh hưởng, cách test.</p>
+    </div>
+    <div class="capability-card">
+      <div class="icon">🔍</div>
+      <h4>Hỗ trợ code review</h4>
+      <p>Đọc diff của PR, review dựa trên checklist & bộ quy tắc, chỉ ra rủi ro tiềm ẩn, gợi ý cải thiện — hỗ trợ người review, không thay thế hoàn toàn.</p>
+    </div>
+  </div>
+
+  <h2 class="section-heading">Thông tin bổ sung</h2>
+  <p class="body-text">
+    Claude Code không có khả năng "hiểu" toàn bộ ngữ cảnh nghiệp vụ hoặc lịch sử quyết định kỹ thuật của team — vì
+    vậy commit message hoặc PR description do Claude Code soạn nên được xem là <strong>bản nháp tốt</strong>, không
+    phải bản cuối cùng. Với các thay đổi ảnh hưởng đến production hoặc dữ liệu người dùng thật, luôn cần một người
+    có thẩm quyền review và approve trước khi merge, bất kể Claude Code đã tự tin đến đâu.
+    <br/>
+  </p>
   <script>mermaid.initialize({ startOnLoad: true, theme: 'default' });</script>
 </body>
 </html>

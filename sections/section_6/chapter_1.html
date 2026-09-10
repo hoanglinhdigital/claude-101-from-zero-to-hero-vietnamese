@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Vai trò Claude trong quy trình QA – Claude 101</title>
+  <title>Vai trò Claude trong vòng đời DevOps & nguyên tắc an toàn – Claude 101</title>
   <link rel="stylesheet" href="../../styles.css" />
   <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
   <script src="../../mermaid-config.js"></script>
@@ -14,79 +14,103 @@
 <body class="chapter-body">
 
   <div class="chapter-breadcrumb">
-    <span class="section-part">6. Claude cho Tester / QA</span>
+    <span class="section-part">5. Claude cho DevOps & Cloud Engineer</span>
     <span class="sep">/</span>
-    <span class="chapter-part">Vai trò Claude trong quy trình QA</span>
+    <span class="chapter-part">Vai trò Claude trong vòng đời DevOps & nguyên tắc an toàn</span>
   </div>
 
   <h2 class="section-heading">Giới thiệu</h2>
   <p class="body-text">
-    Công việc kiểm thử (QA/Tester) trải dài từ việc đọc hiểu requirement, thiết kế test case, thực hiện test (thủ công
-    hoặc tự động), đến phân tích kết quả và báo cáo lỗi cho Developer. Claude có thể hỗ trợ ở <strong>hầu hết các bước</strong>
-    trong quy trình này — đọc và làm rõ requirement, sinh bộ test case bao phủ đầy đủ, hỗ trợ viết test tự động, phân
-    tích nguyên nhân khi test fail, và soạn bug report chuẩn. Chương này giới thiệu tổng quan vai trò của Claude trong
-    toàn bộ vòng đời QA trước khi đi sâu vào từng kỹ thuật cụ thể ở các chương sau.
+    Công việc DevOps/Cloud Engineer thường lặp lại theo 4 giai đoạn: <strong>Plan (lập kế hoạch hạ tầng) – Provision
+    (dựng hạ tầng) – Deploy (triển khai ứng dụng) – Monitor (giám sát vận hành)</strong>. Claude/Claude Code có thể hỗ
+    trợ đáng kể ở cả 4 giai đoạn — từ soạn thiết kế, sinh Infrastructure as Code, hỗ trợ pipeline triển khai, đến phân
+    tích log giám sát. Tuy nhiên hạ tầng là nơi một lệnh sai có thể gây downtime hoặc mất dữ liệu thật, nên chương này
+    cũng trình bày <strong>nguyên tắc an toàn bắt buộc</strong> khi để AI thao tác vào hạ tầng.
   </p>
 
   <h2 class="section-heading">Các tính năng chính</h2>
   <ul class="feature-list">
-    <li><strong>Phân tích requirement</strong> — Claude đọc yêu cầu chức năng, chỉ ra điểm mơ hồ hoặc thiếu ràng buộc cần hỏi lại trước khi thiết kế test.</li>
-    <li><strong>Sinh test case</strong> — từ một requirement rõ ràng, Claude sinh bộ test case bao phủ đủ 3 nhóm: happy path, edge case, negative case.</li>
-    <li><strong>Hỗ trợ viết test tự động</strong> — Claude Code viết test script (unit test, integration test, hoặc test end-to-end bằng Selenium/Playwright) dựa trên test case đã thiết kế.</li>
-    <li><strong>Phân tích kết quả test fail</strong> — đưa log/stack trace cho Claude để tìm nguyên nhân gốc rễ, phân biệt với các lỗi phái sinh.</li>
-    <li><strong>Soạn bug report</strong> — Claude hỗ trợ chuẩn hoá một mô tả lỗi ngắn gọn thành bug report đầy đủ, dễ tái hiện cho Developer.</li>
-    <li>Ở mọi bước, Claude đóng vai trò <strong>trợ lý tăng tốc</strong> — QA vẫn cần review lại test case, kết quả phân tích và bug report trước khi gửi đi, vì Claude không có toàn bộ ngữ cảnh nghiệp vụ thực tế của sản phẩm.</li>
+    <li><strong>Plan</strong> — Claude hỗ trợ phân tích yêu cầu, đề xuất kiến trúc, so sánh phương án (vd chọn loại compute, database phù hợp).</li>
+    <li><strong>Provision</strong> — Claude Code sinh Infrastructure as Code (Terraform/CloudFormation) để dựng hạ tầng theo thiết kế đã chọn.</li>
+    <li><strong>Deploy</strong> — Claude Code hỗ trợ viết/soát script triển khai, phân tích lý do pipeline CI/CD fail, đề xuất fix build script.</li>
+    <li><strong>Monitor</strong> — Claude phân tích log lỗi, metrics bất thường, đề xuất nguyên nhân gốc rễ và hướng xử lý.</li>
+    <li>Ở mọi giai đoạn, Claude chỉ nên đóng vai trò <strong>trợ lý đề xuất</strong> — quyết định cuối cùng (apply, deploy, xoá resource) luôn thuộc về con người.</li>
   </ul>
 
   <h2 class="section-heading">Mô hình kiến trúc</h2>
   <div class="mermaid">
   flowchart LR
-      QA(("<img src='../../assets/svg-icon/user.svg' style='width:26px;height:26px;'/><br/><b>Tester / QA</b>"))
-      CC["<img src='../../assets/svg-icon/claude-logo.svg' style='width:28px;height:28px;'/><br/><b>Claude</b>"]
+      Engineer(("<img src='../../assets/svg-icon/operator.svg' style='width:26px;height:26px;'/><br/><b>DevOps Engineer</b>"))
+      CC["<img src='../../assets/svg-icon/claude-logo.svg' style='width:28px;height:28px;'/><br/><b>Claude / Claude Code</b>"]
 
-      Req["📋 <b>Requirement</b><br/>Yêu cầu chức năng"]
-      Analyze["🔍 <b>Claude phân tích</b><br/>Làm rõ ràng buộc,<br/>điểm mơ hồ"]
-      TC["🧪 <b>Test case</b><br/>Happy · Edge · Negative"]
-      Auto["⚙️ <b>Test tự động</b><br/>Claude Code hỗ trợ viết"]
-      Result["📊 <b>Kết quả test</b>"]
-      Bug["🐛 <b>Bug report</b><br/>(nếu fail)"]
-      Dev(("<img src='../../assets/svg-icon/developer.svg' style='width:26px;height:26px;'/><br/><b>Developer</b>"))
+      Plan["📋 <b>1. Plan</b><br/>Thiết kế kiến trúc<br/><i>Claude đề xuất, con người quyết định</i>"]
+      Provision["<img src='../../assets/svg-icon/container.svg' style='width:26px;height:26px;'/><br/><b>2. Provision</b><br/>Sinh Terraform/CloudFormation<br/><i>⚠️ Review kỹ terraform plan</i>"]
+      Deploy["🚀 <b>3. Deploy</b><br/>Triển khai ứng dụng<br/><i>⚠️ Xác nhận trước khi lên Production</i>"]
+      Monitor["📊 <b>4. Monitor</b><br/>Giám sát & phân tích log<br/><i>Claude đề xuất fix, không tự sửa Production</i>"]
 
-      QA -->|"Cung cấp"| Req --> CC
-      CC --> Analyze --> TC --> Auto --> Result
-      Result -->|"Fail"| Bug --> Dev
-      Result -->|"Pass"| QA
-      Dev -.->|"Fix xong, yêu cầu retest"| Auto
+      Engineer -->|"Yêu cầu"| CC
+      CC --> Plan --> Provision --> Deploy --> Monitor
+      Monitor -.->|"Phát hiện vấn đề, quay lại"| Plan
+      Plan -->|"Review & Approve"| Engineer
+      Provision -->|"Review terraform plan"| Engineer
+      Deploy -->|"Xác nhận thủ công"| Engineer
+      Engineer -->|"Approve"| CC
   </div>
-  <p class="arch-caption">Claude tham gia xuyên suốt từ bước phân tích requirement đến sinh test case, hỗ trợ tự động hoá và phân tích kết quả; khi test fail, Claude hỗ trợ soạn bug report gửi Developer, tạo thành một vòng lặp fix – retest.</p>
+  <p class="arch-caption">4 giai đoạn Plan – Provision – Deploy – Monitor tạo thành một vòng lặp; ở 3 điểm được đánh dấu ⚠️ (Provision, Deploy) luôn cần con người review và xác nhận trước khi hành động thực sự tác động lên hạ tầng.</p>
+
+  <h3 class="sub-heading">Nguyên tắc an toàn khi để AI thao tác hạ tầng</h3>
+  <div class="ts-grid">
+    <div class="ts-card">
+      <h4>🔍 Luôn review trước khi apply/deploy</h4>
+      <p class="cause">Đọc kỹ output của <code>terraform plan</code> hoặc bước dry-run trước khi cho phép <code>terraform apply</code> / deploy thật.</p>
+    </div>
+    <div class="ts-card">
+      <h4>🚫 Tránh lệnh destructive tự động</h4>
+      <p class="cause">Không để Claude Code tự chạy <code>terraform destroy</code>, <code>rm -rf</code>, hoặc lệnh xoá resource mà không có xác nhận rõ ràng của con người.</p>
+    </div>
+    <div class="ts-card">
+      <h4>🔐 Không tự động hoá thao tác trên Production</h4>
+      <p class="cause">Xoá/sửa resource trên môi trường Production luôn cần xác nhận thủ công — không đặt Claude Code ở chế độ Auto-accept cho các lệnh này.</p>
+    </div>
+    <div class="ts-card">
+      <h4>🧾 Giữ log/audit trail đầy đủ</h4>
+      <p class="cause">Lưu lại output <code>plan</code>/<code>apply</code> và lịch sử prompt để dễ truy vết khi có sự cố xảy ra.</p>
+    </div>
+  </div>
+
+  <div class="alert alert-danger">
+    <strong>Không nên:</strong> Yêu cầu Claude Code "tự dọn dẹp hạ tầng không dùng nữa" rồi cho chạy Auto-accept mà
+    không xem trước danh sách resource sẽ bị xoá. Một CIDR sai, một tên resource trùng giữa môi trường dev/production
+    có thể khiến lệnh destructive ảnh hưởng nhầm sang hệ thống đang chạy thật.
+  </div>
 
   <h2 class="section-heading">Use Cases</h2>
   <div class="usecase-grid">
     <div class="usecase-card">
-      <h4>Rút ngắn thời gian thiết kế test case</h4>
-      <p>Từ một requirement, Claude sinh nhanh bộ test case bao phủ đủ 3 nhóm, Tester chỉ cần review và bổ sung thay vì viết từ đầu.</p>
+      <h4>Thiết kế hạ tầng nhanh cho môi trường dev/test</h4>
+      <p>Claude đề xuất kiến trúc phù hợp với yêu cầu, Engineer duyệt trước khi chuyển sang giai đoạn Provision.</p>
     </div>
     <div class="usecase-card">
-      <h4>Tăng tốc viết test tự động</h4>
-      <p>Claude Code hỗ trợ viết test script dựa trên test case đã có sẵn, giảm thời gian chuyển từ thiết kế sang thực thi.</p>
+      <h4>Sinh IaC nhất quán, đúng convention</h4>
+      <p>Claude Code sinh Terraform theo naming convention, tag chuẩn của team — giảm công soạn thủ công lặp lại.</p>
     </div>
     <div class="usecase-card">
-      <h4>Bug report rõ ràng, dễ tái hiện</h4>
-      <p>Claude giúp chuẩn hoá cấu trúc bug report ngay cả khi Tester chỉ mô tả lỗi ngắn gọn, giảm số lần Dev phải hỏi lại.</p>
+      <h4>Phát hiện sớm cấu hình rủi ro</h4>
+      <p>Đọc kỹ <code>terraform plan</code> cùng Claude giúp phát hiện sớm việc mở port không cần thiết hoặc IAM quá rộng quyền, trước khi apply thật.</p>
     </div>
   </div>
 
   <h2 class="section-heading">Thông tin bổ sung</h2>
   <p class="body-text">
-    Claude không "biết" các ràng buộc nghiệp vụ ẩn (implicit business rule) nếu không được nêu rõ trong requirement hoặc
-    prompt — ví dụ giới hạn số tiền tối đa, quy tắc làm tròn riêng của doanh nghiệp. Luôn cung cấp requirement càng đầy
-    đủ càng tốt, và coi test case/bug report do Claude sinh ra là <strong>bản dự thảo chất lượng cao cần review</strong>,
-    không phải kết quả cuối cùng có thể gửi thẳng cho Developer hoặc đưa vào bộ test chính thức.
+    Claude không "biết" đâu là môi trường Production của tổ chức bạn trừ khi được nói rõ trong prompt hoặc file
+    <code>CLAUDE.md</code>. Nên luôn nêu rõ ngữ cảnh môi trường (dev/staging/production) khi giao tác vụ hạ tầng, và
+    coi mọi đề xuất của Claude ở giai đoạn Provision/Deploy là <strong>bản dự thảo cần review</strong>, không phải
+    lệnh sẵn sàng thực thi ngay.
   </p>
   <div class="alert alert-tip">
-    <strong>Mẹo:</strong> Nếu requirement có nhiều điểm chưa rõ, hãy để Claude tự liệt kê câu hỏi cần làm rõ trước khi
-    sinh test case ("đọc requirement này, liệt kê các điểm còn mơ hồ hoặc thiếu ràng buộc mà bạn cần biết để thiết kế
-    test case đầy đủ") — giúp phát hiện sớm lỗ hổng trong chính requirement, trước khi lỗ hổng đó lan sang test case.
+    <strong>Mẹo:</strong> Có thể yêu cầu Claude Code giải thích từng thay đổi trong <code>terraform plan</code> bằng
+    ngôn ngữ dễ hiểu ("giải thích các thay đổi trong plan này, đặc biệt resource nào sẽ bị xoá hoặc replace") — giúp
+    review nhanh hơn mà không bỏ sót chi tiết quan trọng.
   </div>
 
   <script>mermaid.initialize({ startOnLoad: true, theme: 'default' });</script>

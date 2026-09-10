@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Kỹ thuật prompt sinh test case bao phủ đầy đủ – Claude 101</title>
+  <link rel="stylesheet" href="../../styles.css" />
+  <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+  <script src="../../mermaid-config.js"></script>
+  <link rel="stylesheet" href="../../prism.css" />
+  <script src="../../prism.js"></script>
+  <script src="../../script.js"></script>
+</head>
+<body class="chapter-body">
+
+  <div class="chapter-breadcrumb">
+    <span class="section-part">6. Claude cho Tester / QA</span>
+    <span class="sep">/</span>
+    <span class="chapter-part">Kỹ thuật prompt sinh test case bao phủ đầy đủ</span>
+  </div>
+
+  <h2 class="section-heading">Giới thiệu</h2>
+  <p class="body-text">
+    Một bộ test case tốt cần bao phủ đủ 3 nhóm case: <strong>happy path</strong> (luồng chính, input hợp lệ),
+    <strong>edge case</strong> (giá trị biên, tình huống hiếm gặp) và <strong>negative case</strong> (input sai, hệ thống
+    phải từ chối đúng cách). Nếu prompt chỉ yêu cầu chung "sinh test case cho chức năng X", Claude thường có xu hướng
+    tập trung vào happy path và bỏ sót edge/negative case. Chương này trình bày kỹ thuật viết prompt để chủ động yêu
+    cầu Claude bao phủ đủ cả 3 nhóm, minh hoạ xuyên suốt bằng chức năng <strong>"tạo khoản chi tiêu"</strong> của app
+    Quản lý chi tiêu (Expense Management) đã xây dựng ở Section 4.
+  </p>
+
+  <h2 class="section-heading">Các tính năng chính</h2>
+  <ul class="feature-list">
+    <li><strong>Happy path</strong> — test case với input hợp lệ, đi đúng luồng nghiệp vụ chính, kết quả mong đợi là thành công.</li>
+    <li><strong>Edge case</strong> — test case với giá trị ở biên (nhỏ nhất, lớn nhất, đúng ngay ranh giới hợp lệ/không hợp lệ) hoặc tình huống ít xảy ra nhưng vẫn hợp lệ.</li>
+    <li><strong>Negative case</strong> — test case với input sai, vi phạm ràng buộc nghiệp vụ, kết quả mong đợi là hệ thống <strong>báo lỗi đúng cách</strong> (không phải crash hay lưu sai dữ liệu).</li>
+    <li>Prompt hiệu quả nên <strong>liệt kê rõ từng ràng buộc</strong> của requirement (thay vì mô tả chung), và <strong>yêu cầu tường minh</strong> Claude phải sinh đủ cả 3 nhóm — không để Claude tự quyết định phạm vi bao phủ.</li>
+    <li>Nên yêu cầu Claude trình bày test case theo <strong>dạng table chuẩn</strong> (Ví dụ: No, Mô tả, Bước thực hiện, Dữ liệu vào, Kết quả mong đợi) để dễ review và đưa vào bộ test chính thức.</li>
+  </ul>
+
+  <h2 class="section-heading">Mô hình kiến trúc</h2>
+  <div class="mermaid">
+  flowchart TD
+      Req["📋 <b>Requirement</b><br/>Tạo khoản chi tiêu:<br/>amount &gt; 0 · ngày có thể ở tương lai · category có sẵn, cho phép chọn category parent hoặc child"]
+      Prompt["💬 <b>Prompt</b><br/>Liệt kê rõ ràng buộc<br/>+ yêu cầu đủ 3 nhóm case"]
+      CC["<img src='../../assets/svg-icon/claude-logo.svg' style='width:28px;height:28px;'/><br/><b>Claude</b>"]
+      Happy["✅ <b>Happy path</b><br/>Input hợp lệ,<br/>đúng luồng chính"]
+      Edge["⚠️ <b>Edge case</b><br/>Giá trị biên,<br/>tình huống hiếm gặp"]
+      Negative["🚫 <b>Negative case</b><br/>Input sai,<br/>phải bị từ chối"]
+
+      Req --> Prompt --> CC
+      CC --> Happy
+      CC --> Edge
+      CC --> Negative
+  </div>
+  <p class="arch-caption">Prompt nêu rõ từng ràng buộc của requirement và yêu cầu tường minh đủ 3 nhóm case, giúp Claude không bỏ sót edge case hay negative case như khi chỉ hỏi chung.</p>
+
+  <h3 class="sub-heading">Bảng phân loại test case — ví dụ "Tạo khoản chi tiêu"</h3>
+  <p class="body-text">Requirement: <em>"Tạo khoản chi tiêu — số tiền phải &gt; 0, ngày chi tiêu có thể ở tương lai, phải chọn Account và Category có sẵn, description có thể bỏ trống,..."</em></p>
+  <table class="info-table">
+    <thead>
+      <tr><th>Nhóm</th><th>Định nghĩa</th><th>Ví dụ cho chức năng "Tạo khoản chi tiêu"</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><span class="tag tag-green">Happy path</span></td>
+        <td>Input hợp lệ, đi đúng luồng chính, không vi phạm ràng buộc nào.</td>
+        <td>amount = 150000, spentAt = hôm nay, categoryId = category có sẵn → lưu thành công.</td>
+      </tr>
+      <tr>
+        <td><span class="tag tag-orange">Edge case</span></td>
+        <td>Giá trị nằm đúng ranh giới hợp lệ/không hợp lệ, hoặc trường hợp hợp lệ nhưng hiếm gặp.</td>
+        <td>amount = 0.01 (nhỏ nhất &gt; 0); spentAt = đúng thời điểm hiện tại (biên giữa "hiện tại" và "tương lai").</td>
+      </tr>
+      <tr>
+        <td><span class="tag tag-red">Negative case</span></td>
+        <td>Input vi phạm ràng buộc, hệ thống phải từ chối rõ ràng, không lưu dữ liệu sai.</td>
+        <td>amount = -50000 hoặc = 0; categoryId hoặc accountId không tồn tại trong hệ thống.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="alert alert-tip">
+    <strong>Mẹo:</strong> Sau khi Claude sinh xong bộ test case, luôn hỏi thêm một câu rà soát: "Rà soát lại bộ test
+    case vừa sinh — còn thiếu case nào thuộc 3 nhóm trên, hoặc case nào liên quan đến kết hợp nhiều ràng buộc cùng lúc
+    không (vd amount âm VÀ ngày tương lai cùng lúc)?". Câu hỏi rà soát thường giúp phát hiện thêm 2-3 case bị bỏ sót.
+  </div>
+
+  <h2 class="section-heading">Use Cases</h2>
+  <div class="usecase-grid">
+    <div class="usecase-card">
+      <h4>Thiết kế test case cho tính năng mới</h4>
+      <p>Chuyển requirement thành bộ test case đầy đủ 3 nhóm trong vài phút, thay vì tự liệt kê thủ công dễ bỏ sót.</p>
+    </div>
+    <div class="usecase-card">
+      <h4>Review lại test suite hiện có</h4>
+      <p>Đưa bộ test case đang có cho Claude, hỏi "case nào thuộc nhóm nào, còn thiếu nhóm nào" để tự đánh giá độ bao phủ.</p>
+    </div>
+    <div class="usecase-card">
+      <h4>Chuẩn hoá format test case toàn team</h4>
+      <p>Yêu cầu Claude luôn xuất ra đúng bảng chuẩn (No, Mô tả, Bước thực hiện, Dữ liệu vào, Kết quả mong đợi) để đồng nhất giữa các Tester.</p>
+    </div>
+  </div>
+
+  <h2 class="section-heading">Thông tin bổ sung</h2>
+  <p class="body-text">
+    Chất lượng test case Claude sinh ra phụ thuộc trực tiếp vào độ rõ ràng của requirement đưa vào. Nếu requirement chỉ
+    nêu "số tiền phải hợp lệ" mà không nói rõ "hợp lệ" nghĩa là gì (&gt; 0? có giới hạn tối đa?), Claude sẽ phải tự suy
+    diễn — dẫn đến test case có thể sai lệch với ý định thật của Product Owner. Luôn làm rõ ràng buộc trước khi generate,
+    và xem lại từng case trước khi đưa vào bộ test chính thức.
+  </p>
+
+  <script>mermaid.initialize({ startOnLoad: true, theme: 'default' });</script>
+</body>
+</html>

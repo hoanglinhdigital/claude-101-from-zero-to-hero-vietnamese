@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Kỹ thuật prompt sinh test case bao phủ đầy đủ – Claude 101</title>
+  <title>Cách cấu trúc prompt cho Infrastructure as Code (Terraform) – Claude 101</title>
   <link rel="stylesheet" href="../../styles.css" />
   <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
   <script src="../../mermaid-config.js"></script>
@@ -14,101 +14,109 @@
 <body class="chapter-body">
 
   <div class="chapter-breadcrumb">
-    <span class="section-part">6. Claude cho Tester / QA</span>
+    <span class="section-part">5. Claude cho DevOps & Cloud Engineer</span>
     <span class="sep">/</span>
-    <span class="chapter-part">Kỹ thuật prompt sinh test case bao phủ đầy đủ</span>
+    <span class="chapter-part">Cách cấu trúc prompt cho Infrastructure as Code (Terraform)</span>
   </div>
 
   <h2 class="section-heading">Giới thiệu</h2>
   <p class="body-text">
-    Một bộ test case tốt cần bao phủ đủ 3 nhóm case: <strong>happy path</strong> (luồng chính, input hợp lệ),
-    <strong>edge case</strong> (giá trị biên, tình huống hiếm gặp) và <strong>negative case</strong> (input sai, hệ thống
-    phải từ chối đúng cách). Nếu prompt chỉ yêu cầu chung "sinh test case cho chức năng X", Claude thường có xu hướng
-    tập trung vào happy path và bỏ sót edge/negative case. Chương này trình bày kỹ thuật viết prompt để chủ động yêu
-    cầu Claude bao phủ đủ cả 3 nhóm, minh hoạ xuyên suốt bằng chức năng <strong>"tạo khoản chi tiêu"</strong> của app
-    Quản lý chi tiêu (Expense Management) đã xây dựng ở Section 4.
+    Khác với prompt sinh code ứng dụng, prompt cho Infrastructure as Code (IaC) tác động trực tiếp lên tài nguyên
+    Cloud thật — CIDR mở sai, IAM quá rộng quyền hay thiếu tag đều có thể gây rủi ro bảo mật hoặc khó quản lý chi phí
+    về sau. Chương này trình bày cách cấu trúc một prompt IaC rõ ràng, đủ chi tiết để Claude Code sinh Terraform đúng
+    ý định ngay từ đầu, giảm số lần phải sửa lại sau khi đã <code>plan</code>/<code>apply</code>.
   </p>
 
   <h2 class="section-heading">Các tính năng chính</h2>
   <ul class="feature-list">
-    <li><strong>Happy path</strong> — test case với input hợp lệ, đi đúng luồng nghiệp vụ chính, kết quả mong đợi là thành công.</li>
-    <li><strong>Edge case</strong> — test case với giá trị ở biên (nhỏ nhất, lớn nhất, đúng ngay ranh giới hợp lệ/không hợp lệ) hoặc tình huống ít xảy ra nhưng vẫn hợp lệ.</li>
-    <li><strong>Negative case</strong> — test case với input sai, vi phạm ràng buộc nghiệp vụ, kết quả mong đợi là hệ thống <strong>từ chối đúng cách</strong> (không phải crash hay lưu sai dữ liệu).</li>
-    <li>Prompt hiệu quả nên <strong>liệt kê rõ từng ràng buộc</strong> của requirement (thay vì mô tả chung), và <strong>yêu cầu tường minh</strong> Claude phải sinh đủ cả 3 nhóm — không để Claude tự quyết định phạm vi bao phủ.</li>
-    <li>Nên yêu cầu Claude trình bày test case theo <strong>bảng chuẩn</strong> (No, Mô tả, Bước thực hiện, Dữ liệu vào, Kết quả mong đợi) để dễ review và đưa vào bộ test chính thức.</li>
+    <li><strong>Resource cần tạo</strong> — nêu rõ loại resource (VPC, EC2, S3, DynamoDB, IAM...) và mối quan hệ giữa chúng (vd EC2 nằm trong subnet nào).</li>
+    <li><strong>Region</strong> — luôn chỉ định rõ region triển khai, tránh để Terraform provider dùng region mặc định ngoài ý muốn.</li>
+    <li><strong>Naming convention</strong> — nêu rõ quy ước đặt tên resource (prefix theo project, môi trường) để dễ nhận diện và quản lý.</li>
+    <li><strong>Tag</strong> — yêu cầu gắn tag chuẩn (<code>Project</code>, <code>Environment</code>, <code>ManagedBy</code>) cho mọi resource, phục vụ quản lý chi phí và truy vết.</li>
+    <li><strong>Ràng buộc bảo mật</strong> — nêu rõ: không mở port public không cần thiết, dùng least privilege cho IAM (không dùng <code>*</code> cho Action/Resource, không gắn <code>AdministratorAccess</code>).</li>
   </ul>
 
   <h2 class="section-heading">Mô hình kiến trúc</h2>
   <div class="mermaid">
   flowchart TD
-      Req["📋 <b>Requirement</b><br/>Tạo khoản chi tiêu:<br/>amount &gt; 0 · ngày không ở tương lai · category có sẵn"]
-      Prompt["💬 <b>Prompt</b><br/>Liệt kê rõ ràng buộc<br/>+ yêu cầu đủ 3 nhóm case"]
-      CC["<img src='../../assets/svg-icon/claude-logo.svg' style='width:28px;height:28px;'/><br/><b>Claude</b>"]
-      Happy["✅ <b>Happy path</b><br/>Input hợp lệ,<br/>đúng luồng chính"]
-      Edge["⚠️ <b>Edge case</b><br/>Giá trị biên,<br/>tình huống hiếm gặp"]
-      Negative["🚫 <b>Negative case</b><br/>Input sai,<br/>phải bị từ chối"]
+      Engineer(("<img src='../../assets/svg-icon/operator.svg' style='width:26px;height:26px;'/><br/><b>DevOps Engineer</b>"))
+      Vague["💬 <b>Prompt mơ hồ</b><br/>Thiếu region, naming,<br/>ràng buộc bảo mật"]
+      Clear["💬 <b>Prompt rõ ràng</b><br/>Resource + Region + Naming<br/>+ Tag + Ràng buộc bảo mật"]
+      CC["<img src='../../assets/svg-icon/claude-logo.svg' style='width:28px;height:28px;'/><br/><b>Claude Code</b>"]
+      Risky["⚠️ Terraform sinh ra<br/>có thể mở port public,<br/>IAM quá rộng quyền"]
+      Safe["✅ Terraform đúng ý định,<br/>đúng convention, an toàn"]
 
-      Req --> Prompt --> CC
-      CC --> Happy
-      CC --> Edge
-      CC --> Negative
+      Engineer --> Vague --> CC
+      Engineer --> Clear --> CC
+      CC -->|"Tự đoán mặc định"| Risky
+      CC -->|"Đủ ràng buộc rõ ràng"| Safe
+      Risky -->|"Phát hiện khi review plan"| Engineer
+      Safe -->|"Review & Approve"| Engineer
   </div>
-  <p class="arch-caption">Prompt nêu rõ từng ràng buộc của requirement và yêu cầu tường minh đủ 3 nhóm case, giúp Claude không bỏ sót edge case hay negative case như khi chỉ hỏi chung.</p>
+  <p class="arch-caption">Prompt IaC thiếu ràng buộc bảo mật khiến Claude Code dễ chọn giá trị mặc định rủi ro (vd 0.0.0.0/0 cho SSH); nêu rõ ràng buộc ngay từ đầu giúp giảm số lần phải sửa lại sau khi review plan.</p>
 
-  <h3 class="sub-heading">Bảng phân loại test case — ví dụ "Tạo khoản chi tiêu"</h3>
-  <p class="body-text">Requirement: <em>"Tạo khoản chi tiêu — số tiền phải &gt; 0, ngày chi tiêu không được ở tương lai, phải chọn category có sẵn."</em></p>
-  <table class="info-table">
+  <h3 class="sub-heading">So sánh Prompt mơ hồ và Prompt rõ ràng — ví dụ tạo EC2 + Security Group</h3>
+  <table class="compare-table">
     <thead>
-      <tr><th>Nhóm</th><th>Định nghĩa</th><th>Ví dụ cho chức năng "Tạo khoản chi tiêu"</th></tr>
+      <tr><th>Thành phần prompt</th><th>Prompt mơ hồ</th><th>Prompt rõ ràng</th></tr>
     </thead>
     <tbody>
       <tr>
-        <td><span class="tag tag-green">Happy path</span></td>
-        <td>Input hợp lệ, đi đúng luồng chính, không vi phạm ràng buộc nào.</td>
-        <td>amount = 150000, spentAt = hôm nay, categoryId = category có sẵn → lưu thành công.</td>
+        <td><strong>Yêu cầu gốc</strong></td>
+        <td>"Viết Terraform tạo một con EC2 cho tôi test thử."</td>
+        <td>"Viết Terraform tạo 1 EC2 instance loại <code>t3.micro</code>, region <code>ap-southeast-1</code>, đặt trong subnet public đã có sẵn (<code>aws_subnet.public</code>)."</td>
       </tr>
       <tr>
-        <td><span class="tag tag-orange">Edge case</span></td>
-        <td>Giá trị nằm đúng ranh giới hợp lệ/không hợp lệ, hoặc trường hợp hợp lệ nhưng hiếm gặp.</td>
-        <td>amount = 0.01 (nhỏ nhất &gt; 0); spentAt = đúng thời điểm hiện tại (biên giữa "hiện tại" và "tương lai").</td>
+        <td><strong>Naming/Tag</strong></td>
+        <td>Không đề cập — Claude Code tự chọn tên resource và có thể bỏ qua tag.</td>
+        <td>"Tên resource theo pattern <code>&#36;{var.project_name}-web</code>. Gắn tag <code>Project = var.project_name</code> và <code>ManagedBy = "Terraform"</code> cho mọi resource."</td>
       </tr>
       <tr>
-        <td><span class="tag tag-red">Negative case</span></td>
-        <td>Input vi phạm ràng buộc, hệ thống phải từ chối rõ ràng, không lưu dữ liệu sai.</td>
-        <td>amount = -50000 hoặc = 0; spentAt = ngày mai; categoryId không tồn tại trong hệ thống.</td>
+        <td><strong>Bảo mật (Security Group)</strong></td>
+        <td>"Mở SSH để tôi truy cập vào." → dễ dẫn đến Claude Code mặc định <code>0.0.0.0/0</code> cho port 22.</td>
+        <td>"Security Group chỉ mở port 22 từ CIDR biến <code>var.allowed_ssh_cidr</code> (không có giá trị mặc định, bắt buộc nhập) — <strong>không mở SSH cho 0.0.0.0/0</strong>. Port 80 có thể mở public."</td>
+      </tr>
+      <tr>
+        <td><strong>IAM cho EC2</strong></td>
+        <td>"Cho EC2 quyền truy cập S3 và DynamoDB." → dễ dẫn đến Claude Code gắn policy quá rộng (vd <code>s3:*</code> trên <code>Resource = "*"</code>).</td>
+        <td>"Tạo IAM role least-privilege: chỉ cho phép <code>s3:GetObject</code>/<code>PutObject</code>/<code>ListBucket</code> đúng trên ARN của bucket vừa tạo, và các action đọc/viết cần thiết trên đúng ARN của DynamoDB table vừa tạo — không dùng wildcard <code>*</code> cho Resource, không gắn <code>AdministratorAccess</code>."</td>
       </tr>
     </tbody>
   </table>
 
   <div class="alert alert-tip">
-    <strong>Mẹo:</strong> Sau khi Claude sinh xong bộ test case, luôn hỏi thêm một câu rà soát: "Rà soát lại bộ test
-    case vừa sinh — còn thiếu case nào thuộc 3 nhóm trên, hoặc case nào liên quan đến kết hợp nhiều ràng buộc cùng lúc
-    không (vd amount âm VÀ ngày tương lai cùng lúc)?". Câu hỏi rà soát thường giúp phát hiện thêm 2-3 case bị bỏ sót.
+    <strong>Mẹo:</strong> Với prompt IaC, nên chốt trước 4 mục: <strong>Resource – Region – Naming/Tag – Ràng buộc bảo
+    mật</strong> thành một danh sách gạch đầu dòng ngay trong prompt, tương tự cấu trúc đã dùng để soạn file
+    <code>variables.tf</code>/<code>iam.tf</code> ở bài Lab của chương này. Cách này giúp Claude Code không cần hỏi
+    lại nhiều lần và kết quả <code>terraform plan</code> ít bất ngờ hơn.
   </div>
 
   <h2 class="section-heading">Use Cases</h2>
   <div class="usecase-grid">
     <div class="usecase-card">
-      <h4>Thiết kế test case cho tính năng mới</h4>
-      <p>Chuyển requirement thành bộ test case đầy đủ 3 nhóm trong vài phút, thay vì tự liệt kê thủ công dễ bỏ sót.</p>
+      <h4>Sinh module Terraform tái sử dụng</h4>
+      <p>Nêu rõ input variables và ràng buộc bảo mật giúp Claude Code sinh module Terraform dễ tái sử dụng cho nhiều môi trường (dev/staging/prod).</p>
     </div>
     <div class="usecase-card">
-      <h4>Review lại test suite hiện có</h4>
-      <p>Đưa bộ test case đang có cho Claude, hỏi "case nào thuộc nhóm nào, còn thiếu nhóm nào" để tự đánh giá độ bao phủ.</p>
+      <h4>Chuẩn hoá tagging cho FinOps</h4>
+      <p>Yêu cầu tag nhất quán ngay từ prompt giúp team dễ theo dõi chi phí theo project/môi trường trên AWS Cost Explorer.</p>
     </div>
     <div class="usecase-card">
-      <h4>Chuẩn hoá format test case toàn team</h4>
-      <p>Yêu cầu Claude luôn xuất ra đúng bảng chuẩn (No, Mô tả, Bước thực hiện, Dữ liệu vào, Kết quả mong đợi) để đồng nhất giữa các Tester.</p>
+      <h4>Giảm rủi ro mở port/IAM quá rộng</h4>
+      <p>Ràng buộc bảo mật rõ ràng trong prompt giúp phát hiện sớm, tránh phải vá lại security group hoặc IAM policy sau khi đã apply lên môi trường thật.</p>
     </div>
   </div>
 
   <h2 class="section-heading">Thông tin bổ sung</h2>
   <p class="body-text">
-    Chất lượng test case Claude sinh ra phụ thuộc trực tiếp vào độ rõ ràng của requirement đưa vào. Nếu requirement chỉ
-    nêu "số tiền phải hợp lệ" mà không nói rõ "hợp lệ" nghĩa là gì (&gt; 0? có giới hạn tối đa?), Claude sẽ phải tự suy
-    diễn — dẫn đến test case có thể sai lệch với ý định thật của Product Owner. Luôn làm rõ ràng buộc trước khi generate,
-    và xem lại từng case trước khi đưa vào bộ test chính thức.
+    Một prompt IaC đầy đủ 4 phần không cần viết lại từ đầu mỗi lần — có thể lưu thành template trong file
+    <code>CLAUDE.md</code> của project hạ tầng (naming convention, tag chuẩn, danh sách ràng buộc bảo mật cố định),
+    để Claude Code tự áp dụng nhất quán cho mọi resource mới mà không cần nhắc lại trong từng prompt.
   </p>
+  <div class="alert alert-warning">
+    <strong>Lưu ý:</strong> Dù prompt đã rõ ràng, vẫn phải đọc lại <code>terraform plan</code> trước khi apply — prompt
+    tốt giúp giảm rủi ro, không loại bỏ hoàn toàn nhu cầu review theo nguyên tắc an toàn đã học ở chương trước.
+  </div>
 
   <script>mermaid.initialize({ startOnLoad: true, theme: 'default' });</script>
 </body>

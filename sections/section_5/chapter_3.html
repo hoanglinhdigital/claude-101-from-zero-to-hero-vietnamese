@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Dùng Claude phân tích log & troubleshooting sự cố – Claude 101</title>
+  <title>Lab - Viết test tự động cho function/API có sẵn – Claude 101</title>
   <link rel="stylesheet" href="../../styles.css" />
   <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
   <script src="../../mermaid-config.js"></script>
@@ -14,100 +14,234 @@
 <body class="chapter-body">
 
   <div class="chapter-breadcrumb">
-    <span class="section-part">5. Claude cho DevOps & Cloud Engineer</span>
+    <span class="section-part">5. Claude cho Tester / QA</span>
     <span class="sep">/</span>
-    <span class="chapter-part">Dùng Claude phân tích log & troubleshooting sự cố</span>
+    <span class="chapter-part">Lab - Viết test tự động cho function/API có sẵn</span>
   </div>
 
-  <h2 class="section-heading">Giới thiệu</h2>
-  <p class="body-text">
-    Khi hệ thống gặp sự cố, phần tốn thời gian nhất thường không phải là sửa lỗi mà là <strong>tìm ra nguyên nhân gốc
-    rễ</strong> giữa hàng trăm/nghìn dòng log. Claude có thể đọc log lỗi rất nhanh, nhận diện pattern bất thường và đề
-    xuất hướng xử lý — giúp Engineer rút ngắn đáng kể thời gian troubleshooting. Chương này trình bày quy trình đưa
-    log cho Claude phân tích và cách đọc hiểu kết quả đề xuất một cách có kiểm chứng, không áp dụng mù quáng.
-  </p>
+  <div class="alert alert-info">
+    Bài lab này <strong>tiếp tục dùng project <code>D:\lab-expense-management</code></strong> đã tạo ở Section 4 - Chapter 4. Nếu chưa hoàn thành bài lab đó, hãy quay lại thực hiện trước khi bắt đầu.
+  </div>
 
-  <h2 class="section-heading">Các tính năng chính</h2>
+  <h2 class="section-heading">Mục tiêu</h2>
   <ul class="feature-list">
-    <li><strong>Dán trực tiếp log</strong> — copy đoạn log lỗi (thường vài chục đến vài trăm dòng quanh thời điểm xảy ra lỗi) trực tiếp vào prompt.</li>
-    <li><strong>Trỏ đường dẫn file log</strong> — với Claude Code, có thể chỉ đường dẫn file log cục bộ để Claude tự đọc, phù hợp khi log quá dài để copy-paste.</li>
-    <li><strong>Xác định nguyên nhân gốc rễ</strong> — Claude phân tích timeline log, nhận diện exception/error đầu tiên gây ra chuỗi lỗi tiếp theo (root cause), tránh nhầm với các lỗi phát sinh phụ (symptom).</li>
-    <li><strong>Đề xuất hướng fix</strong> — Claude đưa ra giả thuyết nguyên nhân kèm mức độ tin cậy, và đề xuất cách kiểm chứng/khắc phục cụ thể.</li>
-    <li>Kết quả phân tích của Claude là <strong>giả thuyết cần kiểm chứng</strong>, không phải kết luận cuối cùng — luôn verify lại trên hệ thống thật trước khi áp dụng fix.</li>
+    <li>Đóng gói quy ước viết test script (chuẩn Grafana K6, luồng login lấy token, lấy <code>categoryId</code>/<code>accountId</code> hợp lệ, đường dẫn output) vào Skill <code>testscript-generator</code> để mọi test script sinh ra đều đồng nhất.</li>
+    <li>Dùng Claude Code viết test tự động cho API <code>POST /api/transactions</code> thông qua Skill, dựa trên file test case đã sinh ở bài lab trước.</li>
+    <li>Hiểu góc nhìn <strong>Tester</strong> khi viết test tự động: dựa vào test case/spec và API contract (input/output qua HTTP), <strong>không cần đọc chi tiết code implementation</strong> — khác với lab viết unit test ở Section 4 (góc nhìn Developer, biết rõ code và viết test cùng lúc với code).</li>
+    <li>Chạy test tự động và đọc kết quả để phát hiện case nào đang fail trên implementation hiện tại của app.</li>
   </ul>
 
-  <h2 class="section-heading">Mô hình kiến trúc</h2>
+  <h2 class="section-heading">Kiến trúc tổng quan</h2>
   <div class="mermaid">
   flowchart LR
-      Sys["<img src='../../assets/svg-icon/container.svg' style='width:26px;height:26px;'/><br/><b>Hệ thống gặp sự cố</b>"]
-      Log["📄 <b>Log lỗi</b><br/>Dán trực tiếp hoặc<br/>trỏ đường dẫn file"]
-      Engineer(("<img src='../../assets/svg-icon/operator.svg' style='width:26px;height:26px;'/><br/><b>Engineer</b>"))
-      CC["<img src='../../assets/svg-icon/claude-logo.svg' style='width:28px;height:28px;'/><br/><b>Claude / Claude Code</b>"]
-      Analysis["🔍 <b>Phân tích</b><br/>Tìm root cause,<br/>phân biệt symptom"]
-      Fix["💡 <b>Đề xuất fix</b><br/>Kèm mức độ tin cậy"]
-      Verify["✅ <b>Verify</b><br/>Kiểm chứng trên<br/>hệ thống thật"]
+      Tester(("<img src='../../assets/svg-icon/user.svg' style='width:26px;height:26px;'/><br/><b>Tester</b>"))
+      ClaudeCode["<img src='../../assets/svg-icon/claude-logo.svg' style='width:28px;height:28px;'/><br/><b>Claude Code</b>"]
+      TestFile["<img src='../../assets/svg-icon/task.svg' style='width:26px;height:26px;'/><br/><b>test/transaction/transaction_expense_test.js</b><br/>Grafana K6 scripting"]
+      subgraph App["<img src='../../assets/svg-icon/vercel.ico' style='width:26px;height:26px;'/>App Expense Management (localhost/Vercel)"]
+          API["⚙️ <b>POST /api/expenses/...</b>"]
+      end
+      Database["<img src='../../assets/svg-icon/database.svg' style='width:35px;height:35px;'/><br/><b>Database Server</b><br/>TiDB"]
+      Result["📊 <b>Báo cáo kết quả pass/fail</b>"]
 
-      Sys --> Log
-      Engineer -->|"Gửi log + mô tả bối cảnh"| CC
-      Log --> CC
-      CC --> Analysis --> Fix
-      Fix -->|"Áp dụng thử"| Verify
-      Verify -->|"Đúng nguyên nhân"| Sys
-      Verify -.->|"Chưa đúng, cung cấp thêm log"| CC
+      Skill["📄 <b>Skill</b><br/>testscript-generator<br/><i>chuẩn K6 + login + output</i>"]
+
+      Tester -->|"File test case + endpoint"| ClaudeCode
+      Skill -.->|"nạp khi prompt khớp"| ClaudeCode
+      ClaudeCode -->|"Sinh test tự động theo quy ước Skill"| TestFile
+      TestFile -->|"Gọi HTTP, không đọc code impl"| API
+      API -->|"Access Database"| Database
+      TestFile --> Result --> Tester
   </div>
-  <p class="arch-caption">Log → Claude phân tích → đề xuất fix → verify tạo thành một vòng lặp; nếu verify không xác nhận đúng nguyên nhân, quay lại cung cấp thêm log/ngữ cảnh cho Claude thay vì áp dụng fix tiếp theo một cách mù quáng.</p>
+  <p class="arch-caption">Test viết dưới dạng integration test gọi trực tiếp qua HTTP đến dev server đang chạy — đúng góc nhìn hộp đen (black-box) của Tester, không phụ thuộc vào chi tiết code trong <code>route.ts</code>.</p>
 
-  <h3 class="sub-heading">Cấu trúc một prompt phân tích log hiệu quả</h3>
-  <div class="capability-grid">
-    <div class="capability-card">
-      <div class="icon">📄</div>
-      <h4>Nội dung log</h4>
-      <p>Dán đủ log quanh thời điểm lỗi (không chỉ 1 dòng exception cuối), giữ nguyên timestamp gốc.</p>
-    </div>
-    <div class="capability-card">
-      <div class="icon">🧩</div>
-      <h4>Bối cảnh hệ thống</h4>
-      <p>Nêu rõ hệ thống nào, môi trường nào (dev/staging/production), thay đổi gần nhất trước khi lỗi xảy ra (nếu có).</p>
-    </div>
-    <div class="capability-card">
-      <div class="icon">❓</div>
-      <h4>Câu hỏi cụ thể</h4>
-      <p>Hỏi rõ: "nguyên nhân gốc rễ là gì" và "đề xuất hướng fix", thay vì chỉ hỏi chung "lỗi này là sao".</p>
-    </div>
-  </div>
+  <h2 class="section-heading">Yêu cầu trước khi bắt đầu</h2>
+  <ul class="feature-list">
+    <li>Đã hoàn thành Section 4 <code>Triển khai app lên Vercel+TiDB thành công (hoặc ít nhất chạy ở localhost:3000)</li>
+    <li>Node.js, Grafana K6 đã cài sẵn.</li>
+    <li>Claude Code CLI đã cài đặt và đăng nhập thành công.</li>
+  </ul>
 
+  <h2 class="section-heading">Các bước thực hành</h2>
+
+  <h3 class="sub-heading">Phần 1: Khởi động lại project</h3>
   <div class="alert alert-tip">
-    <strong>Mẹo:</strong> Nếu log quá dài để copy-paste, dùng Claude Code và yêu cầu trực tiếp "đọc file
-    <code>logs/app-error.log</code>, tìm exception xảy ra gần 10:32 sáng nay và phân tích nguyên nhân" — Claude Code
-    sẽ tự đọc file, không cần copy tay từng dòng.
+    Bỏ qua bước này nếu đã triển khai lên Vercel và TiDB. Sẽ sử dụng luôn URL Vercel để test mà không cần chạy dev server ở localhost.
   </div>
+  <ol class="step-list">
+    <li>
+      <div>
+        <strong>Bước 1: Terminal 1 — khởi động MySQL và dev server, giữ terminal này chạy</strong>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">cd D:\lab-expense-management
+docker compose up -d
+npm run dev</code></pre>
+        <p>Giữ terminal này mở, dev server chạy tại <code>http://localhost:3000</code>.</p>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 2: Terminal 2 — vào project và khởi động Claude Code</strong>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">cd D:\lab-expense-management
+claude</code></pre>
+      </div>
+    </li>
+  </ol>
 
-  <h2 class="section-heading">Use Cases</h2>
-  <div class="usecase-grid">
-    <div class="usecase-card">
-      <h4>Ứng dụng crash không rõ nguyên nhân</h4>
-      <p>Claude giúp lọc nhanh exception đầu tiên trong chuỗi lỗi cascading, tránh mất thời gian sửa nhầm các lỗi phái sinh phía sau.</p>
-    </div>
-    <div class="usecase-card">
-      <h4>Lỗi kết nối database/timeout</h4>
-      <p>Claude phân tích pattern lỗi timeout (thời điểm, tần suất) để gợi ý hướng nghi vấn: connection pool, network, hay query chậm.</p>
-    </div>
-    <div class="usecase-card">
-      <h4>So sánh log trước/sau khi deploy</h4>
-      <p>Đưa log 2 thời điểm cho Claude so sánh, giúp xác định nhanh lỗi có liên quan đến lần deploy gần nhất hay không.</p>
-    </div>
-  </div>
-
-  <h2 class="section-heading">Thông tin bổ sung</h2>
+  <h3 class="sub-heading">Phần 2: Tạo Skill testscript-generator</h3>
   <p class="body-text">
-    Log có thể chứa dữ liệu nhạy cảm (thông tin khách hàng, API key, token). Trước khi dán log vào Claude (đặc biệt
-    qua giao diện chat thông thường), nên rà soát và che (mask) các thông tin nhạy cảm không cần thiết cho việc phân
-    tích lỗi.
+    Prompt viết test script có rất nhiều quy ước kỹ thuật lặp lại giữa các lần (chuẩn K6, VUs=1, login lấy token,
+    lấy <code>categoryId</code>/<code>accountId</code>, thêm script vào <code>package.json</code>, không tự khởi động
+    server...). Đóng gói tất cả vào một Skill để lần sau chỉ cần chỉ ra file test case và endpoint.
   </p>
+  <ol class="step-list">
+    <li>
+      <div>
+        <strong>Bước 3: Tạo thư mục và file SKILL.md</strong>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">
+cd D:\lab-expense-management
+mkdir .claude\skills\testscript-generator</code></pre>
+        <p>Tạo file <code>.claude/skills/testscript-generator/SKILL.md</code>:</p>
+        <pre class="file-block"><span class="filename">.claude/skills/testscript-generator/SKILL.md</span><span class="hl">---
+name</span>: testscript-generator
+<span class="hl">description</span>: <span class="str">Sinh test script tự động (integration/API test) từ một file test case đã có. Dùng Skill này khi người dùng yêu cầu "viết test script", "sinh test tự động cho API ...", "chuyển bộ test case thành script K6", "viết integration test theo góc nhìn Tester".</span>
+<span class="hl">---</span>
+
+<span class="cmt"># Testscript Generator</span>
+
+<span class="cmt">## Nguyên tắc</span>
+- Góc nhìn Tester (black-box): chỉ gọi API qua HTTP, KHÔNG đọc code implementation (route handler, service...).
+- Input bắt buộc người dùng cung cấp: 
+  - Đường dẫn file test case (`plans/test/*.md`) 
+  - base URL + endpoint cần test.
+  - API Spect (OpenAPI/Swagger) nếu có, để Claude Code đối chiếu với file test case.
+
+<span class="cmt">## Quy trình</span>
+1. Đọc file test case, map mỗi dòng Test Case (TC) thành một request + assertion (status code, và response body khi test case có nêu).
+2. Sinh script chuẩn **Grafana K6**, `VUs = 1` (chưa phải performance test).
+3. Trong `setup()`: gọi `POST /api/auth/login` với credential từ biến môi trường (`.env`) để lấy access token; gọi `GET /api/categories?pageSize=200` và `GET /api/accounts?pageSize=100` để lấy sẵn `categoryId`, `accountId` hợp lệ. Token dùng cho mọi request sau.
+4. Ghi script ra `test/{domain}/{sub-domain}/testscript.js`.
+5. Thêm script chạy tương ứng vào `package.json` (vd `"test:api_transaction_expense": "k6 run test/transaction/expense/testscript.js"`).
+6. Giả định server đã deploy sẵn — KHÔNG tự khởi động server trong script.
+
+<span class="cmt">## Sau khi sinh</span>
+In ra bảng tóm tắt: mỗi TC ↔ request ↔ assertion, để Tester đối chiếu nhanh với file test case gốc.</pre>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 4: Khởi động Claude Code và kiểm tra Skill</strong>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">cd D:\lab-expense-management
+claude</code></pre>
+        <pre class="command-line" data-prompt=">"><code class="language-text">/skills</code></pre>
+        <p><code>testscript-generator</code> phải xuất hiện trong danh sách.</p>
+      </div>
+    </li>
+  </ol>
+
+  <h3 class="sub-heading">Phần 3: Dùng Skill sinh test script</h3>
+  <ol class="step-list">
+    <li>
+      <div>
+        <strong>Bước 5: Gõ prompt gọi Skill, chỉ cần nêu input và endpoint</strong>
+        <p>Toàn bộ quy ước kỹ thuật đã nằm trong Skill — prompt giờ chỉ còn phần đặc thù của lần chạy này:</p>
+        <pre class="command-line" data-prompt=">"><code class="language-text">
+Dùng skill testscript-generator để viết test script cho API tạo giao dịch.
+Input:
+  - File test case: plans/test/create_expense_test_cases.md
+  - API spec: docs/api-spec/transaction.yaml
+  - Base URL: https://claude101expensemanagement.vercel.app
+  - Endpoint cần test: POST /api/transactions
+Output: test/transaction/expense/testscript.js
+</code></pre>
+        <p>Quan sát dòng <code>Skill: testscript-generator</code> ở đầu phản hồi để xác nhận Skill được gọi.</p>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 6: Duyệt kết quả và xác nhận</strong>
+        <p>Đọc qua nội dung file <code>test/transaction/transaction_expense_testscript.js</code>, thay đổi trong <code>package.json</code>, đối chiếu bảng tóm tắt TC ↔ request ↔ assertion Skill in ra với file test case gốc; yêu cầu Claude chỉnh sửa nếu cần.</p>
+      </div>
+    </li>
+  </ol>
+
+  <h3 class="sub-heading">Phần 4: Tham khảo nội dung file test</h3>
+  <p class="body-text">Nội dung dưới đây là ví dụ tham khảo cho những gì Claude Code nên sinh ra ở Bước 3 (rút gọn, chỉ giữ 2/3 test case để minh hoạ) — dùng để đối chiếu, không cần tự tay chép lại.</p>
+  <pre class="file-block"><span class="filename">tests/expenses.api.test.js</span><span class="cmt">const { test, before } = require('node:test');</span>
+<span class="cmt">const assert = require('node:assert/strict');</span>
+
+<span class="hl">const</span> BASE_URL = <span class="str">'http://localhost:3000'</span>;
+<span class="hl">let</span> categoryId;
+
+before(<span class="hl">async</span> () => {
+  const res = await fetch(`${BASE_URL}/api/categories`);
+  const categories = await res.json();
+  categoryId = categories[0].id;
+});
+
+test(<span class="str">'tạo khoản chi tiêu hợp lệ (happy path)'</span>, <span class="hl">async</span> () => {
+  const res = await fetch(`${BASE_URL}/api/expenses`, {
+    method: <span class="str">'POST'</span>,
+    headers: { <span class="str">'Content-Type'</span>: <span class="str">'application/json'</span> },
+    body: JSON.stringify({ title: <span class="str">'Ăn trưa'</span>, amount: 50000, categoryId, spentAt: new Date().toISOString() })
+  });
+  assert.ok(res.status === 200 || res.status === 201);
+});
+
+test(<span class="str">'từ chối khi amount &lt;= 0'</span>, <span class="hl">async</span> () => {
+  const res = await fetch(`${BASE_URL}/api/expenses`, {
+    method: <span class="str">'POST'</span>,
+    headers: { <span class="str">'Content-Type'</span>: <span class="str">'application/json'</span> },
+    body: JSON.stringify({ title: <span class="str">'Test âm'</span>, amount: -100, categoryId, spentAt: new Date().toISOString() })
+  });
+  assert.equal(res.status, 400);
+});
+
+<span class="cmt">// test case 3 (ngày ở tương lai) tương tự, xem file đầy đủ Claude Code sinh ra</span></pre>
+
+  <h3 class="sub-heading">Phần 5: Chạy test và đọc kết quả</h3>
+  <ol class="step-list">
+    <li>
+      <div>
+        <strong>Bước 7: Chạy bộ test tự động (ở Terminal 2, dev server vẫn phải đang chạy ở Terminal 1)</strong>
+        <pre class="command-line" data-prompt="PS>" data-output="2,3,4,5,6,7,8,9"><code class="language-powershell">npm run test:api
+▶ POST /api/expenses
+  ✔ tạo khoản chi tiêu hợp lệ (happy path) (98ms)
+  ✖ từ chối khi amount &lt;= 0 (42ms)
+    AssertionError: expected 400, received 201
+  ✔ từ chối khi categoryId không tồn tại (39ms)
+    AssertionError: expected 400, received 400
+▶ POST /api/expenses (181ms)
+
+tests 3
+pass 1
+fail 2</code></pre>
+      </div>
+    </li>
+  </ol>
+
   <div class="alert alert-warning">
-    <strong>Lưu ý:</strong> Claude phân tích dựa trên thông tin trong log được cung cấp — nếu log bị thiếu (vd chỉ có
-    dòng lỗi cuối, thiếu context trước đó), kết quả phân tích có thể sai lệch. Luôn cung cấp đủ ngữ cảnh và coi kết
-    quả phân tích là gợi ý cần kiểm chứng trước khi áp dụng vào hệ thống thật, đặc biệt là Production.
+    <strong>Review kỹ output của testcase.</strong> Cần phân biệt rõ expectation của testcase và kết quả thực tế, tránh lẫn lộn giữa error và success.
+  </div>
+
+  <div class="verify-box">
+    <h4>✅ Kết quả mong đợi</h4>
+    <p class="body-text">Test script chạy thành công và tạo được báo cáo test success/failed cho từng trường hợp.</p>
+  </div>
+
+  <h2 class="section-heading">Troubleshoot</h2>
+  <div class="alert alert-warning">
+    <strong>Lỗi:</strong> Claude không gọi Skill <code>testscript-generator</code>, hoặc sinh script không theo chuẩn K6 / thiếu bước login.<br/>
+    <strong>Nguyên nhân:</strong> Skill chưa được nạp (phiên mở trước khi tạo Skill), hoặc <code>description</code> chưa khớp từ khoá trong prompt.<br/>
+    <strong>Giải pháp:</strong> Kiểm tra <code>/skills</code>, mở lại phiên; nêu tường minh "dùng skill testscript-generator" ở đầu prompt như Bước 5.
+  </div>
+  <div class="alert alert-warning">
+    <strong>Lỗi:</strong> <code>node --test</code> báo không nhận diện được cú pháp hoặc lệnh không tồn tại.<br/>
+    <strong>Nguyên nhân:</strong> Phiên bản Node.js thấp hơn 18, chưa hỗ trợ đầy đủ built-in test runner và <code>fetch</code> toàn cục.<br/>
+    <strong>Giải pháp:</strong> Kiểm tra bằng <code>node -v</code>, nâng cấp lên Node.js 18 trở lên nếu cần.
+  </div>
+  <div class="alert alert-warning">
+    <strong>Lỗi:</strong> Test case happy path cũng fail vì <code>categoryId/accountId</code> không hợp lệ.<br/>
+    <strong>Nguyên nhân:</strong> Database chưa có category nào (bảng <code>Category</code> rỗng).<br/>
+    <strong>Giải pháp:</strong> kết nối với Database tại localhost hoặc TiDB sau đó insert vài data mẫu.
   </div>
 
   <script>mermaid.initialize({ startOnLoad: true, theme: 'default' });</script>

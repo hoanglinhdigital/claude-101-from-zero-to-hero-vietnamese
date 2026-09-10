@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Cách cấu trúc prompt cho Infrastructure as Code (Terraform) – Claude 101</title>
+  <title>Lab - Sinh bộ test case từ requirement – Claude 101</title>
   <link rel="stylesheet" href="../../styles.css" />
   <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
   <script src="../../mermaid-config.js"></script>
@@ -14,109 +14,237 @@
 <body class="chapter-body">
 
   <div class="chapter-breadcrumb">
-    <span class="section-part">5. Claude cho DevOps & Cloud Engineer</span>
+    <span class="section-part">5. Claude cho Tester / QA</span>
     <span class="sep">/</span>
-    <span class="chapter-part">Cách cấu trúc prompt cho Infrastructure as Code (Terraform)</span>
+    <span class="chapter-part">Lab - Sinh bộ test case từ requirement</span>
   </div>
 
-  <h2 class="section-heading">Giới thiệu</h2>
-  <p class="body-text">
-    Khác với prompt sinh code ứng dụng, prompt cho Infrastructure as Code (IaC) tác động trực tiếp lên tài nguyên
-    Cloud thật — CIDR mở sai, IAM quá rộng quyền hay thiếu tag đều có thể gây rủi ro bảo mật hoặc khó quản lý chi phí
-    về sau. Chương này trình bày cách cấu trúc một prompt IaC rõ ràng, đủ chi tiết để Claude Code sinh Terraform đúng
-    ý định ngay từ đầu, giảm số lần phải sửa lại sau khi đã <code>plan</code>/<code>apply</code>.
-  </p>
-
-  <h2 class="section-heading">Các tính năng chính</h2>
+  <h2 class="section-heading">Mục tiêu</h2>
   <ul class="feature-list">
-    <li><strong>Resource cần tạo</strong> — nêu rõ loại resource (VPC, EC2, S3, DynamoDB, IAM...) và mối quan hệ giữa chúng (vd EC2 nằm trong subnet nào).</li>
-    <li><strong>Region</strong> — luôn chỉ định rõ region triển khai, tránh để Terraform provider dùng region mặc định ngoài ý muốn.</li>
-    <li><strong>Naming convention</strong> — nêu rõ quy ước đặt tên resource (prefix theo project, môi trường) để dễ nhận diện và quản lý.</li>
-    <li><strong>Tag</strong> — yêu cầu gắn tag chuẩn (<code>Project</code>, <code>Environment</code>, <code>ManagedBy</code>) cho mọi resource, phục vụ quản lý chi phí và truy vết.</li>
-    <li><strong>Ràng buộc bảo mật</strong> — nêu rõ: không mở port public không cần thiết, dùng least privilege cho IAM (không dùng <code>*</code> cho Action/Resource, không gắn <code>AdministratorAccess</code>).</li>
+    <li>Đóng gói toàn bộ quy ước sinh test case (bao phủ 3 nhóm, format bảng chuẩn, tự rà soát) vào một <strong>Skill</strong> <code>testcase-generator</code> để mọi lần sinh đều nhất quán, không phải nhắc lại yêu cầu.</li>
+    <li>Đưa một requirement mẫu cụ thể cho Claude và yêu cầu sinh bộ test case đầy đủ thông qua Skill.</li>
+    <li>Đảm bảo bộ test case bao phủ đủ 3 nhóm: happy path, edge case, negative case.</li>
+    <li>Trình bày test case theo bảng chuẩn: <strong>No, Mô tả, Bước thực hiện, Dữ liệu vào, Kết quả mong đợi</strong>.</li>
+    <li>Biết cách yêu cầu Claude tự rà soát lại để bổ sung case còn thiếu.</li>
   </ul>
 
-  <h2 class="section-heading">Mô hình kiến trúc</h2>
+  <h2 class="section-heading">Kiến trúc tổng quan</h2>
   <div class="mermaid">
-  flowchart TD
-      Engineer(("<img src='../../assets/svg-icon/operator.svg' style='width:26px;height:26px;'/><br/><b>DevOps Engineer</b>"))
-      Vague["💬 <b>Prompt mơ hồ</b><br/>Thiếu region, naming,<br/>ràng buộc bảo mật"]
-      Clear["💬 <b>Prompt rõ ràng</b><br/>Resource + Region + Naming<br/>+ Tag + Ràng buộc bảo mật"]
-      CC["<img src='../../assets/svg-icon/claude-logo.svg' style='width:28px;height:28px;'/><br/><b>Claude Code</b>"]
-      Risky["⚠️ Terraform sinh ra<br/>có thể mở port public,<br/>IAM quá rộng quyền"]
-      Safe["✅ Terraform đúng ý định,<br/>đúng convention, an toàn"]
+  flowchart LR
+      Tester(("<img src='../../assets/svg-icon/user.svg' style='width:26px;height:26px;'/><br/><b>Tester</b>"))
+      ClaudeCode["<img src='../../assets/svg-icon/claude-logo.svg' style='width:28px;height:28px;'/><br/><b>Claude Code</b>"]
+      Skill["📄 <b>Skill</b><br/>testcase-generator<br/><i>quy trình + format chuẩn</i>"]
+      Req["📋 <b>Requirement</b><br/>Tạo khoản chi tiêu"]
+      Output["🧪 <b>plans/test/*.md</b><br/>Happy + Edge + Negative"]
 
-      Engineer --> Vague --> CC
-      Engineer --> Clear --> CC
-      CC -->|"Tự đoán mặc định"| Risky
-      CC -->|"Đủ ràng buộc rõ ràng"| Safe
-      Risky -->|"Phát hiện khi review plan"| Engineer
-      Safe -->|"Review & Approve"| Engineer
+      Tester -->|"Đưa requirement + yêu cầu"| ClaudeCode
+      Req --> ClaudeCode
+      Skill -.->|"nạp khi prompt khớp"| ClaudeCode
+      ClaudeCode --> Output --> Tester
   </div>
-  <p class="arch-caption">Prompt IaC thiếu ràng buộc bảo mật khiến Claude Code dễ chọn giá trị mặc định rủi ro (vd 0.0.0.0/0 cho SSH); nêu rõ ràng buộc ngay từ đầu giúp giảm số lần phải sửa lại sau khi review plan.</p>
+  <p class="arch-caption">Tester cung cấp requirement kèm ràng buộc rõ ràng; Claude Code nạp Skill <code>testcase-generator</code> để áp dụng đúng quy trình và format bảng chuẩn, sinh bộ test case đầy đủ 3 nhóm ra file cho Tester review.</p>
 
-  <h3 class="sub-heading">So sánh Prompt mơ hồ và Prompt rõ ràng — ví dụ tạo EC2 + Security Group</h3>
-  <table class="compare-table">
+  <h2 class="section-heading">Yêu cầu trước khi bắt đầu</h2>
+  <ul class="feature-list">
+    <li>Claude Code CLI đã cài đặt, đăng nhập thành công (xem lại Section 2).</li>
+    <li>Đã đọc qua chương lý thuyết — kỹ thuật viết prompt sinh test case bao phủ đủ 3 nhóm.</li>
+    <li>Đã nắm cách tạo Skill thuần (Section 3 — <code>SKILL.md</code>, thư mục <code>.claude/skills/</code>).</li>
+    <li>Tái sử dụng <code>D:\lab-expense-management</code> ở Section 4, hoặc một thư mục trống bất kỳ. *Nếu đã làm xong các bài lab ở chương Claude for Developer thì bài lab sau có thể dùng chính project đó để chạy test case trên môi trường thật (Vercel).</li>
+  </ul>
+
+  <h2 class="section-heading">Các bước thực hành</h2>
+
+  <h3 class="sub-heading">Phần 1: Tạo Skill testcase-generator</h3>
+  <p class="body-text">
+    Thay vì mỗi lần lại nhắc lại "bao phủ đủ 3 nhóm, trình bày dạng bảng 5 cột, tự rà soát...", ta đóng gói toàn bộ
+    quy ước đó vào một Skill. Từ đó về sau chỉ cần đưa requirement, Claude tự áp dụng đúng quy trình và format — kết
+    quả nhất quán giữa các Tester trong team.
+  </p>
+  <ol class="step-list">
+    <li>
+      <div>
+        <strong>Bước 1: Tạo thư mục Skill trong project</strong>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">cd D:\lab-expense-management
+mkdir .claude\skills\testcase-generator</code></pre>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 2: Viết file SKILL.md</strong>
+        <p>Tạo file <code>.claude/skills/testcase-generator/SKILL.md</code> với nội dung sau (có thể dùng VSCode tạo tay hoặc nhờ Claude Code tạo giúp):</p>
+        <pre class="file-block"><span class="filename">.claude/skills/testcase-generator/SKILL.md</span><span class="hl">---
+name</span>: testcase-generator
+<span class="hl">description</span>: <span class="str">Sinh bộ test case đầy đủ từ một requirement / user story. Dùng Skill này khi người dùng yêu cầu "sinh test case", "thiết kế test case", "viết test case cho chức năng ...", "tạo bộ kiểm thử từ requirement", hoặc đưa một mô tả chức năng kèm yêu cầu kiểm thử.</span>
+<span class="hl">---</span>
+
+<span class="cmt"># Testcase Generator</span>
+
+<span class="cmt">## Quy trình thực hiện</span>
+1. Đọc requirement, liệt kê lại từng ràng buộc một cách rõ ràng. Nếu có điểm mơ hồ hoặc thiếu ràng buộc, hỏi lại người dùng TRƯỚC khi sinh test case.
+2. Sinh test case bao phủ đủ 3 nhóm, tối thiểu: 2 happy case, 2 edge case, 4 negative case.
+3. Với mỗi ràng buộc nêu trong requirement, phải có ít nhất 1 negative case tương ứng.
+4. Tự rà soát và bổ sung các case: vi phạm nhiều ràng buộc cùng lúc, thiếu field bắt buộc, sai kiểu dữ liệu (vd amount là chuỗi thay vì số).
+5. Ghi kết quả ra file Markdown trong thư mục `plans/test/`, đặt tên theo chức năng (vd `transaction_expense_test_cases.md`).
+
+<span class="cmt">## Định dạng bảng bắt buộc</span>
+```
+| No | Mô tả | Bước thực hiện | Dữ liệu vào | Kết quả mong đợi |
+```
+Cột **Mô tả** phải bắt đầu bằng nhãn nhóm: `[Happy path]` / `[Edge case]` / `[Negative case]`.
+Đánh số test case dạng `TC01`, `TC02`, ...</pre>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 3: Khởi động Claude Code và xác nhận Skill đã được nạp</strong>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">claude</code></pre>
+        <pre class="command-line" data-prompt=">"><code class="language-text">/skills</code></pre>
+        <p><code>testcase-generator</code> phải xuất hiện trong danh sách Skill của project.</p>
+      </div>
+    </li>
+  </ol>
+
+  <h3 class="sub-heading">Phần 2: Dùng Skill sinh bộ test case từ requirement</h3>
+  <ol class="step-list">
+    <li>
+      <div>
+        <strong>Bước 4: Đưa requirement và yêu cầu Claude dùng Skill</strong>
+        <p>Requirement mẫu dùng cho bài lab này — chức năng <strong>tạo khoản chi tiêu</strong> của app Quản lý chi tiêu đã xây dựng ở Section 4. Prompt giờ rất ngắn: chỉ cần requirement + ràng buộc, phần format và quy trình do Skill lo:</p>
+        <pre class="command-line" data-prompt=">"><code class="language-text">
+Dùng skill testcase-generator để sinh bộ test case cho requirement sau.
+
+Chức năng "Tạo khoản chi tiêu" trong app Quản lý chi tiêu.
+Ràng buộc:
+1. Số tiền (amount) phải lớn hơn 0.
+2. Ngày chi tiêu (spentAt) có thể ở tương lai.
+3. Phải chọn một category có sẵn trong hệ thống (categoryId phải tồn tại). Cho phép chọn category parent hoặc child.
+4. Phải chọn một Account có sẵn trong hệ thống (accountId của user đang login phải tồn tại).
+5. Description của khoản chi tiêu là trường tùy chọn, có thể bỏ trống.
+</code></pre>
+        <p>Quan sát phần đầu phản hồi — Claude Code hiển thị dòng <code>Skill: testcase-generator</code> xác nhận Skill đã được gọi, sau đó ghi kết quả ra <code>plans/test/transaction_expense_test_cases.md</code>.</p>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 5 (tuỳ chọn): Yêu cầu rà soát bổ sung</strong>
+        <p>Skill đã tự rà soát ở bước 4 của quy trình. Nếu muốn ép kiểm tra sâu hơn các tổ hợp vi phạm, gửi thêm:</p>
+        <pre class="command-line" data-prompt=">"><code class="language-text">Rà soát lại file test case vừa sinh: còn thiếu case nào kết hợp nhiều ràng buộc cùng lúc (vd amount âm VÀ không có categoryId), thiếu field bắt buộc, hoặc sai kiểu dữ liệu không? Bổ sung vào file theo đúng format cũ.</code></pre>
+      </div>
+    </li>
+  </ol>
+
+  <h3 class="sub-heading">Phần 3: Đối chiếu kết quả</h3>
+  <p class="body-text">Bảng dưới đây là bộ test case tham khảo — dùng để đối chiếu với kết quả Claude sinh ra ở Bước 1-2, không phải để copy thay cho việc tự thực hành.</p>
+  <table class="info-table">
     <thead>
-      <tr><th>Thành phần prompt</th><th>Prompt mơ hồ</th><th>Prompt rõ ràng</th></tr>
+      <tr><th>No</th><th>Mô tả</th><th>Bước thực hiện</th><th>Dữ liệu vào</th><th>Kết quả mong đợi</th></tr>
     </thead>
     <tbody>
       <tr>
-        <td><strong>Yêu cầu gốc</strong></td>
-        <td>"Viết Terraform tạo một con EC2 cho tôi test thử."</td>
-        <td>"Viết Terraform tạo 1 EC2 instance loại <code>t3.micro</code>, region <code>ap-southeast-1</code>, đặt trong subnet public đã có sẵn (<code>aws_subnet.public</code>)."</td>
+        <td>TC01</td>
+        <td><span class="tag tag-green">Happy</span> Tạo khoản chi tiêu hợp lệ, đầy đủ thông tin</td>
+        <td>Nhập title, amount, chọn category hợp lệ, chọn ngày, bấm Lưu</td>
+        <td>title="Ăn trưa", amount=150000, category="Ăn uống" (có sẵn), spentAt=hôm nay</td>
+        <td>Lưu thành công, hiển thị trong danh sách chi tiêu</td>
       </tr>
       <tr>
-        <td><strong>Naming/Tag</strong></td>
-        <td>Không đề cập — Claude Code tự chọn tên resource và có thể bỏ qua tag.</td>
-        <td>"Tên resource theo pattern <code>&#36;{var.project_name}-web</code>. Gắn tag <code>Project = var.project_name</code> và <code>ManagedBy = "Terraform"</code> cho mọi resource."</td>
+        <td>TC02</td>
+        <td><span class="tag tag-green">Happy</span> Tạo khoản chi tiêu với ngày trong quá khứ</td>
+        <td>Tương tự TC01, chọn ngày đã qua</td>
+        <td>spentAt = hôm qua</td>
+        <td>Lưu thành công</td>
       </tr>
       <tr>
-        <td><strong>Bảo mật (Security Group)</strong></td>
-        <td>"Mở SSH để tôi truy cập vào." → dễ dẫn đến Claude Code mặc định <code>0.0.0.0/0</code> cho port 22.</td>
-        <td>"Security Group chỉ mở port 22 từ CIDR biến <code>var.allowed_ssh_cidr</code> (không có giá trị mặc định, bắt buộc nhập) — <strong>không mở SSH cho 0.0.0.0/0</strong>. Port 80 có thể mở public."</td>
+        <td>TC03</td>
+        <td><span class="tag tag-green">Happy</span> Tạo khoản chi tiêu với ngày trong tương lai.</td>
+        <td>Chọn ngày sau ngày hiện tại</td>
+        <td>spentAt = ngày mai</td>
+        <td>Ghi giao dịch bình thường, khi chọn transaction history và chọn một khoảng thời gian tương lai vẫn có thể tìm ra.</td>
+      </tr>      
+      <tr>
+        <td>TC04</td>
+        <td><span class="tag tag-orange">Edge</span> Số tiền là giá trị dương nhỏ nhất hợp lệ</td>
+        <td>Nhập amount = 0.01, các field khác hợp lệ</td>
+        <td>amount = 0.01</td>
+        <td>Lưu thành công (vì 0.01 &gt; 0)</td>
       </tr>
       <tr>
-        <td><strong>IAM cho EC2</strong></td>
-        <td>"Cho EC2 quyền truy cập S3 và DynamoDB." → dễ dẫn đến Claude Code gắn policy quá rộng (vd <code>s3:*</code> trên <code>Resource = "*"</code>).</td>
-        <td>"Tạo IAM role least-privilege: chỉ cho phép <code>s3:GetObject</code>/<code>PutObject</code>/<code>ListBucket</code> đúng trên ARN của bucket vừa tạo, và các action đọc/viết cần thiết trên đúng ARN của DynamoDB table vừa tạo — không dùng wildcard <code>*</code> cho Resource, không gắn <code>AdministratorAccess</code>."</td>
+        <td>TC05</td>
+        <td><span class="tag tag-orange">Edge</span> Ngày chi tiêu đúng bằng thời điểm hiện tại</td>
+        <td>Nhập spentAt = đúng ngày giờ hiện tại lúc submit</td>
+        <td>spentAt = now()</td>
+        <td>Lưu thành công (chưa được xem là "tương lai")</td>
+      </tr>
+      <tr>
+        <td>TC06</td>
+        <td><span class="tag tag-orange">Edge</span> Số tiền có nhiều chữ số thập phân</td>
+        <td>Nhập amount với 3 chữ số thập phân</td>
+        <td>amount = 125000.999</td>
+        <td>Hệ thống làm tròn theo quy tắc rõ ràng hoặc từ chối có thông báo, không lưu sai giá trị</td>
+      </tr>
+      <tr>
+        <td>TC07</td>
+        <td><span class="tag tag-red">Negative</span> Số tiền bằng 0</td>
+        <td>Nhập amount = 0, các field khác hợp lệ</td>
+        <td>amount = 0</td>
+        <td>Bị từ chối, trả lỗi rõ ràng "Số tiền phải lớn hơn 0", không lưu bản ghi</td>
+      </tr>
+      <tr>
+        <td>TC08</td>
+        <td><span class="tag tag-red">Negative</span> Số tiền âm</td>
+        <td>Nhập amount = -50000</td>
+        <td>amount = -50000</td>
+        <td>Bị từ chối, trả lỗi rõ ràng, không lưu bản ghi</td>
+      </tr>
+
+      <tr>
+        <td>TC09</td>
+        <td><span class="tag tag-red">Negative</span> Category không tồn tại</td>
+        <td>Gửi categoryId không có trong hệ thống</td>
+        <td>categoryId = 9999 (không tồn tại)</td>
+        <td>Bị từ chối, trả lỗi rõ ràng, không tạo bản ghi "mồ côi"</td>
+      </tr>
+      <tr>
+        <td>TC10</td>
+        <td><span class="tag tag-red">Negative</span> Thiếu field bắt buộc (title)</td>
+        <td>Bỏ trống title, các field khác hợp lệ</td>
+        <td>title = ""</td>
+        <td>Bị từ chối, trả lỗi validate field bắt buộc</td>
+      </tr>
+      <tr>
+        <td>TC11</td>
+        <td><span class="tag tag-red">Negative</span> Kết hợp nhiều vi phạm cùng lúc</td>
+        <td>Nhập amount âm VÀ ngày ở tương lai cùng lúc</td>
+        <td>amount = -100, spentAt = 7 ngày sau</td>
+        <td>Bị từ chối ngay từ ràng buộc đầu tiên được kiểm tra, không lưu bản ghi</td>
       </tr>
     </tbody>
   </table>
 
-  <div class="alert alert-tip">
-    <strong>Mẹo:</strong> Với prompt IaC, nên chốt trước 4 mục: <strong>Resource – Region – Naming/Tag – Ràng buộc bảo
-    mật</strong> thành một danh sách gạch đầu dòng ngay trong prompt, tương tự cấu trúc đã dùng để soạn file
-    <code>variables.tf</code>/<code>iam.tf</code> ở bài Lab của chương này. Cách này giúp Claude Code không cần hỏi
-    lại nhiều lần và kết quả <code>terraform plan</code> ít bất ngờ hơn.
+  <div class="verify-box">
+    <h4>✅ Kết quả mong đợi</h4>
+    <p class="body-text">Bộ test case Claude sinh ra ở Bước 1-2 đạt tối thiểu độ bao phủ tương đương bảng tham khảo trên: ít nhất 2 case happy path, 2-3 case edge case, và 4-6 case negative case, đúng format bảng 5 cột yêu cầu.</p>
   </div>
 
-  <h2 class="section-heading">Use Cases</h2>
-  <div class="usecase-grid">
-    <div class="usecase-card">
-      <h4>Sinh module Terraform tái sử dụng</h4>
-      <p>Nêu rõ input variables và ràng buộc bảo mật giúp Claude Code sinh module Terraform dễ tái sử dụng cho nhiều môi trường (dev/staging/prod).</p>
-    </div>
-    <div class="usecase-card">
-      <h4>Chuẩn hoá tagging cho FinOps</h4>
-      <p>Yêu cầu tag nhất quán ngay từ prompt giúp team dễ theo dõi chi phí theo project/môi trường trên AWS Cost Explorer.</p>
-    </div>
-    <div class="usecase-card">
-      <h4>Giảm rủi ro mở port/IAM quá rộng</h4>
-      <p>Ràng buộc bảo mật rõ ràng trong prompt giúp phát hiện sớm, tránh phải vá lại security group hoặc IAM policy sau khi đã apply lên môi trường thật.</p>
-    </div>
-  </div>
-
-  <h2 class="section-heading">Thông tin bổ sung</h2>
-  <p class="body-text">
-    Một prompt IaC đầy đủ 4 phần không cần viết lại từ đầu mỗi lần — có thể lưu thành template trong file
-    <code>CLAUDE.md</code> của project hạ tầng (naming convention, tag chuẩn, danh sách ràng buộc bảo mật cố định),
-    để Claude Code tự áp dụng nhất quán cho mọi resource mới mà không cần nhắc lại trong từng prompt.
-  </p>
+  <h2 class="section-heading">Troubleshoot</h2>
   <div class="alert alert-warning">
-    <strong>Lưu ý:</strong> Dù prompt đã rõ ràng, vẫn phải đọc lại <code>terraform plan</code> trước khi apply — prompt
-    tốt giúp giảm rủi ro, không loại bỏ hoàn toàn nhu cầu review theo nguyên tắc an toàn đã học ở chương trước.
+    <strong>Lỗi:</strong> Gõ prompt nhưng Claude không gọi Skill <code>testcase-generator</code>, tự sinh test case theo cách thông thường.<br/>
+    <strong>Nguyên nhân:</strong> Thư mục Skill sai vị trí (phải là <code>.claude/skills/testcase-generator/SKILL.md</code> ở gốc project), file không đúng tên <code>SKILL.md</code>, hoặc phiên Claude Code mở trước khi tạo Skill.<br/>
+    <strong>Giải pháp:</strong> Kiểm tra <code>dir .claude\skills\testcase-generator</code>, thoát <code>/exit</code> và mở lại phiên; hoặc nêu tường minh "dùng skill testcase-generator" ngay đầu prompt.
   </div>
+  <div class="alert alert-warning">
+    <strong>Lỗi:</strong> Claude chỉ sinh toàn happy path, thiếu edge/negative case.<br/>
+    <strong>Nguyên nhân:</strong> Prompt ban đầu chỉ nói chung "sinh test case" mà không yêu cầu tường minh đủ 3 nhóm.<br/>
+    <strong>Giải pháp:</strong> Bổ sung lại yêu cầu rõ ràng "bao phủ đủ 3 nhóm: happy path, edge case, negative case" và liệt kê từng ràng buộc cụ thể của requirement, như prompt mẫu ở Bước 1.
+  </div>
+  <div class="alert alert-warning">
+    <strong>Lỗi:</strong> Một số test case Claude sinh ra giả định sai về hành vi hệ thống (vd giả định có giới hạn số tiền tối đa mà requirement không đề cập).<br/>
+    <strong>Nguyên nhân:</strong> Requirement gốc chưa đủ chi tiết, Claude tự suy diễn thêm ràng buộc không có thật.<br/>
+    <strong>Giải pháp:</strong> Chỉ giữ lại các case dựa trên ràng buộc đã nêu rõ trong requirement; nếu muốn kiểm tra thêm ràng buộc khác, bổ sung rõ vào requirement trước khi generate lại.
+  </div>
+
+  <h2 class="section-heading">Dọn dẹp resource</h2>
+  <div class="alert alert-info">Bài lab chỉ tạo file trên máy local (Skill, file test case) — không tạo resource Cloud, không phát sinh chi phí. Nên <strong>giữ lại Skill <code>testcase-generator</code></strong> để dùng hoặc tham khảo trong tương lai. </div>
 
   <script>mermaid.initialize({ startOnLoad: true, theme: 'default' });</script>
 </body>

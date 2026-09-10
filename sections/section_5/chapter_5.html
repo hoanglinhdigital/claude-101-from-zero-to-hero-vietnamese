@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Lab - Sinh & review Terraform hạ tầng cơ bản – Claude 101</title>
+  <title>Lab - Test tự động end-to-end với Playwright – Claude 101</title>
   <link rel="stylesheet" href="../../styles.css" />
   <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
   <script src="../../mermaid-config.js"></script>
@@ -14,334 +14,368 @@
 <body class="chapter-body">
 
   <div class="chapter-breadcrumb">
-    <span class="section-part">5. Claude cho DevOps & Cloud Engineer</span>
+    <span class="section-part">5. Claude cho Tester / QA</span>
     <span class="sep">/</span>
-    <span class="chapter-part">Lab - Sinh & review Terraform hạ tầng cơ bản</span>
+    <span class="chapter-part">Lab - Test tự động end-to-end với Playwright</span>
   </div>
 
-  <div class="alert alert-danger">
-    <strong>Cảnh báo chi phí:</strong> Bài lab này tạo <strong>resource AWS thật</strong> (EC2, S3, DynamoDB, VPC, IAM)
-    và sẽ phát sinh chi phí trên tài khoản AWS của bạn (dù không nhiều với cấu hình <code>t3.micro</code>/on-demand).
-    Bắt buộc phải có <strong>AWS account</strong> và <strong>AWS CLI đã cấu hình</strong> (<code>aws configure</code>)
-    trước khi bắt đầu, và phải thực hiện đầy đủ phần <a href="#cleanup">Dọn dẹp resource</a> ở cuối bài để tránh bị
-    tính phí ngoài ý muốn.
+  <div class="alert alert-info">
+    Bài lab này <strong>tiếp tục dùng project <code>D:\lab-expense-management</code></strong> và app đã triển khai ở Section 4
+    (<code>https://claude101expensemanagement.vercel.app</code>). Nếu chưa hoàn thành, hãy quay lại thực hiện trước.
+    Ở các bài trước ta test ở tầng API (K6); bài này test ở tầng <strong>giao diện người dùng (UI)</strong> — thao tác thật trên trình duyệt.
   </div>
+
+  <h2 class="section-heading">Playwright là gì?</h2>
+  <p class="body-text">
+    <strong>Playwright</strong> là framework kiểm thử end-to-end (E2E) do Microsoft phát triển, cho phép điều khiển trình duyệt thật
+    (Chromium, Firefox, WebKit) bằng script để mô phỏng đúng hành vi người dùng: mở trang, nhập liệu, click, chờ phần tử xuất hiện, kiểm tra nội dung.
+    So với test API, test E2E kiểm được cả luồng thực tế xuyên suốt: UI → API → database → UI.
+  </p>
+  <ul class="feature-list">
+    <li><strong>Auto-wait</strong> — tự chờ phần tử UI sẵn sàng trước khi thao tác, giảm test "flaky".</li>
+    <li><strong>Locator theo vai trò</strong> — <code>getByRole</code>, <code>getByLabel</code>, <code>getByText</code> bám theo ngữ nghĩa giao diện thay vì CSS selector dễ vỡ.</li>
+    <li><strong>Trace, screenshot, video</strong> — tự ghi lại bằng chứng mỗi khi test fail.</li>
+    <li><strong>HTML report</strong> — báo cáo trực quan có sẵn, không cần cài thêm.</li>
+    <li><strong>Codegen</strong> — <code>npx playwright codegen &lt;url&gt;</code> ghi lại thao tác tay thành code mẫu.</li>
+  </ul>
 
   <h2 class="section-heading">Mục tiêu</h2>
   <ul class="feature-list">
-    <li>Dùng Claude Code sinh file Terraform tạo hạ tầng cơ bản trên AWS: VPC, EC2, DynamoDB Table, S3 bucket, IAM policy.</li>
-    <li>Biết cách viết prompt IaC đầy đủ 4 phần đã học ở Chapter 2 (Resource – Region – Naming/Tag – Ràng buộc bảo mật).</li>
-    <li>Đọc và review kỹ output <code>terraform plan</code> trước khi <code>apply</code> — đây là bước quan trọng nhất của bài lab.</li>
-    <li>Kiểm chứng hạ tầng đã tạo đúng, và dọn dẹp (<code>terraform destroy</code>) toàn bộ resource sau khi hoàn thành.</li>
+    <li>Cài đặt Playwright vào project và làm quen cú pháp cơ bản (<code>test</code>, <code>page</code>, <code>locator</code>, <code>expect</code>).</li>
+    <li>Đóng gói quy ước viết test E2E (cấu trúc file, locator theo vai trò, Page Object, dữ liệu login, đường dẫn output) vào Skill <code>playwright-e2e-generator</code>.</li>
+    <li>Dùng Claude Code sinh test E2E tự động <strong>dựa trên thiết kế màn hình</strong> (mô tả màn hình / ảnh mockup / file screen design) thông qua Skill.</li>
+    <li>Thực thi bộ test, tạo HTML report, thu thập screenshot và trace cho các case fail, đọc báo cáo để khoanh vùng lỗi.</li>
   </ul>
 
   <h2 class="section-heading">Kiến trúc tổng quan</h2>
   <div class="mermaid">
   flowchart LR
-      Eng(("<img src='../../assets/svg-icon/operator.svg' style='width:26px;height:26px;'/><br/><b>DevOps Engineer</b>"))
-      CC["<img src='../../assets/svg-icon/claude-logo.svg' style='width:28px;height:28px;'/><br/><b>Claude Code</b>"]
-      TF["📄 <b>Terraform files</b><br/>main.tf · variables.tf · vpc.tf<br/>ec2.tf · dynamodb.tf · s3.tf<br/>iam.tf · outputs.tf"]
-
-      subgraph AWS["☁️ AWS Cloud — ap-southeast-1"]
-          subgraph VPC["VPC 10.20.0.0/16"]
-              IGW["<img src='../../assets/svg-icon/Internet-Gateway.svg' style='width:26px;height:26px;'/><br/><b>Internet Gateway</b>"]
-              Subnet["🌐 <b>Public Subnet</b><br/>10.20.1.0/24"]
-              EC2["🖥️ <b>EC2 t3.micro</b><br/>SG: 22 (allowed_ssh_cidr)<br/>80 (public)"]
-          end
-          S3["🗄️ <b>S3 Bucket</b><br/>Versioning + Block Public Access"]
-          DDB["🗃️ <b>DynamoDB Table</b><br/>On-demand (PAY_PER_REQUEST)"]
-          IAM["🔐 <b>IAM Role/Policy</b><br/>Least-privilege cho EC2"]
+      Tester(("<img src='../../assets/svg-icon/user.svg' style='width:26px;height:26px;'/><br/><b>Tester</b>"))
+      Design["<img src='../../assets/svg-icon/task.svg' style='width:24px;height:24px;'/><br/><b>Thiết kế màn hình</b><br/>mockup / mô tả UI"]
+      ClaudeCode["<img src='../../assets/svg-icon/claude-logo.svg' style='width:28px;height:28px;'/><br/><b>Claude Code</b>"]
+      Skill["📄 <b>Skill</b><br/>playwright-e2e-generator<br/><i>quy ước test E2E</i>"]
+      Spec["<img src='../../assets/svg-icon/task.svg' style='width:24px;height:24px;'/><br/><b>e2e-test/*.spec.ts</b><br/>Playwright test"]
+      Browser["<img src='../../assets/svg-icon/browser.svg' style='width:26px;height:26px;'/><br/><b>Chromium</b><br/>(headless)"]
+      subgraph App["<img src='../../assets/svg-icon/vercel.ico' style='width:22px;height:22px;'/> App Expense Management (Vercel)"]
+          UI["🖥️ Giao diện Next.js"]
+          API["⚙️ /api/*"]
       end
+      Database["<img src='../../assets/svg-icon/database.svg' style='width:32px;height:32px;'/><br/><b>Database</b><br/>TiDB"]
+      Report["📊 <b>HTML report</b><br/>+ screenshot + trace"]
 
-      Eng -->|"1. Viết prompt IaC"| CC
-      CC -->|"2. Sinh Terraform"| TF
-      Eng -->|"3. Review plan"| TF
-      TF -->|"4. terraform apply"| AWS
-      IGW --> Subnet --> EC2
-      EC2 -->|"instance profile"| IAM
-      IAM -.->|"chỉ đúng ARN, không dùng *"| S3
-      IAM -.->|"chỉ đúng ARN, không dùng *"| DDB
+      Tester -->|"Đưa thiết kế màn hình + URL"| ClaudeCode
+      Design --> ClaudeCode
+      Skill -.->|"nạp khi prompt khớp"| ClaudeCode
+      ClaudeCode -->|"Sinh test theo quy ước Skill"| Spec
+      Spec -->|"Điều khiển"| Browser
+      Browser -->|"Thao tác thật trên UI"| UI
+      UI --> API --> Database
+      Spec --> Report --> Tester
   </div>
-  <p class="arch-caption">Claude Code sinh toàn bộ Terraform theo prompt của Engineer; Engineer luôn review kỹ <code>terraform plan</code> trước khi resource thật được tạo trên AWS — IAM role của EC2 chỉ có quyền least-privilege đúng trên bucket S3 và table DynamoDB của bài lab này.</p>
+  <p class="arch-caption">Claude Code nạp Skill <code>playwright-e2e-generator</code> để chuyển thiết kế màn hình thành file <code>*.spec.ts</code>. Test điều khiển Chromium thao tác thật trên giao diện đã deploy; kết quả kèm screenshot/trace cho case fail được gom vào HTML report.</p>
 
   <h2 class="section-heading">Yêu cầu trước khi bắt đầu</h2>
   <ul class="feature-list">
-    <li><strong>AWS account</strong> đã có quyền tạo VPC/EC2/S3/DynamoDB/IAM (quyền IAM đủ rộng cho tài khoản cá nhân/sandbox học tập).</li>
-    <li><strong>AWS CLI v2</strong> đã cài đặt và cấu hình: <code>aws configure</code> chạy thành công với Access Key/Secret Key của bạn.</li>
-    <li><strong>Terraform CLI</strong> phiên bản 1.5.0 trở lên đã cài đặt (<code>terraform -version</code> chạy được).</li>
-    <li>Claude Code CLI đã cài đặt và đăng nhập thành công (xem lại Section 2).</li>
-    <li>Terminal: PowerShell hoặc Windows Terminal.</li>
+    <li>Node.js 18 trở lên (<code>node -v</code>).</li>
+    <li>Claude Code CLI đã cài đặt và đăng nhập thành công.</li>
+    <li>App Expense Management đã chạy được — trên Vercel hoặc tối thiểu chạy được trên local<code>http://localhost:3000</code>.</li>
+    <li>1 tài khoản test (email + mật khẩu) để test các màn hình sau khi login.</li>
   </ul>
 
   <h2 class="section-heading">Các bước thực hành</h2>
 
-  <h3 class="sub-heading">Phần 1: Chuẩn bị</h3>
+  <h3 class="sub-heading">Phần 1: Cài đặt Playwright</h3>
   <ol class="step-list">
     <li>
       <div>
-        <strong>Bước 1: Lấy public IP hiện tại để dùng cho biến allowed_ssh_cidr</strong>
-        <p>Biến <code>allowed_ssh_cidr</code> trong Terraform <strong>không có giá trị mặc định</strong> — bắt buộc phải tự nhập CIDR của chính bạn, tránh vô tình mở port 22 cho toàn bộ Internet (<code>0.0.0.0/0</code>).</p>
-        <pre class="command-line" data-prompt="PS>" data-output="2"><code class="language-powershell">(Invoke-RestMethod -Uri "https://api.ipify.org")
-203.0.113.10</code></pre>
-        <p>Ghi lại IP này, dùng dạng <code>&lt;IP&gt;/32</code> (vd <code>203.0.113.10/32</code>) khi chạy <code>terraform plan</code>/<code>apply</code> ở Bước 6.</p>
+        <strong>Bước 1: Cài Playwright và trình duyệt vào project</strong>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">cd D:\lab-expense-management
+npm init playwright@latest -- --quiet --browser=chromium --lang=ts</code></pre>
+        <p>
+          Lệnh này tạo <code>playwright.config.ts</code>, thư mục <code>tests/</code> (ví dụ mẫu) và tải sẵn Chromium.
+          Khi được hỏi thư mục test, chọn mặc định; không cần thêm GitHub Actions cho bài lab này.
+        </p>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">npx playwright install chromium</code></pre>
       </div>
     </li>
     <li>
       <div>
-        <strong>Bước 2: Tạo thư mục project và khởi động Claude Code</strong>
-        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">mkdir D:\lab-terraform-infra-co-ban
-cd D:\lab-terraform-infra-co-ban
+        <strong>Bước 2: Cấu hình base URL và thư mục test</strong>
+        <p>Sửa <code>playwright.config.ts</code> để trỏ về app đã deploy và bật thu thập bằng chứng khi fail:</p>
+        <pre class="file-block"><span class="filename">playwright.config.ts</span><span class="hl">import</span> { defineConfig, devices } <span class="hl">from</span> <span class="str">'@playwright/test'</span>;
+
+<span class="hl">export default</span> defineConfig({
+  testDir: <span class="str">'./e2e-test'</span>,
+  reporter: [[<span class="str">'html'</span>, { open: <span class="str">'never'</span> }]],
+  use: {
+    baseURL: process.env.BASE_URL || <span class="str">'https://claude101expensemanagement.vercel.app'</span>,
+    screenshot: <span class="str">'only-on-failure'</span>,
+    trace: <span class="str">'retain-on-failure'</span>,
+    video: <span class="str">'retain-on-failure'</span>,
+  },
+  projects: [
+    { name: <span class="str">'chromium'</span>, use: { ...devices[<span class="str">'Desktop Chrome'</span>] } },
+  ],
+});</pre>
+        <p>Tạo file <code>.env</code> chứa thông tin đăng nhập test (đừng commit file này):</p>
+        <pre class="file-block"><span class="filename">.env</span><span class="cmt"># Tài khoản dùng riêng cho test E2E</span>
+E2E_EMAIL=tester@example.com
+E2E_PASSWORD=Tester@12345</pre>
+      </div>
+    </li>
+  </ol>
+
+  <h3 class="sub-heading">Phần 2: Làm quen cú pháp cơ bản</h3>
+  <ol class="step-list">
+    <li>
+      <div>
+        <strong>Bước 3: Tự viết tay 1 test đơn giản để hiểu 4 khái niệm cốt lõi</strong>
+        <p>Tạo file <code>e2e-test/smoke.spec.ts</code>. Test này mở trang chủ và kiểm tra tiêu đề — chưa cần login:</p>
+        <pre class="file-block"><span class="filename">e2e-test/smoke.spec.ts</span><span class="hl">import</span> { test, expect } <span class="hl">from</span> <span class="str">'@playwright/test'</span>;
+
+<span class="cmt">// test()  : khai báo một kịch bản kiểm thử</span>
+test(<span class="str">'trang đăng nhập hiển thị đúng'</span>, <span class="hl">async</span> ({ page }) => {
+  <span class="cmt">// page   : 1 tab trình duyệt do Playwright điều khiển</span>
+  <span class="hl">await</span> page.goto(<span class="str">'/login'</span>);
+
+  <span class="cmt">// locator: trỏ tới phần tử theo VAI TRÒ / nhãn, không dùng CSS dễ vỡ</span>
+  <span class="hl">const</span> emailInput = page.getByLabel(<span class="str">'Email'</span>);
+  <span class="hl">const</span> submitBtn = page.getByRole(<span class="str">'button'</span>, { name: <span class="str">/Đăng nhập/i</span> });
+
+  <span class="cmt">// expect : khẳng định trạng thái mong đợi (tự auto-wait)</span>
+  <span class="hl">await</span> expect(emailInput).toBeVisible();
+  <span class="hl">await</span> expect(submitBtn).toBeEnabled();
+});</pre>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">npx playwright test e2e-test/smoke.spec.ts</code></pre>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 4: Dùng Codegen để xem Playwright "dịch" thao tác tay thành code</strong>
+        <p>Lệnh dưới mở trình duyệt kèm cửa sổ ghi code; bạn thao tác tay, Playwright sinh script tương ứng. Dùng để học cú pháp locator nhanh:</p>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">npx playwright codegen https://claude101expensemanagement.vercel.app</code></pre>
+        <div class="alert alert-tip">
+          Ưu tiên <code>getByRole</code> / <code>getByLabel</code> / <code>getByText</code>. Chỉ dùng <code>locator('css=...')</code> hoặc <code>getByTestId</code> khi không có cách nào theo vai trò.
+        </div>
+      </div>
+    </li>
+  </ol>
+
+  <h3 class="sub-heading">Phần 3: Tạo Skill playwright-e2e-generator</h3>
+  <p class="body-text">
+    Prompt sinh test E2E lặp lại rất nhiều quy ước: cấu trúc file <code>*.spec.ts</code>, fixture login dùng chung, locator theo vai trò,
+    tách Page Object, đặt file vào <code>e2e-test/</code>, mỗi test độc lập và tự dọn dữ liệu... Đóng gói tất cả vào Skill để lần sau chỉ cần đưa thiết kế màn hình.
+  </p>
+  <ol class="step-list">
+    <li>
+      <div>
+        <strong>Bước 5: Tạo thư mục và file SKILL.md</strong>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">cd D:\lab-expense-management
+mkdir .claude\skills\playwright-e2e-generator</code></pre>
+        <p>Tạo file <code>.claude/skills/playwright-e2e-generator/SKILL.md</code>:</p>
+        <pre class="file-block"><span class="filename">.claude/skills/playwright-e2e-generator/SKILL.md</span><span class="hl">---
+name</span>: playwright-e2e-generator
+<span class="hl">description</span>: <span class="str">Sinh test end-to-end bằng Playwright từ thiết kế màn hình (mô tả UI, ảnh mockup, hoặc file screen design). Dùng Skill này khi người dùng yêu cầu "viết test E2E", "sinh test Playwright cho màn hình ...", "tạo test giao diện từ thiết kế màn hình", "viết kịch bản kiểm thử UI".</span>
+<span class="hl">---</span>
+
+<span class="cmt"># Playwright E2E Generator</span>
+
+<span class="cmt">## Nguyên tắc</span>
+- Góc nhìn người dùng cuối: thao tác qua UI trên trình duyệt, KHÔNG gọi thẳng API trừ bước dọn dữ liệu.
+- Input người dùng cung cấp: thiết kế màn hình (mô tả / ảnh / đường dẫn file), URL app, danh sách luồng cần kiểm.
+- Với mỗi màn hình sinh đủ 3 nhóm test: happy path, validate/edge case, negative case (đúng theo ràng buộc ghi trên thiết kế).
+
+<span class="cmt">## Quy ước code</span>
+1. Đặt file tại <span class="str">e2e-test/&lt;tên-màn-hình&gt;.spec.ts</span>. Mỗi <span class="str">test()</span> độc lập, không phụ thuộc thứ tự chạy.
+2. Locator ưu tiên <span class="str">getByRole / getByLabel / getByText</span>; chỉ dùng <span class="str">getByTestId</span> khi bắt buộc.
+3. Dùng fixture login chung tại <span class="str">e2e-test/fixtures/auth.ts</span> (đọc <span class="str">E2E_EMAIL / E2E_PASSWORD</span> từ <span class="str">.env</span>); test cần đăng nhập thì import fixture này.
+4. Màn hình phức tạp: tách Page Object vào <span class="str">e2e-test/pages/&lt;Tên&gt;Page.ts</span>.
+5. Assertion dùng <span class="str">expect()</span> của Playwright (auto-wait), không dùng <span class="str">page.waitForTimeout</span> cố định.
+6. Test tạo dữ liệu phải tự xoá ở <span class="str">afterEach</span> (gọi API xoá hoặc thao tác UI xoá).
+7. Không tự sửa <span class="str">playwright.config.ts</span> đã có; giả định server đã deploy sẵn.
+
+<span class="cmt">## Sau khi sinh</span>
+- Liệt kê bảng: Màn hình | Test case | Nhóm | Locator chính | Assertion.
+- Nhắc người dùng chạy: <span class="str">npx playwright test</span> và <span class="str">npx playwright show-report</span>.</pre>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 6: Khởi động Claude Code và kiểm tra Skill</strong>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">cd D:\lab-expense-management
 claude</code></pre>
+        <pre class="command-line" data-prompt=">"><code class="language-text">/skills</code></pre>
+        <p><code>playwright-e2e-generator</code> phải xuất hiện trong danh sách.</p>
       </div>
     </li>
   </ol>
 
-  <h3 class="sub-heading">Phần 2: Yêu cầu Claude Code sinh Terraform</h3>
+  <h3 class="sub-heading">Phần 4: Dùng Skill sinh test E2E từ thiết kế màn hình</h3>
   <ol class="step-list">
     <li>
       <div>
-        <strong>Bước 3: Viết prompt IaC đầy đủ theo cấu trúc Resource – Region – Naming/Tag – Ràng buộc bảo mật</strong>
-        <p>Áp dụng đúng kỹ thuật đã học ở Chapter 2 — nêu rõ từng resource, region, quy ước tên/tag, và ràng buộc bảo mật (không mở SSH public, IAM least-privilege).</p>
-        <pre class="command-line" data-prompt=">"><code class="language-text">Viết Terraform tạo hạ tầng cơ bản trên AWS, tách thành nhiều file rõ ràng. Yêu cầu cụ thể:
+        <strong>Bước 7: Chuẩn bị thiết kế màn hình làm đầu vào</strong>
+        <p>
+          Có thể dùng ảnh mockup trong <code>sourcecode/section_4/expense-management-mockup/</code>, hoặc mô tả bằng chữ.
+          Ví dụ mô tả màn hình "Thêm chi tiêu" dùng cho bài lab:
+        </p>
+        <pre class="file-block"><span class="filename">design/man-hinh-them-chi-tieu.md</span><span class="cmt"># Màn hình: Thêm chi tiêu (/transactions/new)</span>
 
-RESOURCE CẦN TẠO:
-1. main.tf: provider "aws", required_providers (aws ~>5.0, random ~>3.6 để sinh suffix tên bucket unique).
-2. vpc.tf: 1 VPC (CIDR biến vpc_cidr), 1 subnet public (CIDR biến public_subnet_cidr, map_public_ip_on_launch = true), 1 Internet Gateway, 1 route table 0.0.0.0/0 -> Internet Gateway, route table association.
-3. ec2.tf: data source lấy AMI Amazon Linux 2023 mới nhất; 1 security group chỉ mở port 22 từ biến allowed_ssh_cidr và port 80 public (0.0.0.0/0); 1 EC2 instance loại t3.micro trong subnet public, gắn iam_instance_profile.
-4. dynamodb.tf: 1 DynamoDB table billing_mode = PAY_PER_REQUEST (on-demand), hash_key "id" kiểu String.
-5. s3.tf: 1 S3 bucket tên có suffix random để unique toàn cầu, bật versioning, bật server-side encryption AES256, và aws_s3_bucket_public_access_block chặn toàn bộ public access (block_public_acls, block_public_policy, ignore_public_acls, restrict_public_buckets = true).
-6. iam.tf: 1 IAM role cho EC2 (assume role từ ec2.amazonaws.com) và 1 IAM policy LEAST-PRIVILEGE — chỉ cho phép s3:GetObject/PutObject/ListBucket đúng trên ARN của bucket ở bước 5, và các action đọc/viết cần thiết (GetItem/PutItem/UpdateItem/DeleteItem/Query/Scan) đúng trên ARN của DynamoDB table ở bước 4. KHÔNG dùng wildcard "*" cho Resource, KHÔNG gắn AdministratorAccess.
-7. outputs.tf: output ec2_public_ip, s3_bucket_name, dynamodb_table_name.
+Yêu cầu đăng nhập trước.
 
-REGION: ap-southeast-1 (Singapore), đặt làm default cho variable "region".
+Trường nhập:
+- Số tiền (bắt buộc, &gt; 0)
+- Danh mục (bắt buộc, chọn từ dropdown)
+- Tài khoản (bắt buộc, chọn từ dropdown)
+- Ngày chi (bắt buộc, có thể chọn ngày tương lai)
+- Ghi chú (tuỳ chọn, tối đa 200 ký tự)
 
-NAMING/TAG: mọi resource đặt tên theo pattern ${var.project_name}-<loại resource> (vd ${var.project_name}-vpc, ${var.project_name}-web). Mọi resource gắn tag Project = var.project_name và ManagedBy = "Terraform".
+Nút "Lưu": disable khi form chưa hợp lệ.
+Lưu thành công -&gt; hiện toast "Đã thêm giao dịch".
+Lỗi validate -&gt; hiện message đỏ ngay dưới trường tương ứng, không gọi API.</pre>
+<p>
+          Hoặc sử dụng screen shot để mô tả màn hình, ví dụ: <code>docs\screenshot\record-expense
+        </p>
+        <pre class="file-block">
+Yêu cầu đăng nhập trước tại /login. Nếu chưa đăng nhập, redirect về /login.
+Thiết kế của màn hình record dựa theo các screenshot sau đây:
+  - docs\screenshot\record-expense\record-expense.png
+  - docs\screenshot\record-expense\record-expense-select-account.png
+  - docs\screenshot\record-expense\record-expense-select-category.png
+Trường nhập:
+- Số tiền (bắt buộc, lớn hơn 0)
+- Danh mục (bắt buộc, chọn từ dropdown)
+- Tài khoản (bắt buộc, chọn từ dropdown)
+- Ngày, giờ (bắt buộc, có thể chọn ngày tương lai). Mặc định khi vào màn hình sẽ lấy giờ hiện tại.
+- Ghi chú (tuỳ chọn, tối đa 500 ký tự)
 
-RÀNG BUỘC BẢO MẬT (bắt buộc):
-- variables.tf: biến allowed_ssh_cidr KHÔNG có giá trị default, thêm validation block chặn giá trị "0.0.0.0/0" — bắt buộc User tự nhập CIDR/IP cụ thể.
-- Không mở port nào khác ngoài 22 (giới hạn theo allowed_ssh_cidr) và 80 (public) trên security group.
-- IAM policy tuyệt đối không dùng Resource = "*" hay Action = "*".
-
-Sau khi tạo xong toàn bộ file, chạy terraform init và terraform validate để đảm bảo cú pháp đúng, KHÔNG chạy terraform apply.</code></pre>
+Nút "Lưu": disable khi form chưa hợp lệ.
+Lưu thành công -&gt; hiện toast "Đã lưu giao dịch".
+Lỗi validate -&gt; hiện message đỏ ngay dưới trường tương ứng, không gọi API.</pre>
       </div>
     </li>
     <li>
       <div>
-        <strong>Bước 4: Duyệt kế hoạch và xác nhận thực thi</strong>
-        <p>Nếu ở Plan mode, đọc kỹ danh sách file Claude Code dự kiến tạo trước khi Approve. Ở Accept Edits mode, xác nhận từng file được tạo.</p>
+        <strong>Bước 8: Gõ prompt gọi Skill, chỉ nêu thiết kế màn hình và URL</strong>
+        <p>Toàn bộ quy ước code đã nằm trong Skill — prompt chỉ còn phần đặc thù:</p>
+        <pre class="command-line" data-prompt=">"><code class="language-text">
+Dùng skill playwright-e2e-generator để sinh test E2E cho màn hình "Thêm chi tiêu".
+Thiết kế của màn hình record dựa theo các screenshot sau đây:
+  - docs\screenshot\record-expense\record-expense.png
+  - docs\screenshot\record-expense\record-expense-select-account.png
+  - docs\screenshot\record-expense\record-expense-select-category.png
+Trường nhập:
+- Số tiền (bắt buộc, lớn hơn 0)
+- Danh mục (bắt buộc, chọn từ dropdown)
+- Tài khoản (bắt buộc, chọn từ dropdown)
+- Ngày, giờ (bắt buộc, có thể chọn ngày tương lai). Mặc định khi vào màn hình sẽ lấy giờ hiện tại.
+- Ghi chú (tuỳ chọn, tối đa 500 ký tự)
+
+Nút "Lưu": disable khi form chưa hợp lệ.
+Lưu thành công -&gt; chuyển về /transactions và hiện toast "Đã thêm giao dịch".
+Lỗi validate -&gt; hiện message đỏ ngay dưới trường tương ứng, không gọi API.
+
+Output: e2e-test/transaction_expense.spec.ts</code></pre>
+        <p>Quan sát dòng <code>Skill: playwright-e2e-generator</code> ở đầu phản hồi để xác nhận Skill được gọi.</p>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 9: Duyệt kết quả</strong>
+        <p>
+          Đọc file <code>e2e-test/them-chi-tieu.spec.ts</code> và <code>e2e-test/fixtures/auth.ts</code> Claude sinh ra; đối chiếu bảng
+          <em>Màn hình | Test case | Nhóm | Locator | Assertion</em> với thiết kế màn hình. Yêu cầu Claude chỉnh nếu locator
+          không khớp giao diện thật hoặc thiếu case nào.
+        </p>
       </div>
     </li>
   </ol>
 
-  <h3 class="sub-heading">Phần 3: Tham khảo nội dung Terraform (đối chiếu với kết quả Claude Code sinh ra)</h3>
-  <p class="body-text">Nội dung dưới đây là ví dụ tham khảo cho những gì Claude Code nên sinh ra ở Bước 3 — dùng để đối chiếu và review, không cần tự tay gõ lại các file này.</p>
-
-  <pre class="file-block"><span class="filename">main.tf</span><span class="cmt">terraform {</span>
-  required_version = <span class="str">">= 1.5.0"</span>
-
-  required_providers {
-    <span class="hl">aws</span> = {
-      source  = <span class="str">"hashicorp/aws"</span>
-      version = <span class="str">"~> 5.0"</span>
-    }
-    <span class="hl">random</span> = {
-      source  = <span class="str">"hashicorp/random"</span>
-      version = <span class="str">"~> 3.6"</span>
-    }
-  }
-<span class="cmt">}</span>
-
-<span class="hl">provider "aws"</span> {
-  region = var.region
-}
-
-<span class="hl">resource "random_id" "suffix"</span> {
-  byte_length = 4
-}</pre>
-
-  <pre class="file-block"><span class="filename">variables.tf</span><span class="hl">variable "region"</span> {
-  default = <span class="str">"ap-southeast-1"</span>
-}
-
-<span class="hl">variable "project_name"</span> {
-  default = <span class="str">"claude101-devops-lab"</span>
-}
-
-<span class="hl">variable "vpc_cidr"</span> {
-  default = <span class="str">"10.20.0.0/16"</span>
-}
-
-<span class="cmt">// KHÔNG đặt default = "0.0.0.0/0" — bắt buộc User tự nhập CIDR IP</span>
-<span class="cmt">// của mình để tránh vô tình mở SSH cho toàn bộ Internet.</span>
-<span class="hl">variable "allowed_ssh_cidr"</span> {
-  type = string
-
-  validation {
-    condition     = var.allowed_ssh_cidr != <span class="str">"0.0.0.0/0"</span>
-    error_message = <span class="str">"Không được dùng 0.0.0.0/0 cho allowed_ssh_cidr."</span>
-  }
-}
-
-<span class="hl">variable "instance_type"</span> {
-  default = <span class="str">"t3.micro"</span>
-}</pre>
-
-  <pre class="file-block"><span class="filename">ec2.tf</span><span class="hl">resource "aws_security_group" "web"</span> {
-  name   = <span class="str">"${var.project_name}-web-sg"</span>
-  vpc_id = aws_vpc.main.id
-
-  ingress {
-    <span class="cmt"># SSH — chỉ từ allowed_ssh_cidr, KHÔNG mở 0.0.0.0/0</span>
-    from_port   = 22
-    to_port     = 22
-    protocol    = <span class="str">"tcp"</span>
-    cidr_blocks = [var.allowed_ssh_cidr]
-  }
-
-  ingress {
-    <span class="cmt"># HTTP — public</span>
-    from_port   = 80
-    to_port     = 80
-    protocol    = <span class="str">"tcp"</span>
-    cidr_blocks = [<span class="str">"0.0.0.0/0"</span>]
-  }
-
-  tags = {
-    Project   = var.project_name
-    ManagedBy = <span class="str">"Terraform"</span>
-  }
-}
-
-<span class="hl">resource "aws_instance" "web"</span> {
-  ami                    = data.aws_ami.amazon_linux.id
-  instance_type          = var.instance_type
-  subnet_id              = aws_subnet.public.id
-  vpc_security_group_ids = [aws_security_group.web.id]
-  iam_instance_profile   = aws_iam_instance_profile.ec2_profile.name
-
-  tags = {
-    Name      = <span class="str">"${var.project_name}-web"</span>
-    Project   = var.project_name
-    ManagedBy = <span class="str">"Terraform"</span>
-  }
-}</pre>
-
-  <pre class="file-block"><span class="filename">iam.tf</span><span class="cmt"># Least-privilege: chỉ đúng action cần thiết, chỉ trên đúng ARN của</span>
-<span class="cmt"># bucket S3 và table DynamoDB của bài lab — KHÔNG dùng wildcard "*".</span>
-<span class="hl">data "aws_iam_policy_document" "app_access"</span> {
-  statement {
-    sid = <span class="str">"S3ReadWriteAppBucket"</span>
-    actions = [
-      <span class="str">"s3:GetObject"</span>, <span class="str">"s3:PutObject"</span>, <span class="str">"s3:ListBucket"</span>,
-    ]
-    resources = [
-      aws_s3_bucket.app_data.arn,
-      <span class="str">"${aws_s3_bucket.app_data.arn}/*"</span>,
-    ]
-  }
-
-  statement {
-    sid = <span class="str">"DynamoDBReadWriteAppTable"</span>
-    actions = [
-      <span class="str">"dynamodb:GetItem"</span>, <span class="str">"dynamodb:PutItem"</span>,
-      <span class="str">"dynamodb:UpdateItem"</span>, <span class="str">"dynamodb:DeleteItem"</span>,
-      <span class="str">"dynamodb:Query"</span>, <span class="str">"dynamodb:Scan"</span>,
-    ]
-    resources = [aws_dynamodb_table.app_table.arn]
-  }
-}</pre>
-
-  <div class="file-tree">
-    <span class="dir">lab-terraform-infra-co-ban/</span><br/>
-    ├── <span class="file">main.tf</span> <span class="desc"># provider, backend (comment), random_id</span><br/>
-    ├── <span class="file">variables.tf</span> <span class="desc"># region, project_name, vpc_cidr, allowed_ssh_cidr (bắt buộc nhập)</span><br/>
-    ├── <span class="file">vpc.tf</span> <span class="desc"># VPC + subnet public + Internet Gateway + route table</span><br/>
-    ├── <span class="file">ec2.tf</span> <span class="desc"># EC2 t3.micro + security group</span><br/>
-    ├── <span class="file">dynamodb.tf</span> <span class="desc"># DynamoDB table on-demand</span><br/>
-    ├── <span class="file">s3.tf</span> <span class="desc"># S3 bucket + versioning + block public access</span><br/>
-    ├── <span class="file">iam.tf</span> <span class="desc"># IAM role + policy least-privilege</span><br/>
-    └── <span class="file">outputs.tf</span> <span class="desc"># ec2_public_ip, s3_bucket_name, dynamodb_table_name</span>
-  </div>
-  <p class="note-text">Toàn bộ source code đầy đủ (8 file) được lưu tại <code>sourcecode/section_5/lab_terraform_infra_co_ban/</code> trong repository của khoá học — dùng để đối chiếu nếu Claude Code sinh ra kết quả khác biệt.</p>
-
-  <h3 class="sub-heading">Phần 4: terraform init, plan, apply</h3>
+  <h3 class="sub-heading">Phần 5: Thực thi test, tạo report và xử lý case fail</h3>
   <ol class="step-list">
     <li>
       <div>
-        <strong>Bước 5: Khởi tạo Terraform</strong>
-        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">cd D:\lab-terraform-infra-co-ban
-terraform init</code></pre>
+        <strong>Bước 10: Chạy toàn bộ bộ test E2E</strong>
+        <pre class="command-line" data-prompt="PS>" data-output="2,3,4,5,6,7,8,9,10"><code class="language-powershell">npx playwright test
+Running 4 tests using 1 worker
+
+  ✓  1 e2e-test/them-chi-tieu.spec.ts:12:3 › thêm chi tiêu hợp lệ (3.1s)
+  ✘  2 e2e-test/them-chi-tieu.spec.ts:31:3 › chặn số tiền <= 0 (2.4s)
+  ✓  3 e2e-test/them-chi-tieu.spec.ts:44:3 › chặn ngày tương lai (2.2s)
+  ✓  4 e2e-test/them-chi-tieu.spec.ts:57:3 › nút Lưu disable khi thiếu trường (1.8s)
+
+  1 failed / 3 passed</code></pre>
       </div>
     </li>
     <li>
       <div>
-        <strong>Bước 6: Chạy terraform plan — đây là bước REVIEW quan trọng nhất</strong>
-        <p>Thay <code>203.0.113.10/32</code> bằng IP thật của bạn lấy ở Bước 1. <strong>Đọc kỹ toàn bộ output</strong>: số resource sẽ được tạo (<code>Plan: N to add, 0 to change, 0 to destroy</code>), đặc biệt kiểm tra kỹ block <code>aws_security_group</code> (không có <code>cidr_blocks = ["0.0.0.0/0"]</code> nào cho port 22) và block IAM policy (không có <code>"Resource": "*"</code>).</p>
-        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">terraform plan `
-  -var="allowed_ssh_cidr=203.0.113.10/32" `
-  -out=tfplan</code></pre>
+        <strong>Bước 11: Mở HTML report</strong>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">npx playwright show-report</code></pre>
+        <p>
+          Report mở trong trình duyệt tại <code>playwright-report/</code>. Với test fail, report đính kèm sẵn:
+          <strong>screenshot</strong> tại thời điểm lỗi, <strong>video</strong> toàn bộ phiên, và <strong>trace</strong> (timeline từng bước, DOM snapshot, network).
+        </p>
       </div>
     </li>
     <li>
       <div>
-        <strong>Bước 7: (Khuyến nghị) Yêu cầu Claude Code giải thích plan bằng ngôn ngữ dễ hiểu</strong>
-        <p>Áp dụng mẹo đã học ở Chapter 1 — nhờ Claude Code diễn giải lại các thay đổi trong plan trước khi tự mình quyết định apply.</p>
-        <pre class="command-line" data-prompt=">"><code class="language-text">Giải thích các thay đổi trong terraform plan này bằng ngôn ngữ dễ hiểu, đặc biệt chỉ rõ: resource nào sẽ bị tạo/sửa/xoá, security group có mở port nào ra 0.0.0.0/0 ngoài port 80 không, và IAM policy có dùng wildcard "*" ở đâu không.</code></pre>
+        <strong>Bước 12: Mở trace của case fail để khoanh vùng lỗi (nếu có)</strong>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">npx playwright show-trace test-results/them-chi-tieu-chặn-số-tiền-0-chromium/trace.zip</code></pre>
+        <div class="alert alert-warning">
+          Có thể chỉnh sửa expected message cho testcase failed để trải nghiệm report.
+        </div>
       </div>
     </li>
     <li>
       <div>
-        <strong>Bước 8: Chỉ apply sau khi đã review kỹ plan ở Bước 6-7</strong>
-        <p>Dùng đúng file plan đã lưu ở Bước 6 (<code>tfplan</code>) để đảm bảo apply đúng những gì đã review, không bị lệch do state thay đổi giữa lúc plan và apply.</p>
-        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">terraform apply tfplan</code></pre>
-      </div>
-    </li>
-    <li>
-      <div>
-        <strong>Bước 9: Kiểm chứng kết quả</strong>
-        <pre class="command-line" data-prompt="PS>" data-output="2, 3, 4"><code class="language-powershell">terraform output
-ec2_public_ip = "13.229.xxx.xxx"
-s3_bucket_name = "claude101-devops-lab-data-a1b2c3d4"
-dynamodb_table_name = "claude101-devops-lab-table"</code></pre>
-        <p>Mở trình duyệt tại <code>http://&lt;ec2_public_ip&gt;</code> để xác nhận trang chào mừng Apache đã chạy; kiểm tra thêm trên AWS Console (S3, DynamoDB, IAM) để xác nhận resource được tạo đúng tên/tag như đã yêu cầu.</p>
+        <strong>Bước 13: Nhờ Claude tổng hợp báo cáo case fail</strong>
+        <pre class="command-line" data-prompt=">"><code class="language-text">Đọc kết quả trong playwright-report/ và test-results/, tổng hợp danh sách case fail:
+tên test, bước fail, expected vs actual, đường dẫn screenshot/trace. Xuất bảng Markdown vào plans/test/e2e-test-fail-report.md</code></pre>
+        <p>Bug thực sự (không phải test sai) thì chuyển sang bài lab kế tiếp để soạn bug report hoàn chỉnh bằng Skill <code>bugreport-writer</code>.</p>
       </div>
     </li>
   </ol>
 
   <div class="verify-box">
     <h4>✅ Kết quả mong đợi</h4>
-    <p class="body-text">Lệnh <code>terraform apply</code> hoàn thành không lỗi, <code>terraform output</code> trả về đúng 3 giá trị. Trang web mặc định trên EC2 truy cập được qua HTTP. Security group chỉ mở SSH từ đúng IP của bạn (không phải <code>0.0.0.0/0</code>), và IAM role gắn cho EC2 chỉ có quyền đọc/viết đúng bucket S3 và table DynamoDB vừa tạo — kiểm tra lại trên AWS Console &gt; IAM &gt; Roles.</p>
+    <p class="body-text">
+      Bộ test E2E chạy trên Chromium, sinh HTML report có screenshot + trace cho mọi case fail, và có file
+      <code>plans/test/e2e-test-fail-report.md</code> tổng hợp case fail đủ chi tiết để phân loại "lỗi app" hay "test cần sửa".
+    </p>
   </div>
 
   <h2 class="section-heading">Troubleshoot</h2>
   <div class="alert alert-warning">
-    <strong>Lỗi:</strong> <code>terraform plan</code> báo lỗi <code>allowed_ssh_cidr is required</code> hoặc validation fail.<br/>
-    <strong>Nguyên nhân:</strong> Biến <code>allowed_ssh_cidr</code> không có giá trị mặc định (đúng như thiết kế an toàn), hoặc bạn đã vô tình truyền <code>0.0.0.0/0</code>.<br/>
-    <strong>Giải pháp:</strong> Luôn truyền <code>-var="allowed_ssh_cidr=&lt;IP-của-bạn&gt;/32"</code> khi chạy <code>plan</code>/<code>apply</code>, dùng đúng IP lấy được ở Bước 1.
+    <strong>Lỗi:</strong> Claude không gọi Skill <code>playwright-e2e-generator</code>, hoặc sinh test không theo quy ước (không dùng fixture login, dùng CSS selector cứng).<br/>
+    <strong>Nguyên nhân:</strong> Skill chưa được nạp (phiên mở trước khi tạo Skill), hoặc prompt không chứa từ khoá khớp <code>description</code>.<br/>
+    <strong>Giải pháp:</strong> Kiểm tra <code>/skills</code>, mở lại phiên; nêu tường minh "dùng skill playwright-e2e-generator" ở đầu prompt như Bước 8.
   </div>
   <div class="alert alert-warning">
-    <strong>Lỗi:</strong> <code>terraform apply</code> báo <code>Error: creating S3 Bucket: BucketAlreadyExists</code>.<br/>
-    <strong>Nguyên nhân:</strong> Tên S3 bucket phải unique toàn cầu trên AWS; suffix ngẫu nhiên (<code>random_id.suffix</code>) trùng với bucket đã tồn tại (hiếm gặp) hoặc <code>project_name</code> đã được dùng bởi người khác.<br/>
-    <strong>Giải pháp:</strong> Đổi giá trị <code>project_name</code> thành một chuỗi khác đặc trưng hơn (vd thêm tên của bạn), chạy lại <code>terraform apply</code>.
+    <strong>Lỗi:</strong> <code>browserType.launch: Executable doesn't exist</code>.<br/>
+    <strong>Nguyên nhân:</strong> Chưa tải binary trình duyệt.<br/>
+    <strong>Giải pháp:</strong> Chạy <code>npx playwright install chromium</code>.
   </div>
   <div class="alert alert-warning">
-    <strong>Lỗi:</strong> Không SSH được vào EC2 dù đã dùng đúng key pair.<br/>
-    <strong>Nguyên nhân:</strong> IP public của bạn đã thay đổi (IP động) sau khi apply, không còn khớp với <code>allowed_ssh_cidr</code> đã cấu hình trong security group.<br/>
-    <strong>Giải pháp:</strong> Lấy lại IP hiện tại (Bước 1), chạy lại <code>terraform apply -var="allowed_ssh_cidr=&lt;IP-mới&gt;/32"</code> để cập nhật rule security group.
+    <strong>Lỗi:</strong> Test fail ở bước login với <code>Timeout ... waiting for locator</code>.<br/>
+    <strong>Nguyên nhân:</strong> Locator không khớp giao diện thật (nhãn nút/ô nhập khác mô tả), hoặc sai <code>E2E_EMAIL/E2E_PASSWORD</code>.<br/>
+    <strong>Giải pháp:</strong> Dùng <code>npx playwright codegen &lt;url&gt;</code> để lấy đúng locator; kiểm tra lại tài khoản trong <code>.env</code>.
+  </div>
+  <div class="alert alert-warning">
+    <strong>Lỗi:</strong> Test "flaky" — lúc pass lúc fail.<br/>
+    <strong>Nguyên nhân:</strong> Dùng <code>page.waitForTimeout()</code> cố định thay vì <code>expect()</code> auto-wait, hoặc test phụ thuộc dữ liệu test khác để lại.<br/>
+    <strong>Giải pháp:</strong> Thay chờ cứng bằng <code>await expect(locator).toBeVisible()</code>; đảm bảo mỗi test tự tạo và tự xoá dữ liệu trong <code>afterEach</code>.
   </div>
 
-  <h2 class="section-heading" id="cleanup">Dọn dẹp resource</h2>
-  <div class="alert alert-danger">
-    <strong>Bắt buộc thực hiện:</strong> Toàn bộ resource trong bài lab này là <strong>hạ tầng AWS thật</strong> (EC2, S3,
-    DynamoDB, VPC, IAM) và <strong>sẽ tiếp tục phát sinh chi phí</strong> nếu không được xoá. Luôn chạy
-    <code>terraform destroy</code> ngay sau khi hoàn thành bài lab, không để resource chạy qua đêm nếu không cần thiết.
+  <h2 class="section-heading">Dọn dẹp resource</h2>
+  <div class="alert alert-warning">
+    Project <code>D:\lab-expense-management</code> và các Skill trong <code>.claude/skills/</code> tiếp tục dùng ở chương sau —
+    <strong>không xoá thư mục project, không xoá Skill</strong>.
   </div>
-  <pre class="command-line" data-prompt="PS>"><code class="language-powershell">cd D:\lab-terraform-infra-co-ban
-
-terraform destroy `
-  -var="allowed_ssh_cidr=203.0.113.10/32" `
-  -auto-approve</code></pre>
-  <p class="note-text">Sau khi lệnh trên hoàn thành, kiểm tra lại trên AWS Console (EC2, VPC, S3, DynamoDB, IAM) để xác nhận không còn resource nào sót lại từ bài lab — đặc biệt lưu ý S3 bucket có versioning bật sẵn đôi khi cần xoá thủ công các object version cũ nếu <code>terraform destroy</code> báo lỗi bucket chưa rỗng.</p>
+  <div class="alert alert-info">
+    Bài lab không tạo resource Cloud. Có thể xoá các thư mục output tạm sinh ra sau mỗi lần chạy nếu cần dọn chỗ:
+  </div>
+  <pre class="command-line" data-prompt="PS>"><code class="language-powershell">cd D:\lab-expense-management
+Remove-Item -Recurse -Force playwright-report, test-results</code></pre>
 
   <script>mermaid.initialize({ startOnLoad: true, theme: 'default' });</script>
 </body>

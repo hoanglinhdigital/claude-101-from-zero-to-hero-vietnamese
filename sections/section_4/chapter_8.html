@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Giới hạn, rủi ro và tích hợp Git với Claude Code – Claude 101</title>
+  <title>Lab - Tích hợp Claude Code với Git để review pull request tự động – Claude 101</title>
   <link rel="stylesheet" href="../../styles.css" />
   <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
   <script src="../../mermaid-config.js"></script>
@@ -16,134 +16,315 @@
   <div class="chapter-breadcrumb">
     <span class="section-part">4. Claude Code cho Developer</span>
     <span class="sep">/</span>
-    <span class="chapter-part">Giới hạn, rủi ro và tích hợp Git với Claude Code</span>
+    <span class="chapter-part">Lab - Triển khai ứng dụng lên nền tảng Cloud.</span>
   </div>
 
-  <h2 class="section-heading">Giới thiệu</h2>
-  <p class="body-text">
-    Claude Code có thể tự động hoá rất nhiều việc, nhưng không phải hành động nào cũng có mức rủi ro giống nhau.
-    Chương này giúp User phân biệt <strong>khi nào cần review kỹ</strong> và <strong>khi nào có thể tin tưởng
-    Claude Code tự chạy</strong>, dựa trên mức độ ảnh hưởng của hành động — từ đọc file (an toàn nhất) đến git push
-    (rủi ro cao nhất). Phần sau của chương trình bày cách tích hợp Claude Code với Git: viết commit message, PR
-    description, và hỗ trợ code review.
-  </p>
+  <div class="alert alert-info">
+    <strong>Điều kiện tiên quyết:</strong> Project <code>D:\lab-expense-management</code> — chạy thành công tại máy local và không lỗi.
+  </div>
 
-  <h2 class="section-heading">Các tính năng chính</h2>
+  <h2 class="section-heading">Nội dung bài lab</h2>
+
   <ul class="feature-list">
-    <li><strong>Đọc file</strong> — rủi ro thấp nhất, không thay đổi gì, có thể luôn cho phép tự động.</li>
-    <li><strong>Sửa file cục bộ</strong> — rủi ro trung bình, nên luôn review qua <code>git diff</code> trước khi commit, đặc biệt với file cấu hình hoặc logic nghiệp vụ quan trọng.</li>
-    <li><strong>Chạy lệnh hệ thống</strong> (cài package, chạy script, thao tác database) — rủi ro cao hơn vì có thể gây tác dụng phụ ngoài phạm vi code, cần xem kỹ lệnh trước khi cho phép chạy.</li>
-    <li><strong>Git push / thao tác remote</strong> — rủi ro cao nhất vì ảnh hưởng đến người khác trong team hoặc lên môi trường thật, luôn cần xác nhận thủ công, không nên đặt vào Auto-accept mode.</li>
-    <li>Claude Code có thể hỗ trợ toàn bộ vòng đời Git: soạn commit message theo convention, viết PR description tóm tắt thay đổi, và đưa ra góp ý khi review code người khác.</li>
+    <li><strong>Xây dựng kế hoạch triển khai.</strong> Yêu cầu Claude đưa ra kế hoạch để triển khai lên Cloud hoặc các dịch vụ Platform as Service, so sánh các Option khác nhau cho tầng Application, tầng Database. Review & duyệt plan.</li>
+    <li><strong>Chỉnh sửa ứng dụng.</strong> Yêu cầu Claude code chỉnh sửa ứng dụng (nếu cần thiết) để có thể chuẩn bị triển khai</code>".</li>
+    <li><strong>Tạo tài khoản & triển khai thực tế.</strong> Sau khi Claude chỉnh sửa app thành công, thực hiện các step mà User phải tự thực hiện (ví dụ tạo account, liên kết Github, tạo secret).</li>
   </ul>
 
-  <h2 class="section-heading">Mô hình kiến trúc</h2>
+  <h2 class="section-heading">Kiến trúc gợi ý</h2>
+  <p>Phương án khuyến nghị: <b>Vercel</b> (host Next.js) + <b>TiDB Cloud Starter</b> (MySQL-compatible, free) + <b>GitHub Actions</b> (chạy <code>prisma migrate deploy</code> trước khi Vercel build).</p>
   <div class="mermaid">
-  flowchart LR
-      CC["<img src='../../assets/svg-icon/claude-logo.svg' style='width:30px;height:30px;'/><br/><b>Claude Code</b>"]
-      Read["📖 Đọc file<br/>Rủi ro: Thấp"]
-      Edit["✏️ Sửa file cục bộ<br/>Rủi ro: Trung bình"]
-      Cmd["⚙️ Chạy lệnh hệ thống<br/>Rủi ro: Cao"]
-      Push["🚀 Git push / remote<br/>Rủi ro: Cao nhất"]
-      Dev(("👤<br/><b>Developer</b><br/>Review"))
+  flowchart TB
+      Dev(("<img src='../../assets/svg-icon/developer.svg' style='width:26px;height:26px;'/><br/><b>Developer</b>"))
+      User["<img src='../../assets/svg-icon/browser.svg' style='width:26px;height:26px;'/><br/><b>Người dùng</b><br/>trình duyệt · cookie session"]
 
-      CC --> Read
-      CC -->|"Cần review diff"| Edit
-      CC -->|"Cần xem lệnh trước khi chạy"| Cmd
-      CC -->|"Luôn cần xác nhận thủ công"| Push
-      Read -.->|"Không cần duyệt"| Dev
-      Edit -->|"Duyệt qua git diff"| Dev
-      Cmd -->|"Duyệt trước khi chạy"| Dev
-      Push -->|"Xác nhận rõ ràng trước khi push"| Dev
-      Dev -->|"Approve"| CC
-  </div>
-  <p class="arch-caption">Mức độ cần review tăng dần theo mức độ ảnh hưởng của hành động — đọc file có thể tự động hoàn toàn, git push luôn cần xác nhận thủ công của con người.</p>
+      subgraph GH["🐙  GitHub"]
+          Repo["<img src='../../assets/svg-icon/github.svg' style='width:26px;height:26px;'/><br/><b>Repository</b><br/>nhánh master · Pull Request"]
+          GHA["<img src='../../assets/svg-icon/github.svg' style='width:24px;height:24px;'/><br/><b>GitHub Actions</b><br/><i>deploy.yml</i><br/>npm ci → prisma migrate deploy"]
+      end
 
-  <h3 class="sub-heading">Khi nào review kỹ, khi nào tin tưởng tự chạy</h3>
-  <table class="compare-table">
-    <thead>
-      <tr><th>Mức độ ảnh hưởng</th><th>Ví dụ hành động</th><th>Mức review cần thiết</th></tr>
-    </thead>
-    <tbody>
-      <tr><td>Đọc file</td><td>Đọc source code, tìm kiếm trong project, xem log</td><td class="yes">Không cần review — an toàn tuyệt đối</td></tr>
-      <tr><td>Sửa file cục bộ</td><td>Sửa component, thêm hàm, cập nhật config</td><td>Review qua <code>git diff</code> trước khi commit</td></tr>
-      <tr><td>Chạy lệnh hệ thống</td><td>Cài package (<code>npm install</code>), chạy migration, xoá file</td><td>Xem lệnh cụ thể trước khi cho phép (Accept Edits mode)</td></tr>
-      <tr><td>Thao tác Git remote</td><td><code>git push</code>, <code>git push --force</code>, tạo PR</td><td class="no">Luôn xác nhận thủ công — không đặt Auto-accept</td></tr>
-    </tbody>
-  </table>
+      subgraph Vercel["▲  Vercel (Hobby)"]
+          Edge["🌐 <b>Edge Network</b><br/>CDN · TLS · custom domain"]
+          App["<img src='../../assets/svg-icon/ide.svg' style='width:24px;height:24px;'/><br/><b>Next.js 16</b> · Node runtime<br/>SSR · Route Handlers <i>/api/**</i><br/>Middleware check session"]
+          Cron["⏰ <b>Vercel Cron</b><br/>dọn Session hết hạn · refresh tỷ giá"]
+          Env["🔑 <b>Environment Variables</b><br/>DATABASE_URL · CRON_SECRET"]
+      end
 
-  <div class="alert alert-warning">
-    <strong>Nguyên tắc chung:</strong> Mức độ tự động hoá nên tỷ lệ nghịch với mức độ khó hoàn tác (revert) của hành động. Sửa file có thể hoàn tác dễ dàng bằng Git; xoá dữ liệu database hoặc <code>git push --force</code> lên nhánh chung thì rất khó hoặc không thể hoàn tác — luôn cần con người xác nhận rõ ràng trước khi thực thi.
+      subgraph TiDB["🗄️  TiDB Cloud Starter"]
+          DB[("<img src='../../assets/svg-icon/mysql-workbench.svg' style='width:24px;height:24px;'/><br/><b>MySQL 8 protocol</b><br/>AWS ap-southeast-1 · TLS<br/>serverless connection pooling")]
+      end
+
+      Dev -->|"git push / merge PR"| Repo
+      Repo -->|"trigger"| GHA
+      GHA -->|"prisma migrate deploy (secret DATABASE_URL)"| DB
+      Repo -->|"Git Integration: Preview mỗi PR · Production khi merge"| App
+      User -->|HTTPS| Edge --> App
+      Cron -->|"gọi Route Handler + Bearer CRON_SECRET"| App
+      Env -.->|inject| App
+      App -->|"Prisma Client + @prisma/adapter-mariadb<br/>?connection_limit=1 & ssl"| DB
   </div>
 
-  <h2 class="section-heading">Tích hợp Claude Code với Git</h2>
-  <div class="mermaid">
-  flowchart LR
-      Dev(("👤<br/><b>Developer</b>"))
-      CC["<img src='../../assets/svg-icon/claude-logo.svg' style='width:30px;height:30px;'/><br/><b>Claude Code</b>"]
-      Stage["📂 git add<br/>Staging changes"]
-      Commit["📝 git commit<br/>Message do Claude soạn"]
-      Push["🚀 git push<br/>Lên remote branch"]
-      GH["<img src='../../assets/svg-icon/github.svg' style='width:28px;height:28px;'/><br/><b>GitHub</b>"]
-      PR["📋 gh pr create<br/>PR description do Claude soạn"]
-      Review["🔍 Code review<br/>Claude gợi ý góp ý"]
+  <h2 class="section-heading">Các bước thực hành</h2>
 
-      Dev -->|"Yêu cầu commit"| CC
-      CC --> Stage --> Commit --> Push --> GH
-      Dev -->|"Yêu cầu tạo PR"| CC
-      CC --> PR --> GH
-      GH --> Review
-      Review -->|"Góp ý"| Dev
-  </div>
-  <p class="arch-caption">Claude Code hỗ trợ toàn bộ luồng Git từ staging, soạn commit message, push, đến tạo PR qua GitHub CLI (<code>gh</code>) và hỗ trợ review — nhưng bước push/tạo PR vẫn cần Developer xác nhận.</p>
+  <h3 class="sub-heading">Phần 1: Tạo plan triển khai</h3>
 
-  <h3 class="sub-heading">3 việc Claude Code hỗ trợ tốt trong quy trình Git</h3>
-  <div class="capability-grid">
-    <div class="capability-card">
-      <div class="icon">📝</div>
-      <h4>Viết commit message</h4>
-      <p>Đọc <code>git diff</code> đã staged, tự soạn message theo convention (vd Conventional Commits: <code>feat:</code>, <code>fix:</code>).</p>
-    </div>
-    <div class="capability-card">
-      <div class="icon">📋</div>
-      <h4>Viết PR description</h4>
-      <p>Tóm tắt thay đổi giữa branch hiện tại và branch đích, liệt kê rõ mục đích, phạm vi ảnh hưởng, cách test.</p>
-    </div>
-    <div class="capability-card">
-      <div class="icon">🔍</div>
-      <h4>Hỗ trợ code review</h4>
-      <p>Đọc diff của PR, chỉ ra rủi ro tiềm ẩn, gợi ý cải thiện — hỗ trợ người review, không thay thế hoàn toàn.</p>
-    </div>
-  </div>
+  <ol class="step-list">
+    <li>
+      <div>
+        <strong>Bước 1: Kiểm tra trạng thái Git hiện tại</strong>
+        <p>sử dụng lệnh git status để kiểm tra xem đã push code latest lên trên Github chưa. Nếu chưa hãy commit toàn bộ thay đổi và push lên nhánh master (hoặc tạo PR cho đúng chuẩn).</p>
+      </div>
+    </li>
 
-  <h2 class="section-heading">Use Cases</h2>
-  <div class="usecase-grid">
-    <div class="usecase-card">
-      <h4>Chuẩn hoá commit message</h4>
-      <p>Team dùng Claude Code để soạn commit message nhất quán theo Conventional Commits, dễ sinh changelog tự động sau này.</p>
-    </div>
-    <div class="usecase-card">
-      <h4>Tăng tốc mở PR</h4>
-      <p>Claude Code tự viết PR description đầy đủ (mục đích, thay đổi chính, cách test) từ diff thực tế, tiết kiệm thời gian soạn thảo.</p>
-    </div>
-    <div class="usecase-card">
-      <h4>Review sơ bộ trước khi gửi người khác</h4>
-      <p>Dùng Claude Code review lại code của mình trước khi gửi PR cho đồng nghiệp, phát hiện sớm lỗi rõ ràng hoặc thiếu test.</p>
-    </div>
-  </div>
+    <li>
+      <div>
+        <strong>Bước 2: Nhờ Claude Code Tạo plan cho việc triển khai sử dụng promp mẫu sau. Sau khi Claude tạo xong, hãy duyệt plan nếu cần thiết. *Sử dụng Accept Edit mode trước</strong>
+        <pre class="command-line" data-prompt=">"><code class="language-markdown">
+Tư vấn phương án triển khai ứng dụng này lên các nền tảng như Vercel,... so sánh ưu nhược điểm của các nền tảng. Đưa ra mô hình kiến trúc phù hợp cho ứng dụng. Output ghi vào file: plans\infra\deploy-to-cloud-platform.md sau đó đợi tôi duyệt rồi mới bắt đầu làm.
+Yêu cầu:
+- Giữ nguyên Tech Stack hiện tại (Next.js + Prisma + MySQL).
+- Đưa ra các option triển khai, ưu nhược điểm của từng option.
+- Đưa ra kiến trúc tổng thể, các thành phần cần triển khai, các service cần sử dụng.
+- Ưu tiên sử dụng dịch vụ có free tier hoặc free trial.
+- Có thể search internet để có thông tin mới nhất.
+        </code></pre>
+      </div>
+    </li>
 
-  <h2 class="section-heading">Thông tin bổ sung</h2>
-  <p class="body-text">
-    Claude Code không có khả năng "hiểu" toàn bộ ngữ cảnh nghiệp vụ hoặc lịch sử quyết định kỹ thuật của team — vì
-    vậy commit message hoặc PR description do Claude Code soạn nên được xem là <strong>bản nháp tốt</strong>, không
-    phải bản cuối cùng. Với các thay đổi ảnh hưởng đến production hoặc dữ liệu người dùng thật, luôn cần một người
-    có thẩm quyền review và approve trước khi merge, bất kể Claude Code đã tự tin đến đâu.
-  </p>
-  <div class="alert alert-danger">
-    <strong>Không nên:</strong> Đặt Claude Code ở Auto-accept mode rồi để tự chạy <code>git push --force</code>,
-    xoá branch, hoặc thao tác trực tiếp trên nhánh <code>main</code>/<code>production</code>. Những hành động này
-    khó hoặc không thể hoàn tác — luôn giữ ở chế độ cần xác nhận thủ công.
+    <li>
+      <div>
+        <strong>Bước 3: Duyệt plan do Claude tạo ra và chỉnh sửa nếu cần.</strong>
+        <p>Thực hiện đọc qua plan do Claude tạo ra và lựa chọn phương án phù hợp, có thể chỉnh sửa trực tiếp file plan nếu cần.</p>
+        <p>*File plan mẫu do ClaudeCode tạo ra (các bạn có thể tham khảo)</p>
+        <pre class="command-line" data-prompt="PS>"><code class="language-markdown">
+# Tư vấn phương án triển khai — lab-expense-management
+
+## Context
+
+App hiện tại: **Next.js 16.3.0 (App Router)** + **React 19 (React Compiler)** + **Prisma 7.9** với
+`@prisma/adapter-mariadb` trỏ tới **MySQL/MariaDB** local. Auth tự viết bằng session cookie httpOnly
+(bảng `Session`), tiền tệ dùng `Decimal(18,2)`, soft-delete toàn bộ. Test bằng Grafana k6.
+Chưa có Docker / Terraform / CI deploy — thư mục `plans/infra/` mới chỉ có `.gitkeep`.
+
+Yêu cầu user (đã chốt qua hỏi đáp):
+
+- Ưu tiên: **chi phí thấp/miễn phí** + **ít vận hành nhất** (fully-managed, deploy bằng git push).
+- Database: **giữ MySQL — KHÔNG đổi DB engine**, tìm nhà cung cấp MySQL miễn phí.
+- Quy mô: **nội bộ lab < 50 user** — không cần scale lớn, không cần region tối ưu.
+
+Kết quả mong muốn: tài liệu infra để user duyệt, kèm các bước code cần làm để đưa app lên mạng.
+
+> Thông tin nhà cung cấp bên dưới tra cứu trên internet tháng 8/2026 — xem mục **Nguồn** ở cuối.
+
+---
+
+## 1. So sánh nền tảng deploy (cho Next.js 16 App Router + Prisma)
+
+| Nền tảng | Free tier | Vận hành | Hợp với app này | Nhược điểm chính |
+|---|---|---|---|---|
+| **Vercel** (khuyến nghị) | Hobby: miễn phí, 100 GB băng thông, Serverless + Cron, custom domain | Rất thấp — `git push` là xong | Next.js là sản phẩm của Vercel: SSR, Route Handlers, React Compiler, `next/image` chạy không cần chỉnh | Hobby **chỉ dùng phi thương mại**; serverless → mỗi lambda mở connection MySQL riêng, phải giới hạn pool; cold start nhẹ |
+| **Railway** (khuyến nghị #2) | Trial $5 credit, sau đó Hobby $5/tháng (kèm $5 usage) | Thấp — app + MySQL trong **cùng 1 project**, không cần lo pooling | Chạy container Node thường (`next start`), không giới hạn runtime, có sẵn plugin MySQL | Không "miễn phí" bền vững; ~5 USD/tháng |
+| **Render** | Web service free (ngủ sau 15 phút, wake ~30–60s) | Thấp | Chạy `next start` như server thường, kết nối MySQL ngoài | Cold start chậm khó chịu cho demo; không có MySQL managed miễn phí (chỉ Postgres) |
+| **Netlify** | Tương tự Vercel | Thấp | Chạy qua Netlify adapter cho Next | Hỗ trợ Next mới thường trễ hơn Vercel; rủi ro với Next 16 |
+| **Cloudflare Workers/Pages** | Hào phóng | Trung bình | Cần `@opennextjs/cloudflare`, runtime workerd | Prisma cần adapter đặc thù; kết nối MySQL TCP từ Workers vướng — không khuyến nghị |
+| **Fly.io** | Free allowance nhỏ | Trung bình — cần Dockerfile, `fly.toml` | Container full Node, region Singapore gần VN | Phải tự viết Dockerfile + quản máy ảo |
+| **AWS (Amplify / ECS + RDS)** | 12 tháng free tier, sau đó tính tiền | Cao — IAM, VPC, RDS, Terraform | Đúng hướng CLAUDE.md nhắc tới | Quá nặng cho lab < 50 user; RDS + NAT gateway phát sinh chi phí thật |
+| **Self-host VPS + Coolify** | ~4–6 USD/tháng VPS | Cao — tự lo OS, TLS, backup | Toàn quyền | Trái với yêu cầu "ít vận hành nhất" |
+
+**Chốt: Vercel Hobby** cho app (miễn phí thật, deploy bằng git push, có Cron sẵn).
+Nếu muốn né hoàn toàn vấn đề connection pooling của serverless và chấp nhận ~5 USD/tháng thì **Railway all-in-one** (app + MySQL cùng chỗ) là lựa chọn đơn giản nhất về vận hành.
+
+---
+
+## 2. So sánh nhà cung cấp MySQL miễn phí (giữ nguyên engine)
+
+| Provider | Free tier | Loại MySQL | Idle / giới hạn | Hợp với Prisma |
+|---|---|---|---|---|
+| **TiDB Cloud Starter** (khuyến nghị) | 5 GiB row storage + 50M Request Units / tháng, tối đa 5 instance / org, không cần thẻ | **MySQL-compatible** (giao thức MySQL 8, không phải MySQL thật) | Không pause vĩnh viễn; hết quota tháng → chặn kết nối mới tới đầu tháng sau; có region AWS Singapore | Dùng datasource `provider = "mysql"`, driver adapter MariaDB giữ nguyên. **Lưu ý**: hỗ trợ FK có giới hạn — cân nhắc `relationMode = "prisma"` và test kỹ migration |
+| **Aiven for MySQL** | 1 CPU / 1 GB RAM / **1 GB disk**, tối đa 76 connection, 1 instance free / org, không cần thẻ | **MySQL thật** (drop-in, không rủi ro tương thích) | **Tự power down khi không có hoạt động liên tục** (có cảnh báo trước, bật lại được); không VPC/static IP; không SLA | Không đổi gì — `@prisma/adapter-mariadb` + migrations hiện tại chạy nguyên |
+| **Railway MySQL plugin** | Nằm trong credit $5/tháng của Railway | MySQL thật | Không pause nếu còn credit | Không đổi gì; đặt chung project với app nên **không cần pooling** |
+| **Clever Cloud MySQL** | Gói dev free ~256 MB | MySQL thật | Rất nhỏ, chỉ hợp thử nghiệm | Không đổi gì |
+| **PlanetScale** | **Đã bỏ free tier từ 4/2024** | Vitess/MySQL | — | Rẻ nhất hiện ~5 USD/tháng (PS-5) |
+| **db4free.net** | Free nhưng chỉ để test, không SLA, hay downtime | MySQL thật | Không dùng cho môi trường "chạy thật" dù là lab | — |
+
+**Chốt DB:**
+
+- **Ưu tiên 1 — TiDB Cloud Starter**: dung lượng free lớn nhất (5 GiB), không pause, có region Singapore. Đánh đổi: là MySQL-*compatible* nên cần chạy lại toàn bộ migration + k6 trên đó để chắc chắn, và có thể phải bật `relationMode = "prisma"`.
+- **Ưu tiên 2 — Aiven for MySQL**: là MySQL thật, zero rủi ro tương thích, không đổi một dòng code nào. Đánh đổi: chỉ 1 GB dung lượng, 76 connection, và **tự tắt khi idle** (phiền cho lab demo thưa nhưng bật lại nhanh).
+- **Ưu tiên 3 — Railway all-in-one**: nếu chấp nhận ~5 USD/tháng, đặt app + MySQL cùng project, bỏ luôn bài toán pooling.
+
+---
+
+## 3. Mô hình kiến trúc khuyến nghị
+
+### Phương án A — Vercel + TiDB Cloud Starter (miễn phí)
+
+```
+┌────────────────────┐
+│  Trình duyệt (PWA)  │  mobile-first, cookie `session` httpOnly
+└─────────┬──────────┘
+          │ HTTPS
+┌─────────▼───────────────────────────────────────────┐
+│  Vercel Edge Network (CDN + TLS + custom domain)     │
+└─────────┬───────────────────────────────────────────┘
+          │
+┌─────────▼───────────────────────────────────────────┐
+│  Next.js 16 trên Vercel — Node.js runtime            │
+│   - Server Components / SSR các màn hình             │
+│   - Route Handlers  src/app/api/**  (REST hiện có)   │
+│   - Middleware: check cookie session                 │
+│   - Vercel Cron: dọn Session hết hạn, refresh tỷ giá │
+└─────────┬───────────────────────────────────────────┘
+          │ Prisma Client + @prisma/adapter-mariadb
+          │ DATABASE_URL có ?connection_limit=1 & ssl (giảm số kết nối/lambda)
+┌─────────▼───────────────────────────────────────────┐
+│  TiDB Cloud Starter (MySQL 8 protocol)               │
+│   - region: AWS ap-southeast-1 (Singapore)           │
+│   - serverless proxy tự xử lý gộp kết nối phía server│
+└─────────────────────────────────────────────────────┘
+
+Secrets: Vercel Environment Variables (Production / Preview / Development)
+CI/CD:   GitHub → Vercel Git Integration (auto Preview mỗi PR, Production khi merge master)
+         + GitHub Actions chạy `prisma migrate deploy` trước khi Vercel build
+```
+
+### Phương án B — Railway all-in-one (~5 USD/tháng, vận hành đơn giản nhất)
+
+```
+Trình duyệt → Railway edge → Next.js (`next start`, container Node, long-running)
+                                   │ @prisma/adapter-mariadb, pool bình thường
+                                   ▼
+                             Railway MySQL plugin (cùng project, mạng nội bộ)
+Cron: Railway Cron service gọi Route Handler /api/cron/*
+```
+
+Nguyên tắc chung:
+
+- **Route Handler chạy Node runtime** (không Edge) vì Prisma + `bcryptjs` + `crypto` cần Node.
+- **Giữ nguyên** `datasource provider = "mysql"`, `@prisma/adapter-mariadb`, và toàn bộ `prisma/migrations` hiện có — không reset DB.
+- Với phương án serverless (A): thêm `connection_limit=1` (và `pool_timeout`) vào `DATABASE_URL` để mỗi lambda không giữ nhiều kết nối; bật SSL theo yêu cầu của TiDB.
+- Không thêm dịch vụ auth ngoài — session cookie hiện tại đã đủ, không tốn tiền.
+- Job định kỳ: Vercel Cron (`vercel.json`) hoặc Railway Cron gọi Route Handler bảo vệ bằng secret header.
+
+---
+
+## 4. Việc cần làm ở bước Code
+
+### Thêm file
+
+- [ ] `prisma.config.ts` — nạp env (`import "dotenv/config"`), khai báo `schema` + `migrations` (Prisma 7 không tự đọc `.env`)
+- [ ] `vercel.json` — khai báo Cron job (dọn session hết hạn, refresh tỷ giá) + `regions: ["sin1"]`
+- [ ] `.env.example` — liệt kê `DATABASE_URL`, `CRON_SECRET`, `API_BASE_URL` (không có giá trị thật)
+- [ ] `src/app/api/cron/cleanup-sessions/route.ts` — xoá `Session` có `expiresAt < now`, check `Authorization: Bearer $CRON_SECRET`, ép `export const runtime = "nodejs"`
+- [ ] `.github/workflows/deploy.yml` — khi push `master`: `npm ci` → `npx prisma migrate deploy` (dùng secret `DATABASE_URL`) → để Vercel Git Integration tự build. (Không cần nếu chọn phương án B.)
+
+### Sửa file
+
+- [ ] `prisma/schema.prisma` — thêm `url = env("DATABASE_URL")` vào block `datasource db` (hiện chưa có, `prisma migrate` cần). **Giữ `provider = "mysql"`.**
+  - Nếu chọn **TiDB**: cân nhắc thêm `relationMode = "prisma"`; nếu bật thì rà lại các quan hệ `onDelete: Restrict/Cascade` và bổ sung `@@index` cho mọi cột FK còn thiếu.
+- [ ] `src/lib/prisma.ts` — giữ `PrismaMariaDb`. Truyền thêm option SSL khi cần (TiDB yêu cầu TLS): `new PrismaMariaDb(process.env.DATABASE_URL, { ssl: { rejectUnauthorized: true } })` (kiểm tra lại API adapter trong `node_modules/@prisma/adapter-mariadb`).
+- [ ] `package.json` — thêm scripts `"postinstall": "prisma generate"`, `"db:deploy": "prisma migrate deploy"`. **Không đổi dependency adapter.**
+- [ ] `test/**` (k6) — tham số hoá `API_BASE_URL` để chạy được với URL Vercel preview / Railway.
+- [ ] `next.config.ts` — thêm `serverExternalPackages: ["@prisma/client", "@prisma/adapter-mariadb"]` nếu build cảnh báo bundle Prisma.
+
+### KHÔNG cần làm (nhờ giữ MySQL)
+
+- Không đổi `datasource provider`, không đổi driver adapter.
+- **Không xoá / tạo lại `prisma/migrations`** — migration MySQL hiện tại tái sử dụng nguyên vẹn.
+- Không sửa các `@db.VarChar / @db.Text / @db.Decimal` trong schema.
+- Seed script giữ nguyên (chỉ kiểm tra chạy được trên TiDB nếu chọn phương án A).
+
+### Thiết lập ngoài repo (user làm, có hướng dẫn)
+
+- [ ] Tạo DB: **TiDB Cloud Starter** (region Singapore) *hoặc* **Aiven for MySQL** → lấy connection string + CA cert nếu có
+- [ ] Tạo project Vercel, link GitHub repo, set env `DATABASE_URL` (kèm `?connection_limit=1&sslaccept=strict` tùy provider), `CRON_SECRET`
+- [ ] Thêm `DATABASE_URL` vào GitHub Actions secrets (cho bước migrate)
+- [ ] (Tùy chọn) gắn custom domain
+
+---
+
+## 5. Phương án thay thế (để dành)
+
+- **AWS (Amplify/ECS + RDS MySQL, quản lý bằng Terraform)** — khi app ra thương mại / cần SLA / backup tự động. Viết plan riêng `plans/infra/aws-terraform.md`.
+- **Nâng Vercel Pro + PlanetScale** (~25 + 5 USD/tháng) — khi vượt giới hạn Hobby hoặc cần dùng thương mại.
+
+---
+
+## 6. Verify (sau khi Code)
+
+1. **Local**: trỏ `DATABASE_URL` sang DB cloud vừa tạo → `npx prisma migrate deploy` → `npm run dev`
+   → đăng ký / đăng nhập / tạo đủ 5 loại giao dịch / xem báo cáo & tỷ giá.
+2. **Build production**: `npm run build` pass, không lỗi Prisma engine / adapter / SSL.
+3. **Migrate trên DB thật**: `prisma migrate deploy` chạy sạch (đủ bảng + index đúng tên);
+   với TiDB kiểm tra thêm FK / `relationMode` không gây lỗi.
+4. **Preview deploy**: mở PR → Vercel Preview URL → smoke test các luồng chính.
+5. **k6 regression**: `API_BASE_URL=<preview-url> npm run test:api` — toàn bộ suite
+   auth / account / category / contact / transaction / report pass.
+6. **Cron**: `curl -H "Authorization: Bearer $CRON_SECRET" <url>/api/cron/cleanup-sessions` → 200;
+   gọi không header → 401.
+7. **Connection pressure**: chạy k6 tải nhẹ đồng thời → không có lỗi `too many connections`
+   (Aiven trần 76; nếu đụng thì hạ `connection_limit` hoặc chuyển phương án B).
+
+---
+
+## Nguồn (tra cứu 8/2026)
+
+- [Bytebase — MySQL Hosting Options in 2026: Pricing Comparison](https://www.bytebase.com/blog/mysql-hosting-options-pricing-comparison/)
+- [Aiven — Free tier](https://aiven.io/free-tier) · [Aiven docs — MySQL free tier](https://aiven.io/docs/products/mysql/concepts/mysql-free-tier)
+- [TiDB Docs — TiDB Cloud Starter pricing / quota](https://www.pingcap.com/tidb-cloud-starter-pricing-details/) · [TiDB Cloud Starter FAQs](https://docs.pingcap.com/tidbcloud/serverless-faqs/)
+- [PingCAP — "TiDB Cloud Serverless" đổi tên thành "TiDB Cloud Starter"](https://www.pingcap.com/blog/introducing-tidb-cloud-starter-auto-scaling-plan-renamed/)
+- [DB Pro — PlanetScale alternatives after Hobby tier removal](https://www.dbpro.app/blog/planetscale-alternatives)
+- [srvrlss — PlanetScale Review 2026](https://www.srvrlss.io/provider/planetscale/)
+          
+        </code></pre>
+      </div>
+    </li>
+  </ol>
+
+  <h3 class="sub-heading">Phần 2: Yêu cầu Claude implement phần chỉnh sửa ứng dụng cho phù hợp với phương án đã chọn</h3>
+
+  <ol class="step-list">
+    <li>
+      <div>
+        <strong>Bước 4: Implement thay đổi cần thiết ở tầng app (file code, file cấu hình, setting,...)</strong>
+        <p>Promp mẫu (sử dụng Accept Edit hoặc Auto mode): </p>
+        <pre class="command-line" data-prompt=">"><code class="language-text">
+Chốt phương án A, với ... các bước cần làm ở phần Code (mục 4) — hãy implement các thay đổi cần thiết. Không tự ý commit lên nhánh master, chỉ tạo PR và chờ tôi duyệt. 
+        </code></pre>
+        <p>Claude sẽ tự thực hiện các thay đổi cần thiết</p>
+        
+      </div>
+    </li>
+
+    <li>
+      <div>
+        <strong>Bước 5: Kiểm tra lại ứng dụng</strong>
+        <p>Chạy ứng dụng tại local để kiểm tra 1 lần nữa xem Claude Code có gây ra lỗi gì không.</p>
+
+      </div>
+    </li>
+
+    <li>
+        <div>
+          <strong>Bước 6: Thực hiện các step mà User phải tự làm</strong>
+          <p>Thực hiện các step cần thiết như tạo account Vercel, TiDB Cloud Starter, liên kết Github, tạo Secret.</p>
+          <p>Bất cứ bước nào nếu gặp khó khăn đều có thể quay trở lại hỏi Claude Code, dán lỗi để được hướng dẫn & hỗ trợ.</p>
+        </div>
+    </li>
+
+    <li>
+      <div>
+        <strong>Bước 7: Kiểm tra ứng dụng đã được triển khai, test các case cơ bản</strong>
+        <p>Truy cập ứng dụng đã triển khai thành công trên Cloud platform, test các thao tác cơ bản</p>
+      </div>
+    </li>
+  </ol>
+
+  <h2 class="section-heading">Dọn dẹp resource</h2>
+  <div class="alert alert-info">
+    Nếu các bạn có sử dụng các loại dịch vụ thuộc Freetier hoặc trial (vd tính phí sau 30 ngày), có thể xóa resource khỏi các nền tảng để tránh mất phí.
   </div>
+  
 
   <script>mermaid.initialize({ startOnLoad: true, theme: 'default' });</script>
 </body>

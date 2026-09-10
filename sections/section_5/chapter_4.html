@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Tích hợp Claude Code vào pipeline CI/CD – Claude 101</title>
+  <title>Lab - Viết bug report hoàn chỉnh – Claude 101</title>
   <link rel="stylesheet" href="../../styles.css" />
   <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
   <script src="../../mermaid-config.js"></script>
@@ -14,115 +14,151 @@
 <body class="chapter-body">
 
   <div class="chapter-breadcrumb">
-    <span class="section-part">5. Claude cho DevOps & Cloud Engineer</span>
+    <span class="section-part">5. Claude cho Tester / QA</span>
     <span class="sep">/</span>
-    <span class="chapter-part">Tích hợp Claude Code vào pipeline CI/CD</span>
+    <span class="chapter-part">Lab - Viết bug report hoàn chỉnh</span>
   </div>
 
-  <h2 class="section-heading">Giới thiệu</h2>
-  <p class="body-text">
-    Pipeline CI/CD (source → build → test → deploy) là nơi tự động hoá đóng vai trò trung tâm — nhưng điều đó không
-    có nghĩa nên để AI tự động hoá luôn cả quyết định deploy Production. Chương này trình bày cách dùng Claude Code
-    hỗ trợ pipeline CI/CD <strong>ở mức gợi ý</strong>: review Pull Request, phân tích lý do pipeline fail, đề xuất
-    fix build script — trong khi bước deploy Production vẫn cần con người xác nhận.
-  </p>
-
-  <h2 class="section-heading">Các tính năng chính</h2>
+  <h2 class="section-heading">Mục tiêu</h2>
   <ul class="feature-list">
-    <li><strong>Review PR</strong> — Claude Code đọc diff của Pull Request, chỉ ra rủi ro tiềm ẩn, thiếu test, hoặc vi phạm convention trước khi merge.</li>
-    <li><strong>Phân tích lý do pipeline fail</strong> — dán log build/test fail cho Claude Code, xác định bước nào fail và vì sao (lỗi dependency, lỗi test, lỗi cấu hình environment...).</li>
-    <li><strong>Đề xuất fix build script</strong> — Claude Code gợi ý sửa file pipeline (vd <code>.github/workflows/*.yml</code>, <code>Jenkinsfile</code>) dựa trên nguyên nhân đã phân tích.</li>
-    <li><strong>KHÔNG tự động hoá hoàn toàn deploy Production</strong> — dù Claude Code có thể viết script deploy, bước bấm nút/approve deploy lên Production luôn cần một người có thẩm quyền xác nhận.</li>
-    <li>Claude Code phù hợp nhất ở vai trò "người review thứ hai" trước khi merge/deploy — không thay thế quy trình approval hiện có của team.</li>
+    <li>Đóng gói cấu trúc bug report chuẩn 8 trường vào Skill <code>bugreport-writer</code> để mọi bug report trong team đều cùng một format, không phụ thuộc người viết prompt.</li>
+    <li>Biết cách đưa một mô tả lỗi ngắn gọn, thô cho Claude và yêu cầu soạn bug report đầy đủ thông qua Skill.</li>
+    <li>Đối chiếu input thô ban đầu với output bug report hoàn chỉnh để thấy rõ giá trị Claude thêm vào.</li>
+    <li>Biết tự chỉnh sửa, bổ sung những phần Claude còn thiếu hoặc suy diễn sai (đặc biệt là mức độ ưu tiên/severity).</li>
   </ul>
 
-  <h2 class="section-heading">Mô hình kiến trúc</h2>
+  <h2 class="section-heading">Kiến trúc tổng quan</h2>
   <div class="mermaid">
   flowchart LR
+      Tester(("<img src='../../assets/svg-icon/user.svg' style='width:26px;height:26px;'/><br/><b>Tester</b>"))
+      Raw["💬 <b>Mô tả lỗi thô</b><br/>1-2 câu hoặc test script log"]
+      CC["<img src='../../assets/svg-icon/claude-logo.svg' style='width:28px;height:28px;'/><br/><b>Claude</b>"]
+      Report["📝 <b>Bug report</b><br/>chuẩn hoá, đủ 8 trường"]
+      Jira["<img src='../../assets/svg-icon/jira.svg' style='width:26px;height:26px;'/><br/><b>Bug tracker</b><br/>(Jira/Backlog...)"]
       Dev(("<img src='../../assets/svg-icon/developer.svg' style='width:26px;height:26px;'/><br/><b>Developer</b>"))
-      GH["<img src='../../assets/svg-icon/github.svg' style='width:28px;height:28px;'/><br/><b>GitHub</b><br/>Pull Request"]
 
-      subgraph Pipeline["CI/CD Pipeline"]
-          Source["📥 <b>Source</b><br/>Checkout code"]
-          Build["🔨 <b>Build</b><br/>Compile / package"]
-          Test["🧪 <b>Test</b><br/>Unit / integration test"]
-          Deploy["🚀 <b>Deploy</b><br/>⚠️ Cần approve thủ công"]
-      end
+      Skill["📄 <b>Skill</b><br/>bugreport-writer<br/><i>cấu trúc 8 trường chuẩn</i>"]
 
-      CC["<img src='../../assets/svg-icon/claude-logo.svg' style='width:28px;height:28px;'/><br/><b>Claude Code</b><br/><i>Hỗ trợ gợi ý</i>"]
-      Human(("<img src='../../assets/svg-icon/operator.svg' style='width:26px;height:26px;'/><br/><b>Con người</b><br/>Approve Production"))
-
-      Dev -->|"Mở PR"| GH --> Source --> Build --> Test --> Deploy
-      GH -.->|"Review PR"| CC
-      Build -.->|"Build fail — phân tích log"| CC
-      Test -.->|"Test fail — phân tích log"| CC
-      CC -.->|"Góp ý / đề xuất fix build script"| Dev
-      Deploy -->|"Chờ xác nhận"| Human
-      Human -->|"Approve"| Deploy
+      Tester --> Raw --> CC --> Report --> Jira --> Dev
+      Skill -.->|"nạp khi prompt khớp"| CC
   </div>
-  <p class="arch-caption">Claude Code hỗ trợ dạng gợi ý ở các bước Review PR, Build và Test (đường nét đứt); riêng bước Deploy lên Production luôn cần con người xác nhận (đường liền, có approval gate) — Claude Code không được đặt quyền tự động deploy.</p>
+  <p class="arch-caption">Từ một câu mô tả lỗi ngắn gọn, Claude nạp Skill <code>bugreport-writer</code> để chuẩn hoá thành bug report đầy đủ 8 trường, sẵn sàng đưa vào bug tracker để Developer tiếp nhận.</p>
 
-  <h3 class="sub-heading">Claude Code hỗ trợ gì ở mỗi bước pipeline</h3>
-  <div class="pipeline-flow">
-    <div class="pipeline-stage source">
-      <div class="stage-icon">📥</div>
-      <div class="stage-name">Source</div>
-      <div class="stage-tool">Review PR, góp ý code</div>
-    </div>
-    <div class="pipeline-arrow">→</div>
-    <div class="pipeline-stage build">
-      <div class="stage-icon">🔨</div>
-      <div class="stage-name">Build</div>
-      <div class="stage-tool">Phân tích log fail, đề xuất fix</div>
-    </div>
-    <div class="pipeline-arrow">→</div>
-    <div class="pipeline-stage build">
-      <div class="stage-icon">🧪</div>
-      <div class="stage-name">Test</div>
-      <div class="stage-tool">Phân tích test fail, gợi ý nguyên nhân</div>
-    </div>
-    <div class="pipeline-arrow">→</div>
-    <div class="pipeline-stage deploy">
-      <div class="stage-icon">🚀</div>
-      <div class="stage-name">Deploy</div>
-      <div class="stage-tool">⚠️ Chỉ hỗ trợ soạn script — không tự deploy Production</div>
-    </div>
-  </div>
+  <h2 class="section-heading">Các bước thực hành</h2>
 
-  <div class="alert alert-danger">
-    <strong>Không nên:</strong> Cấu hình pipeline để tự động gọi Claude Code sửa lỗi và tự merge/deploy lên Production
-    mà không qua bước approve của con người. Rủi ro lớn nhất là Claude Code "sửa cho pipeline pass" bằng cách bỏ qua
-    hoặc làm yếu một bước kiểm tra (vd comment tạm một test đang fail) mà không ai nhận ra trước khi lên Production.
-  </div>
-
-  <h2 class="section-heading">Use Cases</h2>
-  <div class="usecase-grid">
-    <div class="usecase-card">
-      <h4>Rút ngắn thời gian debug pipeline fail</h4>
-      <p>Dán log CI fail cho Claude Code phân tích nhanh nguyên nhân, thay vì đọc thủ công hàng trăm dòng log build.</p>
-    </div>
-    <div class="usecase-card">
-      <h4>Review PR trước khi gửi team</h4>
-      <p>Claude Code review sơ bộ trước, giúp phát hiện sớm lỗi rõ ràng hoặc thiếu test trước khi PR đến tay reviewer thật.</p>
-    </div>
-    <div class="usecase-card">
-      <h4>Chuẩn hoá build script</h4>
-      <p>Claude Code đề xuất refactor file pipeline (vd tách step trùng lặp thành reusable workflow) giúp pipeline dễ maintain hơn.</p>
-    </div>
-  </div>
-
-  <h2 class="section-heading">Thông tin bổ sung</h2>
+  <h3 class="sub-heading">Phần 1: Tạo Skill bugreport-writer</h3>
   <p class="body-text">
-    Một cách an toàn để bắt đầu tích hợp Claude Code vào CI/CD là dùng ở dạng "trợ lý ngoài pipeline" — Engineer tự
-    copy log fail từ hệ thống CI (GitHub Actions, Jenkins, GitLab CI...) vào Claude Code để phân tích, thay vì để
-    Claude Code chạy tự động bên trong pipeline. Khi đã tin tưởng vào chất lượng gợi ý, có thể nâng cấp thành tích hợp
-    sâu hơn (vd GitHub Action tự động review PR bằng Claude), nhưng bước deploy Production vẫn nên giữ nguyên tắc
-    approval thủ công.
+    Bug report chỉ có giá trị khi <em>mọi</em> report trong team cùng một cấu trúc — Developer biết chính xác tìm thông
+    tin ở đâu. Đóng gói cấu trúc 8 trường + các quy tắc (không bịa môi trường, severity chỉ là đề xuất) vào Skill.
   </p>
-  <div class="alert alert-info">
-    Nguyên tắc "AI hỗ trợ, con người quyết định" ở chương này nhất quán với nguyên tắc an toàn đã học ở Chapter 1 của
-    Section này — áp dụng cho toàn bộ vòng đời DevOps, không riêng gì CI/CD.
+  <ol class="step-list">
+    <li>
+      <div>
+        <strong>Bước 1: Tạo thư mục và file SKILL.md</strong>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">cd D:\lab-expense-management
+mkdir .claude\skills\bugreport-writer</code></pre>
+        <p>Tạo file <code>.claude/skills/bugreport-writer/SKILL.md</code>:</p>
+        <pre class="file-block"><span class="filename">.claude/skills/bugreport-writer/SKILL.md</span><span class="hl">---
+name</span>: bugreport-writer
+<span class="hl">description</span>: <span class="str">Soạn bug report hoàn chỉnh theo cấu trúc chuẩn từ một mô tả lỗi ngắn/thô. Dùng Skill này khi người dùng yêu cầu "viết bug report", "soạn bug report", "chuẩn hoá mô tả lỗi này", "tạo phiếu lỗi từ ghi chú", hoặc đưa một mô tả lỗi kèm yêu cầu báo cáo.</span>
+<span class="hl">---</span>
+
+<span class="cmt"># Bug Report Writer</span>
+
+<span class="cmt">## Cấu trúc bắt buộc cho mỗi Bug (đủ 8 trường, đúng thứ tự)</span>
+1. **Tiêu đề** — 1 câu nêu đúng vấn đề, đủ nhận diện khi lướt danh sách bug.
+2. **Mô tả** — lỗi là gì, ngữ cảnh nào, ảnh hưởng gì tới người dùng/hệ thống.
+3. **Môi trường** — OS, runtime/version, DB, môi trường (local/dev/test/stg/prod), thời điểm phát hiện.
+4. **Bước tái hiện** — danh sách đánh số, cụ thể, kèm body request mẫu nếu là lỗi API.
+5. **Kết quả mong đợi** — hành vi đúng theo spec/test case.
+6. **Kết quả thực tế** — hành vi sai đang xảy ra, trích dẫn nguyên văn từ log/response.
+7. **Mức độ ưu tiên / Severity** — Critical/High/Medium/Low kèm 1 câu lý do.
+8. **Ghi chú bổ sung** — log, nghi vấn nguyên nhân, gợi ý hướng fix (nếu đã phân tích).
+
+<span class="cmt">## Quy tắc</span>
+- KHÔNG bịa thông tin môi trường/version. Nếu người dùng không cung cấp, để "(cần Tester bổ sung)".
+- Severity ghi rõ là **đề xuất** — người quyết định cuối cùng là Tester/Lead QA.
+- Nghi vấn nguyên nhân diễn đạt ở mức "nghi vấn: ..." nếu chưa kiểm chứng, không khẳng định chắc chắn.
+- Xuất ra dạng bảng 2 cột: Trường | Nội dung.</pre>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 2: Khởi động Claude Code và kiểm tra Skill</strong>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">cd D:\lab-expense-management
+claude</code></pre>
+        <pre class="command-line" data-prompt=">"><code class="language-text">/skills</code></pre>
+        <p><code>bugreport-writer</code> phải xuất hiện trong danh sách.</p>
+      </div>
+    </li>
+  </ol>
+
+  <h3 class="sub-heading">Phần 2: Chuẩn bị mô tả lỗi thô</h3>
+  <ol class="step-list">
+    <li>
+      <div>
+        <strong>Bước 3: Viết mô tả lỗi ngắn gọn như một Tester thực tế thường ghi chú nhanh</strong>
+        <p>Mô tả mẫu dùng cho bài lab này — đúng bug đã thấy khi test API <code>POST /api/transactions</code>:</p>
+        <pre class="command-line" data-prompt=">"><code class="language-text">tạo chi tiêu số âm mà vẫn lưu được</code></pre>
+      </div>
+    </li>
+  </ol>
+
+  <h3 class="sub-heading">Phần 3: Dùng Skill soạn bug report đầy đủ</h3>
+  <ol class="step-list">
+    <li>
+      <div>
+        <strong>Bước 4: Gõ prompt gọi Skill, đưa mô tả thô kèm bối cảnh thật</strong>
+        <p>Không cần liệt kê lại 8 trường — Skill đã giữ cấu trúc. Chỉ cần cung cấp mô tả và bối cảnh:</p>
+        <pre class="command-line" data-prompt=">"><code class="language-text">
+Sau khi chạy test script trên môi trường Production, một số test case fail. Hãy dùng skill bugreport-writer để soạn bug report cho các lỗi phát hiện được:
+Input: 
+  - K6 Test Script: test/transaction/expense/testscript.js
+  - Chi tiết log của các testcase failed: test\transaction\expense\output-log-production_20260906_1820.log
+Output to: test/transaction/expense/bug_report_production_20260906_1825.md
+</code></pre>
+        <p>Quan sát dòng <code>Skill: bugreport-writer</code> ở đầu phản hồi.</p>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 5: Đọc và đối chiếu bug report Claude soạn ra</strong>
+        <p>Bảng dưới đây là ví dụ tham khảo cho output đầy đủ Claude nên soạn ra đối với mỗi Bug phát hiện được, dùng để đối chiếu với kết quả thực tế của bạn.</p>
+        <table class="info-table">
+          <thead><tr><th>Trường</th><th>Nội dung</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Tiêu đề</strong></td><td>API <code>POST /api/expenses</code> chấp nhận <code>amount</code> âm, không validate trước khi lưu database</td></tr>
+            <tr><td><strong>Mô tả</strong></td><td>Khi gửi request tạo khoản chi tiêu với số tiền âm, hệ thống vẫn lưu thành công vào database thay vì từ chối theo đúng requirement (số tiền phải &gt; 0). Điều này khiến số liệu tổng chi tiêu hiển thị cho người dùng bị sai lệch.</td></tr>
+            <tr><td><strong>Môi trường</strong></td><td>Windows 11, Node.js 18.x, Next.js (App Router), MySQL 8.0 (Docker container <code>expense-mysql</code>), dev server local <code>http://localhost:3000</code>.</td></tr>
+            <tr><td><strong>Bước tái hiện</strong></td><td>
+              1. Sử dụng endpoint của môi trường production tại: https://claude101expensemanagement.vercel.app/.<br/>
+              2. Gửi <code>POST https://claude101expensemanagement.vercel.app//api/expenses</code> với body <code>{ "title": "Test", "amount": -100000, "categoryId": 1, "spentAt": "2026-07-09" }</code>.<br/>
+              3. Quan sát response và kiểm tra dữ liệu trong bảng <code>Expense</code>.
+            </td></tr>
+            <tr><td><strong>Kết quả mong đợi</strong></td><td>Server trả về status 400 kèm message lỗi rõ ràng ("Số tiền phải lớn hơn 0"), không tạo bản ghi mới.</td></tr>
+            <tr><td><strong>Kết quả thực tế</strong></td><td>Server trả về status 200/201, bản ghi được lưu vào bảng <code>Expense</code> với <code>amount = -100000</code>.</td></tr>
+            <tr><td><strong>Mức độ ưu tiên/Severity</strong></td><td><span class="tag tag-orange">High</span> — ảnh hưởng trực tiếp đến tính đúng đắn của số liệu tài chính hiển thị (dashboard tổng chi tiêu sẽ sai), nhưng chưa phải Critical vì không gây crash hệ thống hay mất dữ liệu người dùng đã có.</td></tr>
+            <tr><td><strong>Ghi chú bổ sung</strong></td><td>Phát hiện qua bộ test tự động (xem Chapter 5). Gợi ý hướng fix: thêm validate <code>amount &gt; 0</code> tại API trước khi lưu xuống Database.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </li>
+  </ol>
+
+  <div class="verify-box">
+    <h4>✅ Kết quả mong đợi</h4>
+    <p class="body-text">Bug report do Claude soạn có đủ 8 trường chuẩn, đủ chi tiết để một Developer chưa từng thấy lỗi này có thể tái hiện và bắt đầu fix mà không cần hỏi lại Tester.</p>
   </div>
+
+  <h2 class="section-heading">Troubleshoot</h2>
+  <div class="alert alert-warning">
+    <strong>Lỗi:</strong> Bug report thiếu bước tái hiện cụ thể, chỉ mô tả chung.<br/>
+    <strong>Nguyên nhân:</strong> Input ban đầu không có request/response mẫu.<br/>
+    <strong>Giải pháp:</strong> Bổ sung ví dụ body request (JSON) và response thực tế nhận được vào prompt, như đã làm ở Bước 2.
+  </div>
+
+  <h2 class="section-heading">Dọn dẹp resource</h2>
+  <div class="alert alert-info">Bài lab này chỉ tạo Skill và soạn văn bản bug report — không tạo resource Cloud. <strong>Giữ lại Skill <code>bugreport-writer</code></strong> để dùng lâu dài. </div>
 
   <script>mermaid.initialize({ startOnLoad: true, theme: 'default' });</script>
 </body>

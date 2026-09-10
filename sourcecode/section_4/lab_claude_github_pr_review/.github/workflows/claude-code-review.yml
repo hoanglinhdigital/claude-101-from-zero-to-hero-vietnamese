@@ -1,0 +1,53 @@
+name: Claude Auto PR Review
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+
+jobs:
+  claude-review:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: write
+      id-token: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Claude Code Review
+        uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          track_progress: true
+          prompt: |
+            REPO: ${{ github.repository }}
+            PR NUMBER: ${{ github.event.pull_request.number }}
+
+            Bạn là senior reviewer của project Expense Management (Next.js + Prisma + MySQL).
+            Hãy review pull request này và để lại nhận xét bằng TIẾNG VIỆT.
+
+            Đọc quy tắc dự án trong CLAUDE.md và file .github/review-guidelines.md
+            trước khi review. Ưu tiên kiểm tra theo thứ tự:
+
+            1. BẢO MẬT: mọi truy vấn Prisma trên dữ liệu người dùng phải có điều kiện
+               userId của người đang đăng nhập. Thiếu điều kiện này là lỗi nghiêm trọng.
+            2. DỮ LIỆU: số tiền phải dùng Decimal @db.Decimal(18,2), tuyệt đối không dùng
+               Float/Double/number cho tiền tệ.
+            3. SOFT DELETE: không hard delete, mọi truy vấn đọc phải lọc isDeleted: false.
+            4. VALIDATION: query param và request body phải được validate trước khi dùng.
+            5. HIỆU NĂNG: không truy vấn trong vòng lặp (N+1), không findMany() trả toàn bộ field.
+
+            Cách trình bày nhận xét:
+            - Với mỗi vấn đề: nêu rõ file:line, mức độ (Nghiêm trọng / Cảnh báo / Góp ý),
+              nguyên nhân và đoạn code sửa gợi ý.
+            - Sắp xếp từ nghiêm trọng đến nhẹ. Không báo lỗi về format hay đặt tên biến.
+            - Nếu không tìm thấy vấn đề nào, nói rõ điều đó thay vì bịa ra nhận xét.
+
+            Cuối cùng, dùng `gh pr comment` để đăng toàn bộ nhận xét lên pull request.
+          claude_args: |
+            --allowed-tools "Read,Grep,Glob,Bash(gh pr view:*),Bash(gh pr diff:*),Bash(gh pr comment:*)"
