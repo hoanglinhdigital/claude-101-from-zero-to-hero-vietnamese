@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Hook là gì & phân biệt với Skill/Sub-agent – Claude 101</title>
+  <title>Hook là gì, phân biệt & use case thực tế – Claude 101</title>
   <link rel="stylesheet" href="../../styles.css" />
   <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
   <script src="../../mermaid-config.js"></script>
@@ -16,7 +16,7 @@
   <div class="chapter-breadcrumb">
     <span class="section-part">9. Claude Code Hooks</span>
     <span class="sep">/</span>
-    <span class="chapter-part">Hook là gì & phân biệt với Skill/Sub-agent</span>
+    <span class="chapter-part">Hook là gì, phân biệt & use case thực tế</span>
   </div>
 
   <h2 class="section-heading">Giới thiệu</h2>
@@ -91,28 +91,56 @@
   </table>
 
   <h2 class="section-heading">Use Cases</h2>
+  <p class="body-text">
+    Ba tình huống thực tế phổ biến nhất khi áp dụng Hook vào công việc hằng ngày với Claude Code:
+  </p>
+  <div class="mermaid">
+  flowchart LR
+      Model["<img src='../../assets/svg-icon/claude-logo.svg' style='width:28px;height:28px;'/><br/>Model muốn chạy<br/>Bash command"]
+      Pre["<img src='../../assets/svg-icon/operator.svg' style='width:26px;height:26px;'/><br/><b>PreToolUse Hook</b><br/>kiểm tra nội dung command"]
+      Danger{"Có khớp pattern nguy hiểm?<br/>(rm -rf, git push --force...)"}
+      Block["🚫<br/><b>Chặn thực thi</b><br/>trả lỗi lại cho model"]
+      Allow["✅<br/><b>Cho phép chạy</b><br/>Bash command tiếp tục"]
+
+      Model --> Pre --> Danger
+      Danger -->|"Có"| Block
+      Danger -->|"Không"| Allow
+  </div>
+  <p class="arch-caption">PreToolUse hook đóng vai trò một "trạm kiểm soát" độc lập, chạy trước khi command thực sự được thực thi — hoàn toàn không phụ thuộc việc model có tự nhận ra rủi ro hay không.</p>
   <div class="usecase-grid">
     <div class="usecase-card">
-      <h4>Đảm bảo hành động luôn xảy ra</h4>
-      <p>Không phụ thuộc việc model có "nhớ" hay không — vd luôn format lại code ngay sau khi Claude Code sửa file, dù model không được nhắc trong prompt.</p>
+      <h4>Tự động format code (PostToolUse)</h4>
+      <p>Mỗi khi Claude Code sửa hoặc tạo file qua tool <code>Edit</code>/<code>Write</code>, Hook tự động chạy formatter (vd Prettier, Black) ngay sau đó — đảm bảo code luôn đúng chuẩn của team, không phụ thuộc việc model có được nhắc hay không.</p>
     </div>
     <div class="usecase-card">
-      <h4>Thêm lớp kiểm soát an toàn độc lập</h4>
-      <p>Chặn một hành động nguy hiểm trước khi nó thực thi, mà không phụ thuộc vào việc model có tự nhận ra rủi ro hay không.</p>
+      <h4>Chặn lệnh nguy hiểm (PreToolUse)</h4>
+      <p>Trước khi tool <code>Bash</code> chạy, Hook kiểm tra nội dung command và chặn lại nếu khớp các pattern nguy hiểm như <code>rm -rf</code>, <code>git push --force</code>, hoặc lệnh xoá dữ liệu không có xác nhận — thêm một lớp an toàn nằm ngoài khả năng "tự ý thức" của model.</p>
     </div>
     <div class="usecase-card">
-      <h4>Tự động hoá phần "phụ trợ"</h4>
-      <p>Ghi log, gửi thông báo khi hoàn thành tác vụ — những việc không cần chiếm context hay khả năng suy luận của model.</p>
+      <h4>Thông báo khi hoàn thành tác vụ dài (Stop)</h4>
+      <p>Khi Claude Code hoàn thành một tác vụ mất nhiều thời gian (vd refactor lớn, sinh nhiều file), Hook <code>Stop</code> ghi log và/hoặc hiện thông báo để User biết ngay mà không cần ngồi canh terminal.</p>
     </div>
   </div>
 
   <h2 class="section-heading">Thông tin bổ sung</h2>
   <p class="body-text">
-    Chương này chỉ giới thiệu khái niệm và điểm khác biệt cốt lõi của Hook. Danh sách chi tiết các loại event
-    (<code>PreToolUse</code>, <code>PostToolUse</code>, <code>UserPromptSubmit</code>, <code>Stop</code>,
-    <code>SessionStart</code>...) và cách khai báo cụ thể trong <code>settings.json</code> sẽ được trình bày ở
+    Chương này chỉ giới thiệu khái niệm, điểm khác biệt cốt lõi và các use case phổ biến của Hook. Danh sách chi tiết
+    các loại event (<code>PreToolUse</code>, <code>PostToolUse</code>, <code>UserPromptSubmit</code>, <code>Stop</code>,
+    <code>SessionStart</code>...) và cách khai báo cụ thể trong <code>settings.json</code> được trình bày ở
     chương tiếp theo.
   </p>
+  <h3 class="sub-heading">Lưu ý an toàn khi sử dụng Hook</h3>
+  <div class="alert alert-danger">
+    <strong>Hook chạy với đúng quyền của người dùng hiện tại trên máy</strong> — không có sandbox riêng biệt như một
+    số cơ chế khác. Một Hook có nội dung sai hoặc độc hại có thể gây hậu quả thật trên máy (xoá file, gửi dữ liệu ra
+    ngoài...), giống như khi tự tay chạy command đó trong terminal.
+  </div>
+  <ul class="feature-list">
+    <li><strong>Luôn review kỹ nội dung command</strong> trước khi thêm vào <code>settings.json</code> — đặc biệt với Hook copy từ nguồn không tin cậy (repository lạ, script chia sẻ trên mạng chưa kiểm chứng).</li>
+    <li><strong>Tránh để Hook tự ý gửi dữ liệu ra ngoài</strong> (gọi API/webhook không rõ mục đích) mà User không kiểm soát được nội dung gửi đi — vì Hook chạy tự động, không có bước xác nhận thủ công như khi model đề xuất chạy một tool thông thường.</li>
+    <li><strong>Test riêng Hook trước khi đưa vào cấu hình chính thức</strong> — chạy thử command trực tiếp trong terminal để chắc chắn không có lỗi cú pháp hoặc hành vi ngoài ý muốn, vì lỗi trong Hook có thể làm gián đoạn luồng làm việc của cả phiên Claude Code.</li>
+    <li><strong>Hạn chế phạm vi tác động</strong> — ưu tiên Hook chỉ đọc/kiểm tra thay vì Hook có khả năng ghi/xoá dữ liệu trên phạm vi rộng, trừ khi thực sự cần thiết.</li>
+  </ul>
   <div class="alert alert-info">
     <strong>Lưu ý:</strong> Danh sách event, tên field trong JSON input, và quy ước exit code của Hook có thể được
     Anthropic bổ sung hoặc thay đổi theo thời gian. Luôn tham khảo tài liệu Claude Code chính thức tại

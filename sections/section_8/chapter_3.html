@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>MCP Server local vs remote & rủi ro bảo mật – Claude 101</title>
+  <title>Các MCP Server phổ biến (filesystem, Git, database, CodeGraph) – Claude 101</title>
   <link rel="stylesheet" href="../../styles.css" />
   <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
   <script src="../../mermaid-config.js"></script>
@@ -16,102 +16,97 @@
   <div class="chapter-breadcrumb">
     <span class="section-part">8. Model Context Protocol (MCP)</span>
     <span class="sep">/</span>
-    <span class="chapter-part">MCP Server local vs remote & rủi ro bảo mật</span>
+    <span class="chapter-part">Các MCP Server phổ biến (filesystem, Git, database, CodeGraph)</span>
   </div>
 
   <h2 class="section-heading">Giới thiệu</h2>
   <p class="body-text">
-    MCP Server có thể được triển khai theo hai mô hình: <strong>local</strong> — chạy ngay trên máy của bạn, hoặc
-    <strong>remote</strong> — chạy trên một server khác và kết nối qua network. Lựa chọn mô hình nào ảnh hưởng trực
-    tiếp đến hiệu năng, độ phức tạp cấu hình, và quan trọng nhất — <strong>bề mặt rủi ro bảo mật</strong>. Vì một MCP
-    Server có quyền truy cập tương đương với những gì bạn cấp cho nó (đọc file, chạy lệnh, truy vấn database...), hiểu
-    rõ sự khác biệt này và áp dụng đúng nguyên tắc cấp quyền là điều bắt buộc trước khi đưa MCP vào công việc thực tế.
+    Hệ sinh thái MCP Server đang phát triển rất nhanh — có cả Server do Anthropic/nhà cung cấp dịch vụ chính thức
+    duy trì, và rất nhiều Server do cộng đồng tự viết và công bố công khai (thường trên GitHub hoặc các MCP registry).
+    Chương này giới thiệu <strong>4 nhóm MCP Server phổ biến nhất</strong> mà User nên biết trước khi bắt đầu
+    thực hành ở 2 bài Lab tiếp theo của Section này.
   </p>
 
   <h2 class="section-heading">Các tính năng chính</h2>
   <ul class="feature-list">
-    <li><strong>MCP Server local</strong> — được Host (Claude Code/Claude Desktop) khởi chạy như một <strong>process con</strong> ngay trên máy, giao tiếp qua <strong>stdio</strong> (chuẩn input/output). Server dừng theo phiên làm việc, không cần mở cổng mạng.</li>
-    <li><strong>MCP Server remote</strong> — đã chạy sẵn ở một server khác (on-premise hoặc cloud), Host kết nối tới qua <strong>HTTP hoặc SSE (Server-Sent Events)</strong>, thường đi kèm cơ chế xác thực (API key, OAuth...).</li>
-    <li>Local phù hợp với công cụ cá nhân trên máy dev (filesystem, Git local, database chạy Docker local). Remote phù hợp khi Server cần dùng chung cho nhiều người/nhiều Host, hoặc khi hệ thống đích chỉ truy cập được qua network.</li>
-    <li>Dù local hay remote, MCP Server đều <strong>chạy với quyền tương đương quyền bạn cấp cho nó</strong> — không phải "chạy trong sandbox an toàn tuyệt đối" theo mặc định.</li>
+    <li>Mỗi nhóm MCP Server phục vụ một loại nhu cầu khác nhau — nên chọn đúng nhóm phù hợp với công việc thay vì cố dùng một Server cho mọi việc.</li>
+    <li>Có thể kết nối nhiều MCP Server thuộc nhiều nhóm khác nhau cùng lúc trong một phiên làm việc với Claude Code.</li>
+    <li>Tên gói cụ thể (package npm, repository GitHub) của từng Server thay đổi theo thời gian — nên tra cứu MCP registry/GitHub tại thời điểm học để tìm phiên bản đang được duy trì tốt nhất.</li>
   </ul>
 
   <h2 class="section-heading">Mô hình kiến trúc</h2>
   <div class="mermaid">
   flowchart LR
-      subgraph Local["💻 Máy local của bạn"]
-          direction TB
-          HostL["<img src='../../assets/svg-icon/claude-logo.svg' style='width:26px;height:26px;'/><br/><b>Claude Code</b>"]
-          ServerL["⚙️ <b>MCP Server (local)</b><br/>Chạy như process con<br/>giao tiếp qua stdio"]
-          FileL["📁 File / Database local"]
-          HostL -->|"spawn process<br/>stdin/stdout"| ServerL
-          ServerL -->|"đọc/ghi trực tiếp"| FileL
-      end
+      CC["<img src='../../assets/svg-icon/claude-logo.svg' style='width:28px;height:28px;'/><br/><b>Claude Code</b>"]
+      S1["📁 <b>MCP Server</b><br/>Filesystem"]
+      S2["<img src='../../assets/svg-icon/github.svg' style='width:26px;height:26px;'/><br/><b>MCP Server</b><br/>Git"]
+      S3["<img src='../../assets/svg-icon/mysql-workbench.svg' style='width:26px;height:26px;'/><br/><b>MCP Server</b><br/>Database"]
+      S4["🔍 <b>MCP Server</b><br/>CodeGraph"]
 
-      subgraph Remote["🌐 Server khác / Cloud"]
-          direction TB
-          HostR["<img src='../../assets/svg-icon/claude-logo.svg' style='width:26px;height:26px;'/><br/><b>Claude Code / Claude Desktop</b>"]
-          Tunnel["<img src='../../assets/svg-icon/tunnel.svg' style='width:24px;height:24px;'/><br/>HTTP / SSE<br/>+ Xác thực"]
-          ServerR["🖥️ <b>MCP Server (remote)</b><br/>Chạy trên server riêng"]
-          SysR["🗄️ Hệ thống nội bộ / SaaS"]
-          HostR -->|"request qua Internet"| Tunnel --> ServerR
-          ServerR -->|"truy cập"| SysR
-      end
+      CC -->|"đọc/ghi file ngoài project"| S1
+      CC -->|"thao tác Git nâng cao"| S2
+      CC -->|"truy vấn kiểm chứng dữ liệu"| S3
+      CC -->|"phân tích call graph/dependency"| S4
   </div>
-  <p class="arch-caption">MCP Server local được Host tự khởi chạy như process con trên chính máy đang dùng; MCP Server remote đã chạy sẵn ở nơi khác, Host chỉ kết nối tới qua network và cần cơ chế xác thực.</p>
+  <p class="arch-caption">Claude Code có thể kết nối đồng thời nhiều MCP Server thuộc các nhóm khác nhau, mỗi Server phục vụ một mảng khả năng riêng biệt.</p>
 
-  <h3 class="sub-heading">So sánh Local vs Remote</h3>
-  <table class="compare-table">
-    <thead>
-      <tr><th>Tiêu chí</th><th>Local (stdio)</th><th>Remote (HTTP/SSE)</th></tr>
-    </thead>
-    <tbody>
-      <tr><td>Cách khởi chạy</td><td>Host tự spawn process con khi cần dùng</td><td>Server đã chạy sẵn, độc lập với Host</td></tr>
-      <tr><td>Kênh giao tiếp</td><td>stdin/stdout trên cùng một máy</td><td>HTTP hoặc Server-Sent Events qua network</td></tr>
-      <tr><td>Dữ liệu đi qua đâu</td><td>Không rời khỏi máy nếu Server chỉ đọc file/DB local</td><td>Có thể đi qua network đến một bên thứ 3</td></tr>
-      <tr><td>Xác thực</td><td>Thường không cần — chạy trong đúng ngữ cảnh user hiện tại</td><td>Cần cấu hình cơ chế auth riêng (API key, OAuth...)</td></tr>
-      <tr><td>Phù hợp với</td><td>Công cụ cá nhân, máy dev (filesystem, Git local, DB local)</td><td>Server dùng chung cho nhiều người/team, dịch vụ SaaS</td></tr>
-      <tr><td>Rủi ro chính</td><td>Server có quyền truy cập tương đương chính user đang chạy Claude Code</td><td>Thêm một bên thứ 3 xử lý dữ liệu — cần tin tưởng nhà cung cấp Server</td></tr>
-    </tbody>
-  </table>
+  <div class="service-grid">
+    <div class="service-item">
+      <div class="si-name">📁 Filesystem</div>
+      <span class="si-type">Đọc/ghi file</span>
+      <p class="body-text">Cho phép Claude đọc/ghi file <strong>ngoài phạm vi thư mục project hiện tại</strong> — ví dụ đọc tài liệu chung của team, ghi kết quả ra một thư mục chia sẻ. Claude Code mặc định chỉ thao tác trong thư mục project đang mở; MCP Server filesystem mở rộng phạm vi này khi cần, đi kèm rủi ro cần cấp đúng phạm vi thư mục cho phép.</p>
+    </div>
+    <div class="service-item">
+      <div class="si-name">
+        <img src="../../assets/svg-icon/github.svg" style="width:16px;height:16px;vertical-align:middle;margin-right:4px;" />Git
+      </div>
+      <span class="si-type purple">Thao tác Git nâng cao</span>
+      <p class="body-text">Cung cấp Tool cho các thao tác Git phức tạp hơn mức Claude Code tự gọi lệnh <code>git</code> thông thường — ví dụ tìm kiếm trong lịch sử commit, phân tích blame theo cấu trúc, quản lý nhiều repository cùng lúc theo chuẩn thống nhất.</p>
+    </div>
+    <div class="service-item">
+      <div class="si-name">
+        <img src="../../assets/svg-icon/mysql-workbench.svg" style="width:16px;height:16px;vertical-align:middle;margin-right:4px;" />Database
+      </div>
+      <span class="si-type green">MySQL / PostgreSQL</span>
+      <p class="body-text">Cho phép Claude Code tự chạy câu lệnh SQL (SELECT, và tuỳ quyền cấp có thể cả INSERT/UPDATE) trên database thật — dùng phổ biến nhất để <strong>tự kiểm chứng</strong> một thao tác ghi dữ liệu đã đúng, thay vì phải tin vào báo cáo của Claude hoặc tự mở công cụ quản trị DB kiểm tra tay. Thực hành ở Lab 2 (Chapter 6).</p>
+    </div>
+    <div class="service-item">
+      <div class="si-name">🔍 CodeGraph</div>
+      <span class="si-type orange">Phân tích quan hệ code</span>
+      <p class="body-text">Nhóm MCP Server phân tích <strong>call graph</strong> (hàm nào gọi hàm nào) và <strong>dependency graph</strong> (module nào phụ thuộc module nào) giữa các file trong một codebase. Giúp Claude Code hiểu đúng phạm vi ảnh hưởng trước khi sửa một tính năng trong project lớn. Thực hành ở Lab 1 (Chapter 5).</p>
+    </div>
+  </div>
 
   <h2 class="section-heading">Use Cases</h2>
   <div class="usecase-grid">
     <div class="usecase-card">
-      <h4>Local — công cụ cá nhân trên máy dev</h4>
-      <p>MCP Server filesystem/Git chạy local phục vụ đúng một developer trên máy của họ, không cần hạ tầng thêm.</p>
+      <h4>Đọc tài liệu ngoài project</h4>
+      <p>MCP Server filesystem giúp Claude Code đọc thêm tài liệu đặc tả nằm ở thư mục dùng chung của team, không cần copy vào trong project.</p>
     </div>
     <div class="usecase-card">
-      <h4>Remote — Server dùng chung cho team</h4>
-      <p>Một MCP Server database được deploy trên server riêng, nhiều thành viên team cùng kết nối tới qua HTTP với tài khoản/quyền riêng của từng người.</p>
+      <h4>Kiểm chứng dữ liệu sau thao tác ghi</h4>
+      <p>MCP Server database giúp Claude tự chạy SELECT xác nhận một khoản ghi dữ liệu (tạo/sửa) đã đúng như yêu cầu.</p>
     </div>
     <div class="usecase-card">
-      <h4>Remote — cổng kết nối SaaS doanh nghiệp</h4>
-      <p>Nhà cung cấp SaaS (CRM, ticketing...) expose MCP Server remote chính thức, khách hàng chỉ cần cấu hình kết nối, không cần tự host.</p>
+      <h4>Sửa tính năng an toàn hơn trong codebase lớn</h4>
+      <p>MCP Server CodeGraph giúp xác định trước những file/route bị ảnh hưởng khi sửa một hàm dùng chung, giảm rủi ro sửa sai chỗ hoặc bỏ sót nơi cần cập nhật.</p>
     </div>
   </div>
 
   <h2 class="section-heading">Thông tin bổ sung</h2>
+  <div class="alert alert-info">
+    <strong>Lưu ý về tên gọi "CodeGraph":</strong> Khác với filesystem, Git hay database — vốn là loại hệ thống rõ
+    ràng — <strong>"CodeGraph" trong khoá học này là tên gọi minh hoạ cho một nhóm/loại MCP Server</strong> chuyên
+    phân tích quan hệ code (call graph, dependency graph), không phải tên một sản phẩm/package cố định duy nhất.
+    Tại thời điểm thực hành, User nên tự tìm trên MCP registry hoặc GitHub với từ khoá như "mcp server code
+    graph", "mcp server dependency analysis", chọn Server phù hợp với ngôn ngữ/framework của project đang dùng
+    (ví dụ TypeScript/Next.js cho project mẫu ở Lab 1 của Section này).
+  </div>
   <p class="body-text">
-    Nguyên tắc quan trọng nhất khi cấp quyền cho MCP Server là <strong>least privilege — chỉ cấp phạm vi truy cập
-    tối thiểu cần thiết</strong> cho đúng mục đích sử dụng, dù Server chạy local hay remote.
+    Tương tự, với nhóm database, không phải mọi MCP Server MySQL/PostgreSQL đều hỗ trợ đầy đủ các thao tác giống
+    nhau — một số chỉ hỗ trợ đọc (SELECT), một số hỗ trợ cả ghi. Luôn đọc kỹ tài liệu của Server trước khi cấu hình,
+    và áp dụng nguyên tắc least privilege đã học ở Chapter 3 khi cấp quyền kết nối database cho MCP Server.
   </p>
-  <div class="alert alert-danger">
-    <strong>Rủi ro thường gặp:</strong> Cấp cho một MCP Server database quyền tài khoản <strong>admin/root</strong>
-    trong khi mục đích thực tế chỉ là đọc dữ liệu để kiểm chứng. Nếu MCP Server có lỗi, bị khai thác, hoặc model bị
-    dẫn dụ gọi sai Tool (prompt injection từ dữ liệu bên ngoài), phạm vi thiệt hại tương đương đúng quyền đã cấp — cấp
-    quyền admin nghĩa là rủi ro cao nhất có thể xảy ra là mất/hỏng toàn bộ database.
-  </div>
-  <div class="alert alert-warning">
-    <strong>Với dữ liệu nhạy cảm:</strong> Khi dùng MCP Server remote do một bên thứ 3 cung cấp, dữ liệu bạn cho phép
-    Server truy cập có thể đi qua hạ tầng của bên đó. Cân nhắc kỹ trước khi kết nối MCP Server remote với hệ thống
-    chứa dữ liệu nhạy cảm (thông tin khách hàng, secret, dữ liệu tài chính), đặc biệt với Server chưa rõ nguồn gốc.
-  </div>
-  <ul class="feature-list">
-    <li>Với MCP Server database: tạo một user riêng chỉ có đúng quyền cần dùng (ví dụ chỉ SELECT nếu mục đích là kiểm chứng dữ liệu), không dùng lại user có toàn quyền CRUD của ứng dụng.</li>
-    <li>Trước khi thêm một MCP Server cộng đồng, kiểm tra mã nguồn có công khai không, ai duy trì, và Server yêu cầu quyền gì — càng yêu cầu quyền rộng mà không giải thích rõ vì sao, càng cần cẩn trọng.</li>
-    <li>Chỉ giữ kết nối những MCP Server thực sự đang cần dùng — gỡ bỏ Server không dùng nữa để giảm bề mặt rủi ro.</li>
-  </ul>
 
   <script>mermaid.initialize({ startOnLoad: true, theme: 'default' });</script>
 </body>

@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Tích hợp Claude Code vào pipeline CI/CD – Claude 101</title>
+  <title>Lab - Thiết kế hạ tầng hệ thống trên AWS sử dụng Claude – Claude 101</title>
   <link rel="stylesheet" href="../../styles.css" />
   <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
   <script src="../../mermaid-config.js"></script>
@@ -14,114 +14,240 @@
 <body class="chapter-body">
 
   <div class="chapter-breadcrumb">
-    <span class="section-part">5. Claude cho DevOps & Cloud Engineer</span>
+    <span class="section-part">6. Claude cho DevOps & Cloud Engineer</span>
     <span class="sep">/</span>
-    <span class="chapter-part">Tích hợp Claude Code vào pipeline CI/CD</span>
+    <span class="chapter-part">Lab - Thiết kế hạ tầng hệ thống trên AWS sử dụng Claude</span>
   </div>
 
-  <h2 class="section-heading">Giới thiệu</h2>
-  <p class="body-text">
-    Pipeline CI/CD (source → build → test → deploy) là nơi tự động hoá đóng vai trò trung tâm — nhưng điều đó không
-    có nghĩa nên để AI tự động hoá luôn cả quyết định deploy Production. Chương này trình bày cách dùng Claude Code
-    hỗ trợ pipeline CI/CD <strong>ở mức gợi ý</strong>: review Pull Request, phân tích lý do pipeline fail, đề xuất
-    fix build script — trong khi bước deploy Production vẫn cần con người xác nhận.
-  </p>
+  <div class="alert alert-info">
+    <strong>Bài lab này không tạo resource thật trên AWS — chỉ dùng Claude để <strong>thiết kế</strong> kiến trúc hạ tầng, output là sơ đồ Draw.io. Việc dựng hạ tầng thật bằng Terraform sẽ thực hành ở Lab tiếp theo.
+  </div>
 
-  <h2 class="section-heading">Các tính năng chính</h2>
+  <h2 class="section-heading">Mục tiêu</h2>
   <ul class="feature-list">
-    <li><strong>Review PR</strong> — Claude Code đọc diff của Pull Request, chỉ ra rủi ro tiềm ẩn, thiếu test, hoặc vi phạm convention trước khi merge.</li>
-    <li><strong>Phân tích lý do pipeline fail</strong> — dán log build/test fail cho Claude Code, xác định bước nào fail và vì sao (lỗi dependency, lỗi test, lỗi cấu hình environment...).</li>
-    <li><strong>Đề xuất fix build script</strong> — Claude Code gợi ý sửa file pipeline (vd <code>.github/workflows/*.yml</code>, <code>Jenkinsfile</code>) dựa trên nguyên nhân đã phân tích.</li>
-    <li><strong>KHÔNG tự động hoá hoàn toàn deploy Production</strong> — dù Claude Code có thể viết script deploy, bước bấm nút/approve deploy lên Production luôn cần một người có thẩm quyền xác nhận.</li>
-    <li>Claude Code phù hợp nhất ở vai trò "người review thứ hai" trước khi merge/deploy — không thay thế quy trình approval hiện có của team.</li>
+    <li>Tạo được một <strong>Claude Skill</strong> tên <code>aws-architecture-design</code> đóng gói bộ quy ước chuẩn khi vẽ sơ đồ kiến trúc AWS (icon, màu sắc, vị trí, quy tắc High Availability, naming convention).</li>
+    <li>Biết cách mô tả tech stack của một ứng dụng thực tế để Claude đề xuất kiến trúc AWS phù hợp (VPC, Subnet, ECS Cluster, ECR, RDS, CloudWatch Alarm, SNS).</li>
+    <li>Xuất được kiến trúc dưới dạng file <code>.drawio</code>, mở bằng Draw.io Desktop để review.</li>
+    <li>Biết 2 cách chỉnh sửa sơ đồ: chỉnh tay trực tiếp trên Draw.io, hoặc nhờ Claude Code sửa lại file XML theo yêu cầu.</li>
   </ul>
 
-  <h2 class="section-heading">Mô hình kiến trúc</h2>
+  <h2 class="section-heading">Kiến trúc tổng quan</h2>
+
+  <h3 class="sub-heading">Quy trình thực hiện bài lab</h3>
   <div class="mermaid">
   flowchart LR
-      Dev(("<img src='../../assets/svg-icon/developer.svg' style='width:26px;height:26px;'/><br/><b>Developer</b>"))
-      GH["<img src='../../assets/svg-icon/github.svg' style='width:28px;height:28px;'/><br/><b>GitHub</b><br/>Pull Request"]
+      Eng(("<img src='../../assets/svg-icon/developer.svg' style='width:26px;height:26px;'/><br/><b>Engineer</b>"))
+      Skill["🧩 <b>Skill</b><br/>aws-architecture-design<br/><i>quy ước icon · màu · HA · naming</i>"]
+      CC["<img src='../../assets/svg-icon/claude-logo.svg' style='width:28px;height:28px;'/><br/><b>Claude Code</b>"]
+      TechStack["<img src='../../assets/svg-icon/ide.svg' style='width:24px;height:24px;'/><br/><b>Tech stack</b><br/>Next.js · Prisma · MySQL"]
+      File["📄 <b>architecture.drawio</b><br/>VPC · Subnet · ECS · ECR<br/>RDS · Alarm · SNS"]
+      Drawio["📐 <b>Draw.io Desktop</b><br/>Mở file, review sơ đồ"]
 
-      subgraph Pipeline["CI/CD Pipeline"]
-          Source["📥 <b>Source</b><br/>Checkout code"]
-          Build["🔨 <b>Build</b><br/>Compile / package"]
-          Test["🧪 <b>Test</b><br/>Unit / integration test"]
-          Deploy["🚀 <b>Deploy</b><br/>⚠️ Cần approve thủ công"]
-      end
-
-      CC["<img src='../../assets/svg-icon/claude-logo.svg' style='width:28px;height:28px;'/><br/><b>Claude Code</b><br/><i>Hỗ trợ gợi ý</i>"]
-      Human(("<img src='../../assets/svg-icon/operator.svg' style='width:26px;height:26px;'/><br/><b>Con người</b><br/>Approve Production"))
-
-      Dev -->|"Mở PR"| GH --> Source --> Build --> Test --> Deploy
-      GH -.->|"Review PR"| CC
-      Build -.->|"Build fail — phân tích log"| CC
-      Test -.->|"Test fail — phân tích log"| CC
-      CC -.->|"Góp ý / đề xuất fix build script"| Dev
-      Deploy -->|"Chờ xác nhận"| Human
-      Human -->|"Approve"| Deploy
+      Eng -->|"1. Tạo Skill 1 lần, dùng lại nhiều lần"| Skill
+      Skill -.->|"Nạp quy ước"| CC
+      Eng -->|"2. Mô tả tech stack + yêu cầu thiết kế"| CC
+      TechStack -.-> CC
+      CC -->|"3. Sinh sơ đồ đúng quy ước"| File
+      File --> Drawio
+      Drawio -->|"4a. Chỉnh tay trực tiếp"| Eng
+      Eng -->|"4b. Hoặc nhờ Claude sửa XML"| CC
   </div>
-  <p class="arch-caption">Claude Code hỗ trợ dạng gợi ý ở các bước Review PR, Build và Test (đường nét đứt); riêng bước Deploy lên Production luôn cần con người xác nhận (đường liền, có approval gate) — Claude Code không được đặt quyền tự động deploy.</p>
+  <p class="arch-caption">Skill chỉ cần tạo một lần — sau đó tái sử dụng cho mọi lần yêu cầu Claude thiết kế kiến trúc AWS, đảm bảo mọi sơ đồ trong team đều theo cùng một chuẩn.</p>
 
-  <h3 class="sub-heading">Claude Code hỗ trợ gì ở mỗi bước pipeline</h3>
-  <div class="pipeline-flow">
-    <div class="pipeline-stage source">
-      <div class="stage-icon">📥</div>
-      <div class="stage-name">Source</div>
-      <div class="stage-tool">Review PR, góp ý code</div>
-    </div>
-    <div class="pipeline-arrow">→</div>
-    <div class="pipeline-stage build">
-      <div class="stage-icon">🔨</div>
-      <div class="stage-name">Build</div>
-      <div class="stage-tool">Phân tích log fail, đề xuất fix</div>
-    </div>
-    <div class="pipeline-arrow">→</div>
-    <div class="pipeline-stage build">
-      <div class="stage-icon">🧪</div>
-      <div class="stage-name">Test</div>
-      <div class="stage-tool">Phân tích test fail, gợi ý nguyên nhân</div>
-    </div>
-    <div class="pipeline-arrow">→</div>
-    <div class="pipeline-stage deploy">
-      <div class="stage-icon">🚀</div>
-      <div class="stage-name">Deploy</div>
-      <div class="stage-tool">⚠️ Chỉ hỗ trợ soạn script — không tự deploy Production</div>
-    </div>
+  <h2 class="section-heading">Yêu cầu trước khi bắt đầu</h2>
+  <ul class="feature-list">
+    <li>Claude Code đã cài đặt và login thành công (Section 2).</li>
+    <li>Project <code>D:\lab-expense-management</code> chạy được ở local (Lab Section 4).</li>
+    <li><strong>Draw.io Desktop</strong> — công cụ vẽ sơ đồ miễn phí, mở được file <code>.drawio</code> do Claude sinh ra.</li>
+  </ul>
+
+  <h2 class="section-heading">Các bước thực hành</h2>
+
+  <h3 class="sub-heading">Phần 1: Cài đặt Draw.io Desktop</h3>
+  <ol class="step-list">
+    <li>
+      <div>
+        <strong>Bước 1: Cài đặt Draw.io Desktop bằng winget (Windows)</strong>
+        <p>Mở PowerShell và chạy lệnh sau. Nếu không dùng winget, có thể tải bản cài đặt trực tiếp tại <code>https://www.drawio.com/</code>.</p>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">winget install --id JGraph.Draw -e</code></pre>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 2: Kiểm tra Draw.io mở được ứng dụng</strong>
+        <p>Mở Draw.io Desktop vừa cài, chọn <strong>Create New Diagram → Blank Diagram</strong> để chắc chắn ứng dụng hoạt động bình thường trước khi qua bước tiếp theo. Đóng lại file blank này.</p>
+      </div>
+    </li>
+  </ol>
+
+  <h3 class="sub-heading">Phần 2: Tạo Claude Skill "aws-architecture-design"</h3>
+  <ol class="step-list">
+    <li>
+      <div>
+        <strong>Bước 3: Mở Claude Code tại project <code>D:\lab-expense-management</code></strong>
+        <p>Skill sẽ được lưu trong project này tại <code>.claude/skills/aws-architecture-design/</code>, nhưng có thể copy sang project khác để tái sử dụng.</p>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">cd D:\lab-expense-management
+claude</code></pre>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 4: Yêu cầu Claude Code tạo Skill với bộ quy ước chuẩn</strong>
+        <p>Dán nguyên văn prompt sau (đây là phần quan trọng nhất bài lab — bộ quy ước này sẽ được Claude áp dụng cho <strong>mọi</strong> sơ đồ AWS thiết kế sau này). Dùng Plan mode hoặc Accept Edit mode.</p>
+        <pre class="command-line" data-prompt=">"><code class="language-text">
+Tạo cho tôi một Claude Skill tên "aws-architecture-design", lưu tại .claude/skills/aws-architecture-design/SKILL.md.
+
+Mục đích của Skill: mỗi khi tôi yêu cầu Claude thiết kế/vẽ kiến trúc hạ tầng AWS, Claude phải tự động áp dụng
+skill này và xuất ra một file .drawio (XML mxGraph hợp lệ, mở được trực tiếp bằng Draw.io Desktop).
+
+Bộ quy ước BẮT BUỘC phải ghi rõ trong SKILL.md:
+
+1. Icon & shape library
+- Dùng đúng shape library chuẩn "mxgraph.aws4" có sẵn trong Draw.io (AWS 2019 Architecture Icons) — KHÔNG tự vẽ
+  hình chữ nhật thường để giả icon.
+- Mỗi service vẽ bằng đúng shape tương ứng, ví dụ: mxgraph.aws4.vpc, mxgraph.aws4.subnet, mxgraph.aws4.ecs,
+  mxgraph.aws4.elastic_container_registry, mxgraph.aws4.rds, mxgraph.aws4.cloudwatch_alarm, mxgraph.aws4.sns,
+  mxgraph.aws4.application_load_balancer, mxgraph.aws4.availability_zone.
+- Nếu không chắc tên shape chính xác, ưu tiên giữ đúng tên service viết trong label và dùng group container màu
+  đúng category thay vì bỏ icon.
+
+2. Tông màu theo category chuẩn AWS
+- Compute (ECS, ECR): cam #ED7100
+- Database (RDS): xanh dương #3B48CC
+- Network & Content Delivery (VPC, Subnet, ALB): tím #8C4FFF
+- Management & Governance (CloudWatch Alarm): hồng #E7157B
+- Application Integration (SNS): đỏ hồng #E7157B nhạt hơn hoặc đỏ cam theo đúng bảng màu AWS4
+- Public Subnet: viền xanh lá, nền xanh lá nhạt
+- Private Subnet: viền xanh dương, nền xanh dương nhạt
+- VPC boundary: viền đứt nét màu tím đậm, không tô nền
+
+3. Vị trí đặt icon & label
+- Icon đặt góc trên-trái hoặc căn giữa phía trên của box, label (tên resource) đặt ngay bên dưới icon, in đậm.
+- Không đặt icon chồng lên đường line kết nối.
+- Sắp xếp layout theo hướng luồng traffic: Internet/User trên cùng → Load balancer → Compute tier (Private Subnet)
+  → Data tier (Private Subnet riêng biệt) ở dưới cùng. Các thành phần monitoring (CloudWatch, SNS) đặt lệch sang
+  một bên, không nằm trên luồng traffic chính.
+
+4. Nguyên tắc High Availability (BẮT BUỘC)
+- Subnet luôn phải đi theo CẶP tối thiểu ở 2 Availability Zone khác nhau (vd: subnet-public-a và subnet-public-b).
+  Không bao giờ vẽ một subnet đơn lẻ cho tier cần HA.
+- Mỗi Availability Zone vẽ thành 1 subgraph/group box riêng, đặt song song nhau, cùng chứa đủ các tầng subnet
+  (public/app/data) để dễ so sánh.
+- RDS phải vẽ ở chế độ Multi-AZ (icon RDS đặt tại vị trí kết nối tới cả 2 data subnet của 2 AZ).
+- ECS Task/Service phải có instance chạy ở cả 2 AZ, không dồn hết vào 1 AZ.
+
+5. Resource naming convention (BẮT BUỘC áp dụng cho MỌI resource trong sơ đồ)
+- Format: {system}-{environment}-{ten-resource}, toàn bộ chữ thường, nối bằng dấu gạch ngang.
+  - {system}: tên hệ thống/dự án, viết ngắn gọn (vd: expense)
+  - {environment}: dev | staging | prod
+  - {ten-resource}: loại resource + tên gợi nhớ (vd: vpc, subnet-public-a, ecs-cluster, ecr-app, rds-mysql,
+    alarm-cpu-high, sns-alert)
+  - Ví dụ đầy đủ: expense-prod-vpc, expense-prod-subnet-app-a, expense-prod-ecs-cluster, expense-prod-rds-mysql
+- Label hiển thị trên sơ đồ PHẢI dùng đúng tên resource theo convention này, không dùng tên chung chung như
+  "Database" hay "Cluster".
+
+6. Output
+- File .drawio phải là XML hợp lệ (thẻ &lt;mxfile&gt;&lt;diagram&gt;&lt;mxGraphModel&gt;...), mở trực tiếp được bằng
+  Draw.io Desktop mà không lỗi.
+- Luôn hỏi lại: hệ thống cần bao nhiêu Availability Zone (mặc định 2), và environment là gì (mặc định prod) nếu
+  người dùng chưa nêu rõ.
+
+Sau khi tạo xong Skill, hãy tóm tắt lại các quy tắc đã ghi vào SKILL.md cho tôi xem lại.
+        </code></pre>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 5: Review nội dung Skill vừa được tạo</strong>
+        <p>Mở file <code>.claude/skills/aws-architecture-design/SKILL.md</code> Claude vừa tạo, đọc lại để chắc chắn đầy đủ 6 mục quy ước ở Bước 4. Có thể yêu cầu Claude bổ sung nếu thiếu.</p>
+      </div>
+    </li>
+  </ol>
+
+  <h3 class="sub-heading">Phần 3: Mô tả tech stack & yêu cầu Claude thiết kế hệ thống</h3>
+  <ol class="step-list">
+    <li>
+      <div>
+        <strong>Bước 6: Yêu cầu Claude thiết kế kiến trúc AWS cho app Quản lý chi tiêu</strong>
+        <p>Prompt mẫu — mô tả rõ tech stack hiện tại và các thành phần AWS bắt buộc phải có:</p>
+        <pre class="command-line" data-prompt=">"><code class="language-text">
+Dùng skill aws-architecture-design để thiết kế kiến trúc hạ tầng AWS cho ứng dụng Quản lý chi tiêu tại project
+này (D:\lab-expense-management).
+
+Tech stack hiện tại:
+- Frontend + Backend: Next.js (chạy container hoá bằng Docker, đã có docker-compose ở gốc project, chưa có Dockerfile)
+- ORM: Prisma
+- Database: MySQL
+
+Yêu cầu kiến trúc:
+- Compute: chạy ứng dụng Next.js bằng ECS Cluster (Fargate), image lưu trên ECR.
+- Network: 1 VPC riêng, chia Public Subnet (đặt ALB) và Private Subnet (đặt ECS + RDS), tối thiểu 2 Availability
+  Zone theo đúng nguyên tắc HA trong skill.
+- Database: RDS MySQL Multi-AZ, đặt ở Private Subnet riêng (data tier), không cho Public access.
+- Load balancing: Application Load Balancer nhận traffic từ Internet, forward vào ECS Service.
+- Monitoring: 1 CloudWatch Alarm theo dõi CPU Utilization của ECS Service, khi vượt ngưỡng gửi cảnh báo qua SNS
+  Topic (email subscriber).
+- environment: prod
+- Output ra file: diagrams\aws-architecture-prod.drawio
+
+Sau khi xong, tóm tắt danh sách resource đã thiết kế kèm tên resource theo convention.
+        </code></pre>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 7: Kiểm tra danh sách resource Claude tóm tắt</strong>
+        <p>Đối chiếu danh sách resource Claude trả về với 3 tiêu chí: (1) đủ 7 thành phần yêu cầu — VPC, Subnet, ECS Cluster, ECR, RDS, CloudWatch Alarm, SNS; (2) subnet đủ cặp theo 2 AZ; (3) tên resource đúng format <code>system-env-ten-resource</code>.</p>
+      </div>
+    </li>
+  </ol>
+
+  <h3 class="sub-heading">Phần 4: Mở bằng Draw.io, review và chỉnh sửa</h3>
+  <div class="figure-centered">
+      <img src="../../assets/images/sample-aws-architecture.png" alt="Thiết kế hệ thống sử dụng Drawio." />
+      <p class="figure-title">Minh họa Sơ đồ được Claude tạo ra khi preview trong Drawio.</p>
   </div>
+  <ol class="step-list">
+    <li>
+      <div>
+        <strong>Bước 8: Mở file .drawio bằng Draw.io Desktop</strong>
+        <p>Mở Draw.io Desktop → <strong>File → Open</strong> → chọn file <code>diagrams\aws-architecture-prod.drawio</code> vừa được sinh ra. Kiểm tra sơ đồ hiển thị đúng icon AWS, đúng màu, đúng vị trí như quy ước đã định nghĩa ở skill.</p>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 9a: Chỉnh sửa trực tiếp trên Draw.io (cách thủ công)</strong>
+        <p>Nếu chỉ cần chỉnh nhỏ (đổi tên, đổi màu, kéo lại vị trí icon), có thể sửa trực tiếp trên giao diện Draw.io: click chọn shape → sửa label ở panel bên phải, hoặc kéo thả để sắp xếp lại layout. Nhớ <strong>Save (Ctrl+S)</strong> sau khi sửa.</p>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 9b: Hoặc nhờ Claude Code chỉnh sửa lại file (cách qua prompt)</strong>
+        <p>Nếu cần thay đổi lớn hơn (thêm resource, đổi lại toàn bộ layout, đổi region/số lượng AZ), quay lại Claude Code và mô tả thay đổi mong muốn — Claude sẽ sửa trực tiếp file XML, vẫn tuân theo skill <code>aws-architecture-design</code>.</p>
+        <pre class="command-line" data-prompt=">"><code class="language-text">
+Sửa lại file diagrams\aws-architecture-prod.drawio: thêm thêm 1 NAT Gateway ở mỗi Public Subnet để Private Subnet
+có thể ra Internet tải update, vẫn tuân theo skill aws-architecture-design (naming, màu sắc, nguyên tắc HA).
+        </code></pre>
+        <p>Sau khi Claude sửa xong, mở lại file bằng Draw.io (hoặc bấm <strong>File → Reload</strong> nếu file đang mở sẵn) để xem kết quả.</p>
+      </div>
+    </li>
+  </ol>
 
-  <div class="alert alert-danger">
-    <strong>Không nên:</strong> Cấu hình pipeline để tự động gọi Claude Code sửa lỗi và tự merge/deploy lên Production
-    mà không qua bước approve của con người. Rủi ro lớn nhất là Claude Code "sửa cho pipeline pass" bằng cách bỏ qua
-    hoặc làm yếu một bước kiểm tra (vd comment tạm một test đang fail) mà không ai nhận ra trước khi lên Production.
+  <h2 class="section-heading">Troubleshoot</h2>
+  <div class="alert alert-warning">
+    <strong>Lỗi:</strong> Draw.io báo "Not a diagram file" hoặc mở ra màn hình trắng. <br/>
+    <strong>Nguyên nhân:</strong> File XML Claude sinh ra thiếu hoặc sai cấu trúc thẻ <code>&lt;mxfile&gt;</code>/<code>&lt;mxGraphModel&gt;</code>. <br/>
+    <strong>Giải pháp:</strong> Dán nội dung lỗi (hoặc copy nguyên file) cho Claude Code, yêu cầu "kiểm tra và sửa lại cho đúng cấu trúc XML hợp lệ của Draw.io".
   </div>
-
-  <h2 class="section-heading">Use Cases</h2>
-  <div class="usecase-grid">
-    <div class="usecase-card">
-      <h4>Rút ngắn thời gian debug pipeline fail</h4>
-      <p>Dán log CI fail cho Claude Code phân tích nhanh nguyên nhân, thay vì đọc thủ công hàng trăm dòng log build.</p>
-    </div>
-    <div class="usecase-card">
-      <h4>Review PR trước khi gửi team</h4>
-      <p>Claude Code review sơ bộ trước, giúp phát hiện sớm lỗi rõ ràng hoặc thiếu test trước khi PR đến tay reviewer thật.</p>
-    </div>
-    <div class="usecase-card">
-      <h4>Chuẩn hoá build script</h4>
-      <p>Claude Code đề xuất refactor file pipeline (vd tách step trùng lặp thành reusable workflow) giúp pipeline dễ maintain hơn.</p>
-    </div>
+  <div class="alert alert-warning">
+    <strong>Lỗi:</strong> Sơ đồ hiển thị hình chữ nhật/hình vuông thường thay vì icon AWS chuẩn. <br/>
+    <strong>Nguyên nhân:</strong> Claude dùng style mặc định thay vì đúng <code>shape=mxgraph.aws4.*</code>. <br/>
+    <strong>Giải pháp:</strong> Yêu cầu Claude "đọc lại skill aws-architecture-design, thay toàn bộ shape sai chuẩn bằng đúng shape mxgraph.aws4 tương ứng".
   </div>
-
-  <h2 class="section-heading">Thông tin bổ sung</h2>
-  <p class="body-text">
-    Một cách an toàn để bắt đầu tích hợp Claude Code vào CI/CD là dùng ở dạng "trợ lý ngoài pipeline" — Engineer tự
-    copy log fail từ hệ thống CI (GitHub Actions, Jenkins, GitLab CI...) vào Claude Code để phân tích, thay vì để
-    Claude Code chạy tự động bên trong pipeline. Khi đã tin tưởng vào chất lượng gợi ý, có thể nâng cấp thành tích hợp
-    sâu hơn (vd GitHub Action tự động review PR bằng Claude), nhưng bước deploy Production vẫn nên giữ nguyên tắc
-    approval thủ công.
-  </p>
-  <div class="alert alert-info">
-    Nguyên tắc "AI hỗ trợ, con người quyết định" ở chương này nhất quán với nguyên tắc an toàn đã học ở Chapter 1 của
-    Section này — áp dụng cho toàn bộ vòng đời DevOps, không riêng gì CI/CD.
+  <div class="alert alert-warning">
+    <strong>Lỗi:</strong> Subnet chỉ có 1 cái, không có cặp theo Availability Zone. <br/>
+    <strong>Nguyên nhân:</strong> Claude bỏ sót nguyên tắc HA đã ghi trong skill, hoặc SKILL.md ở Bước 4 thiếu mục 4. <br/>
+    <strong>Giải pháp:</strong> Mở lại <code>SKILL.md</code>, kiểm tra mục nguyên tắc HA có ghi rõ "subnet phải đi theo cặp ở tối thiểu 2 AZ" chưa — nếu thiếu, bổ sung rồi yêu cầu Claude thiết kế lại.
   </div>
 
   <script>mermaid.initialize({ startOnLoad: true, theme: 'default' });</script>

@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Kiến trúc MCP: Host – Client – Server & primitives – Claude 101</title>
+  <title>MCP Server local vs remote & rủi ro bảo mật – Claude 101</title>
   <link rel="stylesheet" href="../../styles.css" />
   <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
   <script src="../../mermaid-config.js"></script>
@@ -16,90 +16,102 @@
   <div class="chapter-breadcrumb">
     <span class="section-part">8. Model Context Protocol (MCP)</span>
     <span class="sep">/</span>
-    <span class="chapter-part">Kiến trúc MCP: Host – Client – Server & primitives</span>
+    <span class="chapter-part">MCP Server local vs remote & rủi ro bảo mật</span>
   </div>
 
   <h2 class="section-heading">Giới thiệu</h2>
   <p class="body-text">
-    Một hệ thống MCP luôn gồm <strong>3 thành phần</strong> phối hợp với nhau: <strong>MCP Host</strong> — ứng dụng
-    AI mà bạn đang dùng (Claude Code, Claude Desktop), <strong>MCP Client</strong> — phần nằm bên trong Host, chịu
-    trách nhiệm quản lý kết nối và gửi/nhận thông điệp, và <strong>MCP Server</strong> — chương trình cung cấp
-    khả năng thực tế (đọc file, truy vấn database, gọi API...). Phía Server expose khả năng của mình cho Host thông
-    qua 3 loại <strong>primitive</strong> chuẩn hoá: Tools, Resources và Prompts. Chương này giải thích vai trò từng
-    thành phần và cách chúng kết nối với nhau.
+    MCP Server có thể được triển khai theo hai mô hình: <strong>local</strong> — chạy ngay trên máy của bạn, hoặc
+    <strong>remote</strong> — chạy trên một server khác và kết nối qua network. Lựa chọn mô hình nào ảnh hưởng trực
+    tiếp đến hiệu năng, độ phức tạp cấu hình, và quan trọng nhất — <strong>bề mặt rủi ro bảo mật</strong>. Vì một MCP
+    Server có quyền truy cập tương đương với những gì bạn cấp cho nó (đọc file, chạy lệnh, truy vấn database...), hiểu
+    rõ sự khác biệt này và áp dụng đúng nguyên tắc cấp quyền là điều bắt buộc trước khi đưa MCP vào công việc thực tế.
   </p>
 
   <h2 class="section-heading">Các tính năng chính</h2>
   <ul class="feature-list">
-    <li><strong>MCP Host</strong> — ứng dụng AI mà người dùng tương tác trực tiếp (Claude Code, Claude Desktop). Host có thể kết nối với <strong>nhiều MCP Server cùng lúc</strong>.</li>
-    <li><strong>MCP Client</strong> — thành phần nằm bên trong Host (người dùng không thấy trực tiếp), giữ một kết nối riêng tới mỗi MCP Server, gửi yêu cầu (gọi Tool, đọc Resource...) và nhận kết quả trả về cho model xử lý.</li>
-    <li><strong>MCP Server</strong> — chương trình độc lập cung cấp khả năng cụ thể, có thể do Anthropic, nhà cung cấp dịch vụ, hoặc bất kỳ ai (kể cả bạn) viết ra, chạy local hoặc remote.</li>
-    <li>Một Host có thể kết nối đồng thời với nhiều Server thuộc nhiều nhà cung cấp khác nhau — ví dụ Claude Code có thể vừa kết nối MCP Server đọc file, vừa kết nối MCP Server truy vấn database, trong cùng một phiên làm việc.</li>
+    <li><strong>MCP Server local</strong> — được Host (Claude Code/Claude Desktop) khởi chạy như một <strong>process con</strong> ngay trên máy, giao tiếp qua <strong>stdio</strong> (chuẩn input/output). Server dừng theo phiên làm việc, không cần mở cổng mạng.</li>
+    <li><strong>MCP Server remote</strong> — đã chạy sẵn ở một server khác (on-premise hoặc cloud), Host kết nối tới qua <strong>HTTP hoặc SSE (Server-Sent Events)</strong>, thường đi kèm cơ chế xác thực (API key, OAuth...).</li>
+    <li>Local phù hợp với công cụ cá nhân trên máy dev (filesystem, Git local, database chạy Docker local). Remote phù hợp khi Server cần dùng chung cho nhiều người/nhiều Host, hoặc khi hệ thống đích chỉ truy cập được qua network.</li>
+    <li>Dù local hay remote, MCP Server đều <strong>chạy với quyền tương đương quyền bạn cấp cho nó</strong> — không phải "chạy trong sandbox an toàn tuyệt đối" theo mặc định.</li>
   </ul>
 
   <h2 class="section-heading">Mô hình kiến trúc</h2>
   <div class="mermaid">
   flowchart LR
-      subgraph Host["MCP Host — Claude Code / Claude Desktop"]
+      subgraph Local["💻 Máy local của bạn"]
           direction TB
-          CCIcon["<img src='../../assets/svg-icon/claude-logo.svg' style='width:26px;height:26px;'/>"]
-          Client["🔗 <b>MCP Client</b><br/>Quản lý kết nối<br/>Gọi Tools/Resources/Prompts"]
-          CCIcon --- Client
+          HostL["<img src='../../assets/svg-icon/claude-logo.svg' style='width:26px;height:26px;'/><br/><b>Claude Code</b>"]
+          ServerL["⚙️ <b>MCP Server (local)</b><br/>Chạy như process con<br/>giao tiếp qua stdio"]
+          FileL["📁 File / Database local"]
+          HostL -->|"spawn process<br/>stdin/stdout"| ServerL
+          ServerL -->|"đọc/ghi trực tiếp"| FileL
       end
-      S1["<img src='../../assets/svg-icon/mysql-workbench.svg' style='width:26px;height:26px;'/><br/><b>MCP Server</b><br/>Database"]
-      S2["📁 <b>MCP Server</b><br/>Filesystem"]
-      S3["<img src='../../assets/svg-icon/github.svg' style='width:26px;height:26px;'/><br/><b>MCP Server</b><br/>Git"]
-      S4["🌐 <b>MCP Server</b><br/>Remote API"]
 
-      Client -->|"JSON-RPC qua stdio"| S1
-      Client -->|"JSON-RPC qua stdio"| S2
-      Client -->|"JSON-RPC qua stdio"| S3
-      Client -->|"JSON-RPC qua HTTP/SSE"| S4
+      subgraph Remote["🌐 Server khác / Cloud"]
+          direction TB
+          HostR["<img src='../../assets/svg-icon/claude-logo.svg' style='width:26px;height:26px;'/><br/><b>Claude Code / Claude Desktop</b>"]
+          Tunnel["<img src='../../assets/svg-icon/tunnel.svg' style='width:24px;height:24px;'/><br/>HTTP / SSE<br/>+ Xác thực"]
+          ServerR["🖥️ <b>MCP Server (remote)</b><br/>Chạy trên server riêng"]
+          SysR["🗄️ Hệ thống nội bộ / SaaS"]
+          HostR -->|"request qua Internet"| Tunnel --> ServerR
+          ServerR -->|"truy cập"| SysR
+      end
   </div>
-  <p class="arch-caption">MCP Client nằm bên trong Host, giữ kết nối riêng tới từng MCP Server. Một Host có thể kết nối nhiều Server cùng lúc, kể cả kết hợp Server chạy local (qua stdio) và Server chạy remote (qua HTTP/SSE) — xem chi tiết ở Chapter 3.</p>
+  <p class="arch-caption">MCP Server local được Host tự khởi chạy như process con trên chính máy đang dùng; MCP Server remote đã chạy sẵn ở nơi khác, Host chỉ kết nối tới qua network và cần cơ chế xác thực.</p>
 
-  <h3 class="sub-heading">Ba primitive chính mà MCP Server cung cấp</h3>
-  <div class="capability-grid">
-    <div class="capability-card">
-      <div class="icon">🔧</div>
-      <h4>Tools</h4>
-      <p>Hành động cụ thể mà Server cho phép Host/model gọi để thực thi — ví dụ chạy một câu SQL, tạo một file, gọi một API. Model chủ động quyết định khi nào gọi Tool nào.</p>
-    </div>
-    <div class="capability-card">
-      <div class="icon">📄</div>
-      <h4>Resources</h4>
-      <p>Dữ liệu mà Server expose ra để Host đọc — ví dụ nội dung một file, một bản ghi trong database, một trang tài liệu nội bộ. Giống việc "nạp" thêm ngữ cảnh cho model.</p>
-    </div>
-    <div class="capability-card">
-      <div class="icon">📝</div>
-      <h4>Prompts</h4>
-      <p>Template prompt dựng sẵn do Server cung cấp cho một tác vụ lặp lại thường gặp (ví dụ "tóm tắt issue", "review PR") — người dùng chọn dùng lại thay vì tự soạn prompt từ đầu mỗi lần.</p>
-    </div>
-  </div>
+  <h3 class="sub-heading">So sánh Local vs Remote</h3>
+  <table class="compare-table">
+    <thead>
+      <tr><th>Tiêu chí</th><th>Local (stdio)</th><th>Remote (HTTP/SSE)</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Cách khởi chạy</td><td>Host tự spawn process con khi cần dùng</td><td>Server đã chạy sẵn, độc lập với Host</td></tr>
+      <tr><td>Kênh giao tiếp</td><td>stdin/stdout trên cùng một máy</td><td>HTTP hoặc Server-Sent Events qua network</td></tr>
+      <tr><td>Dữ liệu đi qua đâu</td><td>Không rời khỏi máy nếu Server chỉ đọc file/DB local</td><td>Có thể đi qua network đến một bên thứ 3</td></tr>
+      <tr><td>Xác thực</td><td>Thường không cần — chạy trong đúng ngữ cảnh user hiện tại</td><td>Cần cấu hình cơ chế auth riêng (API key, OAuth...)</td></tr>
+      <tr><td>Phù hợp với</td><td>Công cụ cá nhân, máy dev (filesystem, Git local, DB local)</td><td>Server dùng chung cho nhiều người/team, dịch vụ SaaS</td></tr>
+      <tr><td>Rủi ro chính</td><td>Server có quyền truy cập tương đương chính user đang chạy Claude Code</td><td>Thêm một bên thứ 3 xử lý dữ liệu — cần tin tưởng nhà cung cấp Server</td></tr>
+    </tbody>
+  </table>
 
   <h2 class="section-heading">Use Cases</h2>
   <div class="usecase-grid">
     <div class="usecase-card">
-      <h4>Một Host, nhiều Server</h4>
-      <p>Claude Code kết nối đồng thời MCP Server filesystem, MCP Server Git và MCP Server database trong cùng một phiên làm việc, phối hợp cả 3 để hoàn thành một tác vụ.</p>
+      <h4>Local — công cụ cá nhân trên máy dev</h4>
+      <p>MCP Server filesystem/Git chạy local phục vụ đúng một developer trên máy của họ, không cần hạ tầng thêm.</p>
     </div>
     <div class="usecase-card">
-      <h4>Server nội bộ do team tự viết</h4>
-      <p>Team tự viết một MCP Server expose Tool nghiệp vụ riêng (ví dụ "tạo ticket hỗ trợ") để Claude Code gọi trực tiếp, không cần đội ngũ khác tích hợp lại từ đầu.</p>
+      <h4>Remote — Server dùng chung cho team</h4>
+      <p>Một MCP Server database được deploy trên server riêng, nhiều thành viên team cùng kết nối tới qua HTTP với tài khoản/quyền riêng của từng người.</p>
     </div>
     <div class="usecase-card">
-      <h4>Resources thay cho copy-paste</h4>
-      <p>Một MCP Server expose Resource là tài liệu wiki nội bộ, giúp Claude đọc trực tiếp nội dung mới nhất thay vì người dùng phải tự copy-paste vào khung chat.</p>
+      <h4>Remote — cổng kết nối SaaS doanh nghiệp</h4>
+      <p>Nhà cung cấp SaaS (CRM, ticketing...) expose MCP Server remote chính thức, khách hàng chỉ cần cấu hình kết nối, không cần tự host.</p>
     </div>
   </div>
 
   <h2 class="section-heading">Thông tin bổ sung</h2>
   <p class="body-text">
-    Không phải MCP Server nào cũng implement đủ cả 3 primitive — rất nhiều Server chỉ tập trung vào Tools vì đó là
-    dạng phổ biến và hữu ích nhất trong thực tế. Khi kết nối nhiều Server cùng lúc, số lượng Tools khả dụng cho model
-    cũng tăng lên — cần lưu ý điều này có thể làm tăng độ dài ngữ cảnh mỗi lượt gọi (model cần "biết" mô tả của mọi
-    Tool đang kết nối), vì vậy chỉ nên giữ kết nối những MCP Server thực sự cần dùng cho phiên làm việc hiện tại.
+    Nguyên tắc quan trọng nhất khi cấp quyền cho MCP Server là <strong>least privilege — chỉ cấp phạm vi truy cập
+    tối thiểu cần thiết</strong> cho đúng mục đích sử dụng, dù Server chạy local hay remote.
   </p>
+  <div class="alert alert-danger">
+    <strong>Rủi ro thường gặp:</strong> Cấp cho một MCP Server database quyền tài khoản <strong>admin/root</strong>
+    trong khi mục đích thực tế chỉ là đọc dữ liệu để kiểm chứng. Nếu MCP Server có lỗi, bị khai thác, hoặc model bị
+    dẫn dụ gọi sai Tool (prompt injection từ dữ liệu bên ngoài), phạm vi thiệt hại tương đương đúng quyền đã cấp — cấp
+    quyền admin nghĩa là rủi ro cao nhất có thể xảy ra là mất/hỏng toàn bộ database.
+  </div>
+  <div class="alert alert-warning">
+    <strong>Với dữ liệu nhạy cảm:</strong> Khi dùng MCP Server remote do một bên thứ 3 cung cấp, dữ liệu bạn cho phép
+    Server truy cập có thể đi qua hạ tầng của bên đó. Cân nhắc kỹ trước khi kết nối MCP Server remote với hệ thống
+    chứa dữ liệu nhạy cảm (thông tin khách hàng, secret, dữ liệu tài chính), đặc biệt với Server chưa rõ nguồn gốc.
+  </div>
+  <ul class="feature-list">
+    <li>Với MCP Server database: tạo một user riêng chỉ có đúng quyền cần dùng (ví dụ chỉ SELECT nếu mục đích là kiểm chứng dữ liệu), không dùng lại user có toàn quyền CRUD của ứng dụng.</li>
+    <li>Trước khi thêm một MCP Server cộng đồng, kiểm tra mã nguồn có công khai không, ai duy trì, và Server yêu cầu quyền gì — càng yêu cầu quyền rộng mà không giải thích rõ vì sao, càng cần cẩn trọng.</li>
+    <li>Chỉ giữ kết nối những MCP Server thực sự đang cần dùng — gỡ bỏ Server không dùng nữa để giảm bề mặt rủi ro.</li>
+  </ul>
 
   <script>mermaid.initialize({ startOnLoad: true, theme: 'default' });</script>
 </body>

@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Lab - Sinh & review Terraform hạ tầng cơ bản – Claude 101</title>
+  <title>Lab - Tự động hóa triển khai hạ tầng sử dụng Terraform – Claude 101</title>
   <link rel="stylesheet" href="../../styles.css" />
   <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
   <script src="../../mermaid-config.js"></script>
@@ -14,334 +14,357 @@
 <body class="chapter-body">
 
   <div class="chapter-breadcrumb">
-    <span class="section-part">5. Claude cho DevOps & Cloud Engineer</span>
+    <span class="section-part">6. Claude cho DevOps & Cloud Engineer</span>
     <span class="sep">/</span>
-    <span class="chapter-part">Lab - Sinh & review Terraform hạ tầng cơ bản</span>
+    <span class="chapter-part">Lab - Tự động hóa triển khai hạ tầng sử dụng Terraform</span>
+  </div>
+
+  <div class="alert alert-info">
+    <strong>Tiếp nối bài lab trước:</strong> Ở Chapter 4, Claude đã thiết kế kiến trúc AWS cho app Quản lý chi tiêu dưới
+    dạng sơ đồ <code>diagrams\aws-architecture-prod.drawio</code> (VPC, Subnet, ECS, ECR, RDS, CloudWatch Alarm, SNS).
+    Bài lab này biến sơ đồ đó thành hạ tầng thật bằng Terraform — nhưng lần này, Claude Code sẽ làm việc thông qua một
+    <strong>Skill</strong> quy định rõ nơi lưu file, chuẩn best-practice của AWS, ràng buộc bảo mật, và quan trọng nhất:
+    <strong>Claude không bao giờ tự chạy lệnh Terraform</strong> — mọi lệnh <code>init/plan/apply/destroy</code> đều do
+    chính bạn thực thi và kiểm tra.
   </div>
 
   <div class="alert alert-danger">
-    <strong>Cảnh báo chi phí:</strong> Bài lab này tạo <strong>resource AWS thật</strong> (EC2, S3, DynamoDB, VPC, IAM)
-    và sẽ phát sinh chi phí trên tài khoản AWS của bạn (dù không nhiều với cấu hình <code>t3.micro</code>/on-demand).
-    Bắt buộc phải có <strong>AWS account</strong> và <strong>AWS CLI đã cấu hình</strong> (<code>aws configure</code>)
-    trước khi bắt đầu, và phải thực hiện đầy đủ phần <a href="#cleanup">Dọn dẹp resource</a> ở cuối bài để tránh bị
-    tính phí ngoài ý muốn.
+    <strong>Cảnh báo chi phí:</strong> Bài lab này tạo <strong>resource AWS thật</strong> (VPC, ALB, ECS Fargate, ECR,
+    RDS MySQL) và sẽ phát sinh chi phí trên tài khoản AWS của bạn. Để tiết kiệm chi phí khi thực hành, lab dùng
+    environment <code>dev</code> (RDS Single-AZ <code>db.t3.micro</code>, 1 NAT Gateway) thay vì cấu hình Multi-AZ đầy
+    đủ như sơ đồ <code>prod</code> ở Chapter 4. Bắt buộc phải có <strong>AWS account</strong>, <strong>AWS CLI đã cấu
+    hình</strong> (<code>aws configure</code>), và phải thực hiện đầy đủ phần <a href="#cleanup">Dọn dẹp resource</a> ở
+    cuối bài để tránh bị tính phí ngoài ý muốn.<br/>
+    <strong>Tuyên bố trách nhiệm:</strong> Mình sẽ không chịu trách nhiệm về bất kỳ chi phí phát sinh nào trên tài khoản AWS của bạn. Bạn phải tự chịu trách nhiệm về việc apply/destroy resource. Bài lab này không khuyến khích các bạn không có nền tảng về AWS/Terraform thực hiện trên tài khoản thật — hãy cân nhắc trước khi thực hành.
   </div>
 
   <h2 class="section-heading">Mục tiêu</h2>
   <ul class="feature-list">
-    <li>Dùng Claude Code sinh file Terraform tạo hạ tầng cơ bản trên AWS: VPC, EC2, DynamoDB Table, S3 bucket, IAM policy.</li>
-    <li>Biết cách viết prompt IaC đầy đủ 4 phần đã học ở Chapter 2 (Resource – Region – Naming/Tag – Ràng buộc bảo mật).</li>
-    <li>Đọc và review kỹ output <code>terraform plan</code> trước khi <code>apply</code> — đây là bước quan trọng nhất của bài lab.</li>
-    <li>Kiểm chứng hạ tầng đã tạo đúng, và dọn dẹp (<code>terraform destroy</code>) toàn bộ resource sau khi hoàn thành.</li>
+    <li>Tạo một Claude Skill tên <code>terraform-aws-generator</code> quy định: nơi lưu file Terraform, phong cách best-practice của AWS, ràng buộc bảo mật, và nguyên tắc an toàn vận hành (không tự chạy lệnh).</li>
+    <li>Yêu cầu Claude Code sinh Terraform hiện thực hoá đúng kiến trúc đã thiết kế ở Chapter 4 (VPC 2 AZ, ALB, ECS Fargate, ECR, RDS MySQL, CloudWatch Alarm, SNS).</li>
+    <li>Apply Terraform để tạo ra các resource thật trên AWS. Kiểm chứng hạ tầng đã tạo đúng.</li>
+    <li>Triển khai ứng dụng lên ECS, kiểm tra hoạt động, troubleshoot các lỗi thường gặp.</li>
+    <li>Dọn dẹp resource sử dụng (<code>terraform destroy</code>) toàn bộ resource sau khi hoàn thành.</li>
   </ul>
 
   <h2 class="section-heading">Kiến trúc tổng quan</h2>
+
+  <h3 class="sub-heading">Quy trình: từ sơ đồ Draw.io (Chapter 4) sang hạ tầng thật</h3>
   <div class="mermaid">
   flowchart LR
-      Eng(("<img src='../../assets/svg-icon/operator.svg' style='width:26px;height:26px;'/><br/><b>DevOps Engineer</b>"))
+      Drawio["📐 <b>aws-architecture-prod.drawio</b><br/>Kết quả Chapter 4"]
+      Eng["<img src='../../assets/svg-icon/operator.svg' style='width:26px;height:26px;'/><br/><b>DevOps Engineer</b>"]
+      Skill["🧩 <b>Skill</b><br/>terraform-aws-generator<br/><i>vị trí file · best-practice · security</i>"]
       CC["<img src='../../assets/svg-icon/claude-logo.svg' style='width:28px;height:28px;'/><br/><b>Claude Code</b>"]
-      TF["📄 <b>Terraform files</b><br/>main.tf · variables.tf · vpc.tf<br/>ec2.tf · dynamodb.tf · s3.tf<br/>iam.tf · outputs.tf"]
+      TF["📄 <b>infra/terraform/dev/</b><br/>providers.tf · vpc.tf · ecs.tf<br/>ecr.tf · rds.tf · alb.tf<br/>monitoring.tf · variables.tf"]
+      User_CLI["<img src='../../assets/svg-icon/operator.svg' style='width:24px;height:24px;'/><br/><b>Bạn</b><br/>tự chạy terraform CLI"]
+      AWS["☁️ <b>AWS thật</b><br/>VPC · ECS · ECR · RDS · ALB"]
 
-      subgraph AWS["☁️ AWS Cloud — ap-southeast-1"]
-          subgraph VPC["VPC 10.20.0.0/16"]
-              IGW["<img src='../../assets/svg-icon/Internet-Gateway.svg' style='width:26px;height:26px;'/><br/><b>Internet Gateway</b>"]
-              Subnet["🌐 <b>Public Subnet</b><br/>10.20.1.0/24"]
-              EC2["🖥️ <b>EC2 t3.micro</b><br/>SG: 22 (allowed_ssh_cidr)<br/>80 (public)"]
+      CC -->|"tham chiếu"| Drawio
+      Eng -->|"1. Tạo Skill 1 lần"| Skill
+      Skill -.->|"Nạp quy ước"| CC
+      Eng -->|"2. Yêu cầu sinh Terraform đúng theo sơ đồ"| CC
+      CC -->|"3. Sinh code, KHÔNG tự chạy lệnh"| TF
+      CC -->|"4. Chỉ đưa ra lệnh để bạn tự chạy"| User_CLI
+      User_CLI -->|"terraform init/plan/apply"| TF
+      TF -->|"5. apply"| AWS
+      User_CLI -->|"6. Tự kiểm tra kết quả"| AWS
+  </div>
+  <p class="arch-caption">Claude Code chỉ dừng lại ở bước sinh/sửa code và giải thích lệnh cần chạy (mũi tên 3-4); toàn bộ thao tác thực sự tác động lên AWS (mũi tên 5-6) đều do chính Engineer chủ động thực hiện và kiểm tra — đúng nguyên tắc an toàn đã học ở Chapter 1.</p>
+
+  <h3 class="sub-heading">Hạ tầng sẽ được tạo (rút gọn từ sơ đồ Chapter 4, environment dev)</h3>
+  <div class="mermaid">
+  flowchart TB
+      User["<img src='../../assets/svg-icon/browser.svg' style='width:26px;height:26px;'/><br/><b>Người dùng</b>"]
+      ECR["📦 <b>ECR</b><br/>expense-dev-ecr-app"]
+
+      subgraph VPC["☁️ VPC — expense-dev-vpc (10.30.0.0/16)"]
+          subgraph AZa["🏢 AZ A"]
+              PubA["🌐 expense-dev-subnet-public-a"]
+              PrivA["🔒 expense-dev-subnet-app-a"]
           end
-          S3["🗄️ <b>S3 Bucket</b><br/>Versioning + Block Public Access"]
-          DDB["🗃️ <b>DynamoDB Table</b><br/>On-demand (PAY_PER_REQUEST)"]
-          IAM["🔐 <b>IAM Role/Policy</b><br/>Least-privilege cho EC2"]
+          subgraph AZb["🏢 AZ B"]
+              PubB["🌐 expense-dev-subnet-public-b"]
+              PrivB["🔒 expense-dev-subnet-app-b"]
+          end
+          ALB["⚖️ expense-dev-alb"]
+          ECS["🚢 <b>ECS Fargate</b><br/>expense-dev-ecs-cluster"]
+          RDS[("🗃️ <b>RDS MySQL (Single-AZ)</b><br/>expense-dev-rds-mysql")]
       end
 
-      Eng -->|"1. Viết prompt IaC"| CC
-      CC -->|"2. Sinh Terraform"| TF
-      Eng -->|"3. Review plan"| TF
-      TF -->|"4. terraform apply"| AWS
-      IGW --> Subnet --> EC2
-      EC2 -->|"instance profile"| IAM
-      IAM -.->|"chỉ đúng ARN, không dùng *"| S3
-      IAM -.->|"chỉ đúng ARN, không dùng *"| DDB
+      Alarm["🔔 expense-dev-alarm-cpu-high"]
+      SNS["📣 expense-dev-sns-alert"]
+
+      User -->|HTTPS| ALB --> PubA & PubB
+      PubA -.-> PrivA --> ECS
+      PubB -.-> PrivB --> ECS
+      ECS -->|"pull image"| ECR
+      ECS -->|"Prisma + MySQL"| RDS
+      ECS -.->|"metrics"| Alarm --> SNS
   </div>
-  <p class="arch-caption">Claude Code sinh toàn bộ Terraform theo prompt của Engineer; Engineer luôn review kỹ <code>terraform plan</code> trước khi resource thật được tạo trên AWS — IAM role của EC2 chỉ có quyền least-privilege đúng trên bucket S3 và table DynamoDB của bài lab này.</p>
+  <p class="arch-caption">Để tiết kiệm chi phí lab, RDS chạy Single-AZ và chỉ 1 NAT Gateway dùng chung 2 Private Subnet (thay vì NAT theo cặp) — Skill sẽ ghi rõ đây là điểm khác biệt so với chuẩn Multi-AZ production ở Chapter 4.</p>
 
   <h2 class="section-heading">Yêu cầu trước khi bắt đầu</h2>
   <ul class="feature-list">
-    <li><strong>AWS account</strong> đã có quyền tạo VPC/EC2/S3/DynamoDB/IAM (quyền IAM đủ rộng cho tài khoản cá nhân/sandbox học tập).</li>
-    <li><strong>AWS CLI v2</strong> đã cài đặt và cấu hình: <code>aws configure</code> chạy thành công với Access Key/Secret Key của bạn.</li>
+    <li>Đã hoàn thành Chapter 4 — có sẵn file <code>diagrams\aws-architecture-prod.drawio</code> để tham chiếu.</li>
+    <li><strong>AWS account</strong> có quyền tạo VPC/ECS/ECR/RDS/ALB/CloudWatch/SNS/IAM.</li>
+    <li><strong>AWS CLI v2</strong> đã cài đặt và cấu hình: <code>aws configure</code> chạy thành công.</li>
     <li><strong>Terraform CLI</strong> phiên bản 1.5.0 trở lên đã cài đặt (<code>terraform -version</code> chạy được).</li>
-    <li>Claude Code CLI đã cài đặt và đăng nhập thành công (xem lại Section 2).</li>
-    <li>Terminal: PowerShell hoặc Windows Terminal.</li>
+    <li>Claude Code CLI đã cài đặt và đăng nhập thành công (Section 2).</li>
+    <li>Docker Desktop đã cài đặt (để build & push image Next.js lên ECR ở Phần 4).</li>
   </ul>
 
   <h2 class="section-heading">Các bước thực hành</h2>
 
-  <h3 class="sub-heading">Phần 1: Chuẩn bị</h3>
+  <h3 class="sub-heading">Phần 1: Tạo Claude Skill "terraform-aws-generator"</h3>
   <ol class="step-list">
     <li>
       <div>
-        <strong>Bước 1: Lấy public IP hiện tại để dùng cho biến allowed_ssh_cidr</strong>
-        <p>Biến <code>allowed_ssh_cidr</code> trong Terraform <strong>không có giá trị mặc định</strong> — bắt buộc phải tự nhập CIDR của chính bạn, tránh vô tình mở port 22 cho toàn bộ Internet (<code>0.0.0.0/0</code>).</p>
-        <pre class="command-line" data-prompt="PS>" data-output="2"><code class="language-powershell">(Invoke-RestMethod -Uri "https://api.ipify.org")
-203.0.113.10</code></pre>
-        <p>Ghi lại IP này, dùng dạng <code>&lt;IP&gt;/32</code> (vd <code>203.0.113.10/32</code>) khi chạy <code>terraform plan</code>/<code>apply</code> ở Bước 6.</p>
+        <strong>Bước 1: Tạo thư mục & file chứa skill trong project</strong>
+        <p>Dùng lại project <code>D:\lab-expense-management</code> đã có từ Lab Section 4 — Terraform sẽ được đặt bên trong project này, không tạo project riêng.</p>
+        <pre class="command-line" data-prompt="PS>">
+<code class="language-powershell">
+cd D:\lab-expense-management
+mkdir .claude\skills\terraform-aws-generator
+</code></pre>
       </div>
     </li>
     <li>
       <div>
-        <strong>Bước 2: Tạo thư mục project và khởi động Claude Code</strong>
-        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">mkdir D:\lab-terraform-infra-co-ban
-cd D:\lab-terraform-infra-co-ban
-claude</code></pre>
+        <strong>Bước 2: Tạo nội dung của file SKILL.md</strong>
+        <p>Tham khảo mô tả skill sau hoặc sử dụng các nguồn từ các repo trên Github.</p>
+        <pre class="command-line" >
+<code class="language-markdown">
+---
+name: terraform-aws-generator
+description: Tự động áp dụng mỗi khi người dùng yêu cầu sinh hoặc chỉnh sửa Terraform cho hạ tầng AWS. Quy định vị trí lưu file, best practice AWS, ràng buộc bảo mật, và nguyên tắc an toàn vận hành (không tự chạy terraform apply/destroy).
+---
+
+# Terraform AWS Generator
+
+Khi người dùng yêu cầu sinh mới hoặc chỉnh sửa code Terraform cho hạ tầng AWS, Claude PHẢI tuân thủ đầy đủ 4 nhóm quy tắc dưới đây, không có ngoại lệ trừ khi người dùng yêu cầu rõ ràng và có ý thức về việc phá vỡ quy tắc.
+
+## 1. Vị trí lưu file (bắt buộc)
+
+- Toàn bộ file Terraform lưu tại `infra/terraform/`. KHÔNG lưu rải rác ở thư mục gốc project.
+- Cấu trúc thư mục bắt buộc:
+infra/terraform/
+├── modules/
+│ ├── network/ (main.tf, variable.tf, output.tf)
+│ ├── compute/ (main.tf, variable.tf, output.tf)
+│ ├── database/ (main.tf, variable.tf, output.tf)
+│ ├── storage/ (main.tf, variable.tf, output.tf)
+│ └── security/ (main.tf, variable.tf, output.tf)
+├── environments/
+│ ├── dev/ (main.tf, variable.tf, terraform.tfvars, output.tf)
+│ ├── stg/ (main.tf, variable.tf, terraform.tfvars, output.tf)
+│ └── prd/ (main.tf, variable.tf, terraform.tfvars, output.tf)
+└── .terraform/ (tự sinh khi chạy terraform init, KHÔNG commit lên Git)
+
+- Mỗi module chỉ chịu trách nhiệm cho một nhóm resource (network, compute, database, storage, security). Output của module này có thể làm input cho module khác (vd: output của `network` là input của `security`, `database`, `storage`, `compute`).
+- Mỗi module phải có file `terraform.tfvars.example` liệt kê đầy đủ biến cần khai báo nhưng KHÔNG chứa giá trị thật/secret.
+## 2. Naming convention (bắt buộc)
+- Tên resource phải có tiền tố là `{project_name}-{environment}-{resource_type}-01`, ví dụ `expense-dev-ecs-cluster-01`, `expense-prd-rds-mysql-01`.
+- Các Tag chuẩn bắt buộc: `Project`, `Environment`, `ManagedBy = "Terraform"`. Các tag khác có thể thêm nhưng không được xung đột với tag chuẩn.
+- Các biến environment (dev/stg/prd) phải được khai báo trong file `terraform.tfvars` của từng môi trường, KHÔNG hardcode trong file `.tf`. 
+## 3. Best practice của AWS (bắt buộc)
+
+- Pin version provider rõ ràng, ví dụ `hashicorp/aws ~> 5.0`. Không để version trôi tự do.
+- Dùng data source (`data "aws_ami"`, `data "aws_availability_zones"`, v.v.) thay vì hardcode ID hoặc AZ.
+- Mọi resource phải có tag chuẩn: `Project`, `Environment`, `ManagedBy = "Terraform"`.
+- Bật encryption mặc định:
+  - RDS: `storage_encrypted = true`
+  - ECR: bật image scanning on push
+  - S3 (nếu có): bật server-side encryption
+- ECS Service dùng Fargate:
+  - `desired_count` tối thiểu 2 khi `environment = prod`
+  - Được phép giảm còn 1 ở `dev` để tiết kiệm chi phí, nhưng PHẢI ghi rõ comment ngay tại resource nói rõ đây là trade-off cho môi trường dev.
+- RDS:
+  - `environment = prod` → bắt buộc `multi_az = true`
+  - `environment = dev` → cho phép `multi_az = false`, nhưng PHẢI ghi rõ comment trade-off ngay tại resource đó.
+
+## 4. Ràng buộc bảo mật (bắt buộc)
+
+- Security Group của RDS chỉ được nhận traffic từ đúng Security Group của ECS Service (không mở theo CIDR range).
+- Security Group của ECS Service chỉ nhận traffic từ đúng Security Group của ALB.
+- Security Group của ALB chỉ mở port 80/443 ra Internet — không mở thêm port nào khác ra `0.0.0.0/0`.
+- Mật khẩu database KHÔNG bao giờ hardcode plaintext trong file `.tf`. Dùng biến `sensitive = true`, giá trị lấy từ `terraform.tfvars` (đã gitignore) hoặc AWS Secrets Manager.
+- IAM Role/Policy cho ECS Task theo nguyên tắc least-privilege, không dùng `Resource = "*"`.
+
+## 5. Nguyên tắc an toàn vận hành (QUAN TRỌNG NHẤT — tuân thủ tuyệt đối)
+
+- Claude TUYỆT ĐỐI KHÔNG được tự ý chạy: `terraform init`, `terraform plan`, `terraform apply`, `terraform destroy`, hay bất kỳ lệnh AWS CLI nào làm thay đổi hạ tầng thật.
+- Claude chỉ được phép:
+  1. Sinh/sửa file `.tf`
+  2. Giải thích thay đổi bằng ngôn ngữ dễ hiểu
+  3. Đưa ra CHÍNH XÁC câu lệnh cần chạy để người dùng tự copy-paste vào terminal của họ
+- Sau khi người dùng tự chạy lệnh và dán lại output/lỗi cho Claude, Claude được phép phân tích, giải thích, đề xuất sửa file — nhưng vẫn phải chờ người dùng tự chạy lại lệnh, không tự động thực thi lại.
+- Nếu người dùng yêu cầu Claude "chạy giúp terraform apply" (hoặc tương đương), Claude PHẢI từ chối thực thi trực tiếp, nhắc lại nguyên tắc này, và chỉ đưa ra lệnh để người dùng tự chạy.
+        </code></pre>
       </div>
     </li>
   </ol>
 
-  <h3 class="sub-heading">Phần 2: Yêu cầu Claude Code sinh Terraform</h3>
+  <h3 class="sub-heading">Phần 2: Yêu cầu Claude Code sinh Terraform theo sơ đồ Chapter 4</h3>
   <ol class="step-list">
     <li>
       <div>
-        <strong>Bước 3: Viết prompt IaC đầy đủ theo cấu trúc Resource – Region – Naming/Tag – Ràng buộc bảo mật</strong>
-        <p>Áp dụng đúng kỹ thuật đã học ở Chapter 2 — nêu rõ từng resource, region, quy ước tên/tag, và ràng buộc bảo mật (không mở SSH public, IAM least-privilege).</p>
-        <pre class="command-line" data-prompt=">"><code class="language-text">Viết Terraform tạo hạ tầng cơ bản trên AWS, tách thành nhiều file rõ ràng. Yêu cầu cụ thể:
+        <strong>Bước 1: Yêu cầu Claude sinh Terraform hiện thực hoá đúng kiến trúc đã thiết kế</strong>
+        <pre class="command-line" data-prompt=">"><code class="language-text">
+Dùng skill terraform-aws-generator để sinh Terraform hiện thực hoá đúng kiến trúc đã thiết kế ở file
+diagrams\aws-architecture-prod.drawio (VPC 2 Availability Zone, ALB, ECS Fargate Cluster, ECR, RDS MySQL,
+CloudWatch Alarm, SNS).
 
-RESOURCE CẦN TẠO:
-1. main.tf: provider "aws", required_providers (aws ~>5.0, random ~>3.6 để sinh suffix tên bucket unique).
-2. vpc.tf: 1 VPC (CIDR biến vpc_cidr), 1 subnet public (CIDR biến public_subnet_cidr, map_public_ip_on_launch = true), 1 Internet Gateway, 1 route table 0.0.0.0/0 -> Internet Gateway, route table association.
-3. ec2.tf: data source lấy AMI Amazon Linux 2023 mới nhất; 1 security group chỉ mở port 22 từ biến allowed_ssh_cidr và port 80 public (0.0.0.0/0); 1 EC2 instance loại t3.micro trong subnet public, gắn iam_instance_profile.
-4. dynamodb.tf: 1 DynamoDB table billing_mode = PAY_PER_REQUEST (on-demand), hash_key "id" kiểu String.
-5. s3.tf: 1 S3 bucket tên có suffix random để unique toàn cầu, bật versioning, bật server-side encryption AES256, và aws_s3_bucket_public_access_block chặn toàn bộ public access (block_public_acls, block_public_policy, ignore_public_acls, restrict_public_buckets = true).
-6. iam.tf: 1 IAM role cho EC2 (assume role từ ec2.amazonaws.com) và 1 IAM policy LEAST-PRIVILEGE — chỉ cho phép s3:GetObject/PutObject/ListBucket đúng trên ARN của bucket ở bước 5, và các action đọc/viết cần thiết (GetItem/PutItem/UpdateItem/DeleteItem/Query/Scan) đúng trên ARN của DynamoDB table ở bước 4. KHÔNG dùng wildcard "*" cho Resource, KHÔNG gắn AdministratorAccess.
-7. outputs.tf: output ec2_public_ip, s3_bucket_name, dynamodb_table_name.
+environment: dev (áp dụng đúng các trade-off cho dev đã ghi trong skill: RDS Single-AZ db.t3.small, ECS desired_count
+= 1, 1 NAT Gateway dùng chung 2 subnet).
+project_name: expense-mgmt
+region: ap-northeast-1
 
-REGION: ap-southeast-1 (Singapore), đặt làm default cho variable "region".
+Yêu cầu thêm:
+- ECS Task Definition: image lấy từ ECR repository sẽ tạo, container port 3000 (Next.js), environment variable
+  DATABASE_URL trỏ tới RDS endpoint (không hardcode password, dùng biến sensitive).
+- RDS: engine mysql 8.0, db.t3.small, storage 20GB, database name "expense_db".
+- CloudWatch Alarm: theo dõi CPUUtilization của ECS Service, threshold > 80% trong 5 phút, action gửi tới SNS
+  Topic. SNS Topic có 1 email subscription (dùng biến alert_email, không có default).
 
-NAMING/TAG: mọi resource đặt tên theo pattern ${var.project_name}-<loại resource> (vd ${var.project_name}-vpc, ${var.project_name}-web). Mọi resource gắn tag Project = var.project_name và ManagedBy = "Terraform".
-
-RÀNG BUỘC BẢO MẬT (bắt buộc):
-- variables.tf: biến allowed_ssh_cidr KHÔNG có giá trị default, thêm validation block chặn giá trị "0.0.0.0/0" — bắt buộc User tự nhập CIDR/IP cụ thể.
-- Không mở port nào khác ngoài 22 (giới hạn theo allowed_ssh_cidr) và 80 (public) trên security group.
-- IAM policy tuyệt đối không dùng Resource = "*" hay Action = "*".
-
-Sau khi tạo xong toàn bộ file, chạy terraform init và terraform validate để đảm bảo cú pháp đúng, KHÔNG chạy terraform apply.</code></pre>
+Sau khi sinh xong toàn bộ file, liệt kê danh sách file đã tạo và đường dẫn, KHÔNG chạy bất kỳ lệnh terraform nào.
+        </code></pre>
       </div>
     </li>
     <li>
       <div>
-        <strong>Bước 4: Duyệt kế hoạch và xác nhận thực thi</strong>
-        <p>Nếu ở Plan mode, đọc kỹ danh sách file Claude Code dự kiến tạo trước khi Approve. Ở Accept Edits mode, xác nhận từng file được tạo.</p>
+        <strong>Bước 2: Kiểm tra Claude có tuân thủ đúng Skill không</strong>
+        <p>Đối chiếu kết quả với 4 nhóm quy tắc: (1) file có nằm đúng <code>infra/terraform/dev/</code> không; (2) có tag/data source/encryption đúng best-practice không; (3) Security Group có siết đúng theo tầng (ALB → ECS → RDS) không; (4) <strong>quan trọng nhất</strong> — Claude có tự ý chạy lệnh <code>terraform init/plan/apply</code> nào không. Nếu Claude tự chạy, quay lại chỉnh sửa Skill ở Bước 2 cho rõ ràng hơn.</p>
       </div>
     </li>
   </ol>
 
   <h3 class="sub-heading">Phần 3: Tham khảo nội dung Terraform (đối chiếu với kết quả Claude Code sinh ra)</h3>
-  <p class="body-text">Nội dung dưới đây là ví dụ tham khảo cho những gì Claude Code nên sinh ra ở Bước 3 — dùng để đối chiếu và review, không cần tự tay gõ lại các file này.</p>
-
-  <pre class="file-block"><span class="filename">main.tf</span><span class="cmt">terraform {</span>
-  required_version = <span class="str">">= 1.5.0"</span>
-
-  required_providers {
-    <span class="hl">aws</span> = {
-      source  = <span class="str">"hashicorp/aws"</span>
-      version = <span class="str">"~> 5.0"</span>
-    }
-    <span class="hl">random</span> = {
-      source  = <span class="str">"hashicorp/random"</span>
-      version = <span class="str">"~> 3.6"</span>
-    }
-  }
-<span class="cmt">}</span>
-
-<span class="hl">provider "aws"</span> {
-  region = var.region
-}
-
-<span class="hl">resource "random_id" "suffix"</span> {
-  byte_length = 4
-}</pre>
-
-  <pre class="file-block"><span class="filename">variables.tf</span><span class="hl">variable "region"</span> {
-  default = <span class="str">"ap-southeast-1"</span>
-}
-
-<span class="hl">variable "project_name"</span> {
-  default = <span class="str">"claude101-devops-lab"</span>
-}
-
-<span class="hl">variable "vpc_cidr"</span> {
-  default = <span class="str">"10.20.0.0/16"</span>
-}
-
-<span class="cmt">// KHÔNG đặt default = "0.0.0.0/0" — bắt buộc User tự nhập CIDR IP</span>
-<span class="cmt">// của mình để tránh vô tình mở SSH cho toàn bộ Internet.</span>
-<span class="hl">variable "allowed_ssh_cidr"</span> {
-  type = string
-
-  validation {
-    condition     = var.allowed_ssh_cidr != <span class="str">"0.0.0.0/0"</span>
-    error_message = <span class="str">"Không được dùng 0.0.0.0/0 cho allowed_ssh_cidr."</span>
-  }
-}
-
-<span class="hl">variable "instance_type"</span> {
-  default = <span class="str">"t3.micro"</span>
-}</pre>
-
-  <pre class="file-block"><span class="filename">ec2.tf</span><span class="hl">resource "aws_security_group" "web"</span> {
-  name   = <span class="str">"${var.project_name}-web-sg"</span>
-  vpc_id = aws_vpc.main.id
-
-  ingress {
-    <span class="cmt"># SSH — chỉ từ allowed_ssh_cidr, KHÔNG mở 0.0.0.0/0</span>
-    from_port   = 22
-    to_port     = 22
-    protocol    = <span class="str">"tcp"</span>
-    cidr_blocks = [var.allowed_ssh_cidr]
-  }
-
-  ingress {
-    <span class="cmt"># HTTP — public</span>
-    from_port   = 80
-    to_port     = 80
-    protocol    = <span class="str">"tcp"</span>
-    cidr_blocks = [<span class="str">"0.0.0.0/0"</span>]
-  }
-
-  tags = {
-    Project   = var.project_name
-    ManagedBy = <span class="str">"Terraform"</span>
-  }
-}
-
-<span class="hl">resource "aws_instance" "web"</span> {
-  ami                    = data.aws_ami.amazon_linux.id
-  instance_type          = var.instance_type
-  subnet_id              = aws_subnet.public.id
-  vpc_security_group_ids = [aws_security_group.web.id]
-  iam_instance_profile   = aws_iam_instance_profile.ec2_profile.name
-
-  tags = {
-    Name      = <span class="str">"${var.project_name}-web"</span>
-    Project   = var.project_name
-    ManagedBy = <span class="str">"Terraform"</span>
-  }
-}</pre>
-
-  <pre class="file-block"><span class="filename">iam.tf</span><span class="cmt"># Least-privilege: chỉ đúng action cần thiết, chỉ trên đúng ARN của</span>
-<span class="cmt"># bucket S3 và table DynamoDB của bài lab — KHÔNG dùng wildcard "*".</span>
-<span class="hl">data "aws_iam_policy_document" "app_access"</span> {
-  statement {
-    sid = <span class="str">"S3ReadWriteAppBucket"</span>
-    actions = [
-      <span class="str">"s3:GetObject"</span>, <span class="str">"s3:PutObject"</span>, <span class="str">"s3:ListBucket"</span>,
-    ]
-    resources = [
-      aws_s3_bucket.app_data.arn,
-      <span class="str">"${aws_s3_bucket.app_data.arn}/*"</span>,
-    ]
-  }
-
-  statement {
-    sid = <span class="str">"DynamoDBReadWriteAppTable"</span>
-    actions = [
-      <span class="str">"dynamodb:GetItem"</span>, <span class="str">"dynamodb:PutItem"</span>,
-      <span class="str">"dynamodb:UpdateItem"</span>, <span class="str">"dynamodb:DeleteItem"</span>,
-      <span class="str">"dynamodb:Query"</span>, <span class="str">"dynamodb:Scan"</span>,
-    ]
-    resources = [aws_dynamodb_table.app_table.arn]
-  }
-}</pre>
+  <p class="body-text">Nội dung dưới đây là ví dụ tham khảo cho những gì Claude Code nên sinh ra ở Bước 4 — dùng để đối chiếu, không cần tự tay gõ lại.</p>
 
   <div class="file-tree">
-    <span class="dir">lab-terraform-infra-co-ban/</span><br/>
-    ├── <span class="file">main.tf</span> <span class="desc"># provider, backend (comment), random_id</span><br/>
-    ├── <span class="file">variables.tf</span> <span class="desc"># region, project_name, vpc_cidr, allowed_ssh_cidr (bắt buộc nhập)</span><br/>
-    ├── <span class="file">vpc.tf</span> <span class="desc"># VPC + subnet public + Internet Gateway + route table</span><br/>
-    ├── <span class="file">ec2.tf</span> <span class="desc"># EC2 t3.micro + security group</span><br/>
-    ├── <span class="file">dynamodb.tf</span> <span class="desc"># DynamoDB table on-demand</span><br/>
-    ├── <span class="file">s3.tf</span> <span class="desc"># S3 bucket + versioning + block public access</span><br/>
-    ├── <span class="file">iam.tf</span> <span class="desc"># IAM role + policy least-privilege</span><br/>
-    └── <span class="file">outputs.tf</span> <span class="desc"># ec2_public_ip, s3_bucket_name, dynamodb_table_name</span>
+    <span class="dir">lab-expense-management/</span><br/>
+    └── <span class="dir">infra/terraform/</span><br/>
+       └──── <span class="dir">/modules/</span><br/>
+    &nbsp;&nbsp;&nbsp;&nbsp;├── <span class="dir">compute</span> <span class="desc"># Thư mục chứa các resource về compute như EC2, ECS, Lambda</span><br/>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;├── <span class="file">variables.tf</span> <span class="desc"># Input của module</span><br/>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;├── <span class="file">outputs.tf</span> <span class="desc"># Output của module</span><br/>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;├── <span class="file">main.tf</span> <span class="desc"># Các resource chính được tạo ra.</span><br/>
+    &nbsp;&nbsp;&nbsp;&nbsp;├── <span class="dir">network</span> <span class="desc"># Thư mục chứa các resource về network như VPC, Subnet, Route Table, Security Group</span><br/>
+    &nbsp;&nbsp;&nbsp;&nbsp;├── <span class="dir">security</span> <span class="desc"># Thư mục chứa các resource về Security như IAM Role, KMS</span><br/>
+    &nbsp;&nbsp;&nbsp;&nbsp;├── <span class="dir">storage</span> <span class="desc"># Thư mục chứa các resource về storage/registry như S3, ECR (container registry), EFS</span><br/>
+    &nbsp;&nbsp;&nbsp;&nbsp;└── <span class="dir">database</span> <span class="desc"># Thư mục chứa các resource về database như RDS, DynamoDB</span><br/>
+    └── <span class="dir">/environments/</span><br/>
+       └──── <span class="dir">/dev/</span><br/>
+    &nbsp;&nbsp;&nbsp;&nbsp;├── <span class="file">main.tf</span> <span class="desc"># File chính để gọi các module và tạo resource</span><br/>
+    &nbsp;&nbsp;&nbsp;&nbsp;├── <span class="file">variables.tf</span> <span class="desc"># Input của environment</span><br/>
+    &nbsp;&nbsp;&nbsp;&nbsp;├── <span class="file">outputs.tf</span> <span class="desc"># Output của environment</span><br/>
+    &nbsp;&nbsp;&nbsp;&nbsp;└── <span class="file">terraform.tfvars.example</span> <span class="desc"># liệt kê biến cần khai báo, không chứa giá trị thật</span>
   </div>
-  <p class="note-text">Toàn bộ source code đầy đủ (8 file) được lưu tại <code>sourcecode/section_5/lab_terraform_infra_co_ban/</code> trong repository của khoá học — dùng để đối chiếu nếu Claude Code sinh ra kết quả khác biệt.</p>
+  <p class="note-text">Toàn bộ source code đầy đủ được lưu tại <code>sourcecode/section_6/lab_terraform_expense_infra/</code> trong repository của khoá học — dùng để đối chiếu nếu Claude Code sinh ra kết quả khác biệt.</p>
 
-  <h3 class="sub-heading">Phần 4: terraform init, plan, apply</h3>
+  <h3 class="sub-heading">Phần 4: Tự chạy Terraform — Claude chỉ hướng dẫn, không thực thi</h3>
+  <div class="alert alert-tip">
+    <strong>Nhắc lại nguyên tắc:</strong> Từ bước này trở đi, mọi lệnh đều do <strong>bạn</strong> tự gõ và chạy. Nếu Claude Code chủ động đề nghị chạy giúp, hãy từ chối và tự thực hiện — đây chính là hành vi Skill <code>terraform-aws-generator</code> đã được cấu hình để tuân thủ.
+  </div>
   <ol class="step-list">
     <li>
       <div>
-        <strong>Bước 5: Khởi tạo Terraform</strong>
-        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">cd D:\lab-terraform-infra-co-ban
-terraform init</code></pre>
+        <strong>Bước 6: Build & push Docker image ứng dụng lên ECR (tự chạy)</strong>
+        <p>Resource ECR nằm trong module <code>storage</code>, được gọi từ <code>environments/dev/main.tf</code> — vì vậy địa chỉ resource khi target phải có tiền tố tên module (<code>module.storage.&lt;resource&gt;</code>), không phải tên resource trần như ở cấu trúc file phẳng. Trước tiên apply riêng phần ECR để có repository, rồi build/push image từ chính project <code>D:\lab-expense-management</code>.</p>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">cd D:\lab-expense-management\infra\terraform\environments\dev
+terraform init
+terraform apply -target=module.storage.aws_ecr_repository.app -auto-approve
+
+aws ecr get-login-password --region ap-northeast-1 | docker login --username AWS --password-stdin <account-id>.dkr.ecr.ap-northeast-1.amazonaws.com
+
+cd D:\lab-expense-management
+docker build -t expense-dev-ecr-app .
+docker tag expense-dev-ecr-app:latest <account-id>.dkr.ecr.ap-northeast-1.amazonaws.com/expense-dev-ecr-app:latest
+docker push <account-id>.dkr.ecr.ap-northeast-1.amazonaws.com/expense-dev-ecr-app:latest</code></pre>
       </div>
     </li>
     <li>
       <div>
-        <strong>Bước 6: Chạy terraform plan — đây là bước REVIEW quan trọng nhất</strong>
-        <p>Thay <code>203.0.113.10/32</code> bằng IP thật của bạn lấy ở Bước 1. <strong>Đọc kỹ toàn bộ output</strong>: số resource sẽ được tạo (<code>Plan: N to add, 0 to change, 0 to destroy</code>), đặc biệt kiểm tra kỹ block <code>aws_security_group</code> (không có <code>cidr_blocks = ["0.0.0.0/0"]</code> nào cho port 22) và block IAM policy (không có <code>"Resource": "*"</code>).</p>
-        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">terraform plan `
-  -var="allowed_ssh_cidr=203.0.113.10/32" `
-  -out=tfplan</code></pre>
+        <strong>Bước 7: terraform plan — bước review quan trọng nhất</strong>
+        <p>Thay <code>&lt;email-của-bạn&gt;</code> và <code>&lt;mat-khau-manh&gt;</code> bằng giá trị thật. Đọc kỹ output: đếm số resource sẽ tạo, kiểm tra <code>aws_db_instance</code> không có <code>publicly_accessible = true</code>, kiểm tra security group không mở port nào khác ngoài 443 (ALB) ra <code>0.0.0.0/0</code>.</p>
+        <pre class="command-line" data-prompt="PS>">
+<code class="language-powershell">
+cd D:\lab-expense-management\infra\terraform\environments\dev
+terraform plan
+</code></pre>
       </div>
     </li>
     <li>
       <div>
-        <strong>Bước 7: (Khuyến nghị) Yêu cầu Claude Code giải thích plan bằng ngôn ngữ dễ hiểu</strong>
-        <p>Áp dụng mẹo đã học ở Chapter 1 — nhờ Claude Code diễn giải lại các thay đổi trong plan trước khi tự mình quyết định apply.</p>
-        <pre class="command-line" data-prompt=">"><code class="language-text">Giải thích các thay đổi trong terraform plan này bằng ngôn ngữ dễ hiểu, đặc biệt chỉ rõ: resource nào sẽ bị tạo/sửa/xoá, security group có mở port nào ra 0.0.0.0/0 ngoài port 80 không, và IAM policy có dùng wildcard "*" ở đâu không.</code></pre>
+        <strong>Bước 8: (Khuyến nghị) Nhờ Claude Code giải thích plan trước khi tự mình apply</strong>
+        <pre class="command-line" data-prompt=">"><code class="language-text">Giải thích các thay đổi trong terraform plan này bằng ngôn ngữ dễ hiểu, đặc biệt: RDS có publicly_accessible không, security group có mở port nào ra 0.0.0.0/0 ngoài 443 không, và IAM policy có dùng wildcard "*" ở đâu không. Chỉ giải thích, không tự chạy apply giúp tôi.</code></pre>
       </div>
     </li>
     <li>
       <div>
-        <strong>Bước 8: Chỉ apply sau khi đã review kỹ plan ở Bước 6-7</strong>
-        <p>Dùng đúng file plan đã lưu ở Bước 6 (<code>tfplan</code>) để đảm bảo apply đúng những gì đã review, không bị lệch do state thay đổi giữa lúc plan và apply.</p>
-        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">terraform apply tfplan</code></pre>
+        <strong>Bước 9: Tự chạy terraform apply</strong>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">terraform apply</code></pre>
       </div>
     </li>
     <li>
       <div>
-        <strong>Bước 9: Kiểm chứng kết quả</strong>
-        <pre class="command-line" data-prompt="PS>" data-output="2, 3, 4"><code class="language-powershell">terraform output
-ec2_public_ip = "13.229.xxx.xxx"
-s3_bucket_name = "claude101-devops-lab-data-a1b2c3d4"
-dynamodb_table_name = "claude101-devops-lab-table"</code></pre>
-        <p>Mở trình duyệt tại <code>http://&lt;ec2_public_ip&gt;</code> để xác nhận trang chào mừng Apache đã chạy; kiểm tra thêm trên AWS Console (S3, DynamoDB, IAM) để xác nhận resource được tạo đúng tên/tag như đã yêu cầu.</p>
+        <strong>Bước 10: Tự kiểm chứng kết quả</strong>
+        <pre class="command-line" data-prompt="PS>" data-output="2, 3"><code class="language-powershell">terraform output
+alb_dns_name = "expense-dev-alb-123456789.ap-northeast-1.elb.amazonaws.com"
+rds_endpoint = "expense-dev-rds-mysql.xxxxxx.ap-northeast-1.rds.amazonaws.com:3306"</code></pre>
+        <p>Mở trình duyệt tại <code>http://&lt;alb_dns_name&gt;</code> để xác nhận app Quản lý chi tiêu đã chạy trên ECS Fargate; kiểm tra thêm trên AWS Console (ECS, RDS, CloudWatch, SNS) để xác nhận tên resource đúng convention <code>expense-dev-*</code> và email nhận cảnh báo SNS đã ở trạng thái "Confirmed" (kiểm tra hộp thư, bấm confirm subscription).</p>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bổ sung: Các Promp mình đã sử dụng để nhờ Claude hỗ trợ fix bug</strong>
+        <pre class="command-line" data-prompt="PS>" data-output="2, 3"><code class="language-powershell">
+#Promp yêu cầu Claude sửa RDS để có thể truy cập public từ máy cá nhân + thêm phân auto seed tại lần đầu khởi động ECS Task:
+Modify terraform của RDS sao cho có thể connect từ máy cá nhân của tôi thông qua Internet. Vì là môi trường dev, tôi cần truy cập để seed data. Ngoài ra modify application để tự động seed data tại lần đầu ứng dụng khởi động vì nếu không có data ban đầu, ứng dụng không thể hoạt động bình thường.
+
+#Promp yêu cầu Claude debug lỗi login nhưng không có hiện tượng gì. Lưu ý thay link của ALB bằng link của các bạn.
+Sau khi apply terraform thành công, log báo đã seed thành công,  tuy nhiên khi truy cập vào ứng dụng, đăng ký account thành công, vào đăng nhập thì báo 200 nhưng không có hiện tượng gì (không redirect sang trang chủ). hãy debug ứng dụng tại:
+http://expense-mgmt-dev-alb-01-121212<account của các bạn>.amazonaws.com/login
+</code></pre>
+        
       </div>
     </li>
   </ol>
 
   <div class="verify-box">
     <h4>✅ Kết quả mong đợi</h4>
-    <p class="body-text">Lệnh <code>terraform apply</code> hoàn thành không lỗi, <code>terraform output</code> trả về đúng 3 giá trị. Trang web mặc định trên EC2 truy cập được qua HTTP. Security group chỉ mở SSH từ đúng IP của bạn (không phải <code>0.0.0.0/0</code>), và IAM role gắn cho EC2 chỉ có quyền đọc/viết đúng bucket S3 và table DynamoDB vừa tạo — kiểm tra lại trên AWS Console &gt; IAM &gt; Roles.</p>
+    <p class="body-text">Truy cập được app qua <code>alb_dns_name</code>. RDS không có endpoint public. Security Group của RDS chỉ liệt kê đúng Security Group của ECS Service làm nguồn (không có CIDR range nào). CloudWatch Alarm ở trạng thái <code>OK</code>, và trong toàn bộ quá trình từ Bước 6 đến Bước 10, Claude Code không tự chạy bất kỳ lệnh <code>terraform</code> nào thay bạn.</p>
   </div>
 
   <h2 class="section-heading">Troubleshoot</h2>
   <div class="alert alert-warning">
-    <strong>Lỗi:</strong> <code>terraform plan</code> báo lỗi <code>allowed_ssh_cidr is required</code> hoặc validation fail.<br/>
-    <strong>Nguyên nhân:</strong> Biến <code>allowed_ssh_cidr</code> không có giá trị mặc định (đúng như thiết kế an toàn), hoặc bạn đã vô tình truyền <code>0.0.0.0/0</code>.<br/>
-    <strong>Giải pháp:</strong> Luôn truyền <code>-var="allowed_ssh_cidr=&lt;IP-của-bạn&gt;/32"</code> khi chạy <code>plan</code>/<code>apply</code>, dùng đúng IP lấy được ở Bước 1.
+    <strong>Lỗi:</strong> Claude Code tự đề nghị "để tôi chạy terraform apply luôn cho nhanh". <br/>
+    <strong>Nguyên nhân:</strong> Skill <code>terraform-aws-generator</code> chưa được nạp đúng, hoặc mục 4 (an toàn vận hành) trong <code>SKILL.md</code> viết chưa đủ rõ ràng/dứt khoát. <br/>
+    <strong>Giải pháp:</strong> Từ chối, mở lại <code>SKILL.md</code> và viết rõ hơn: "Claude PHẢI từ chối khi được yêu cầu tự chạy lệnh, chỉ đưa ra lệnh để người dùng tự copy-paste".
   </div>
   <div class="alert alert-warning">
-    <strong>Lỗi:</strong> <code>terraform apply</code> báo <code>Error: creating S3 Bucket: BucketAlreadyExists</code>.<br/>
-    <strong>Nguyên nhân:</strong> Tên S3 bucket phải unique toàn cầu trên AWS; suffix ngẫu nhiên (<code>random_id.suffix</code>) trùng với bucket đã tồn tại (hiếm gặp) hoặc <code>project_name</code> đã được dùng bởi người khác.<br/>
-    <strong>Giải pháp:</strong> Đổi giá trị <code>project_name</code> thành một chuỗi khác đặc trưng hơn (vd thêm tên của bạn), chạy lại <code>terraform apply</code>.
+    <strong>Lỗi:</strong> <code>terraform plan</code> báo <code>Error: Reference to undeclared resource</code> giữa <code>ecs.tf</code> và <code>ecr.tf</code>. <br/>
+    <strong>Nguyên nhân:</strong> ECS Task Definition tham chiếu image URL trước khi ECR repository được tạo/apply riêng ở Bước 6. <br/>
+    <strong>Giải pháp:</strong> Đảm bảo đã chạy <code>terraform apply -target=module.storage.aws_ecr_repository.app</code> ở Bước 6 trước, hoặc dùng <code>image = "${module.storage.ecr_repository_url}:latest"</code> (output của module <code>storage</code>) để Terraform tự tính đúng dependency graph.
   </div>
   <div class="alert alert-warning">
-    <strong>Lỗi:</strong> Không SSH được vào EC2 dù đã dùng đúng key pair.<br/>
-    <strong>Nguyên nhân:</strong> IP public của bạn đã thay đổi (IP động) sau khi apply, không còn khớp với <code>allowed_ssh_cidr</code> đã cấu hình trong security group.<br/>
-    <strong>Giải pháp:</strong> Lấy lại IP hiện tại (Bước 1), chạy lại <code>terraform apply -var="allowed_ssh_cidr=&lt;IP-mới&gt;/32"</code> để cập nhật rule security group.
+    <strong>Lỗi:</strong> ECS Task liên tục ở trạng thái <code>STOPPED</code>, không kết nối được RDS. <br/>
+    <strong>Nguyên nhân:</strong> Biến môi trường <code>DATABASE_URL</code> trong Task Definition sai endpoint, hoặc Security Group RDS chưa cho phép đúng Security Group của ECS Service. <br/>
+    <strong>Giải pháp:</strong> Dán log lỗi ECS Task cho Claude Code phân tích (chỉ phân tích, không tự sửa và apply lại), kiểm tra lại <code>aws_security_group.rds</code> có đúng <code>security_groups = [aws_security_group.ecs_service.id]</code> không.
   </div>
 
   <h2 class="section-heading" id="cleanup">Dọn dẹp resource</h2>
   <div class="alert alert-danger">
-    <strong>Bắt buộc thực hiện:</strong> Toàn bộ resource trong bài lab này là <strong>hạ tầng AWS thật</strong> (EC2, S3,
-    DynamoDB, VPC, IAM) và <strong>sẽ tiếp tục phát sinh chi phí</strong> nếu không được xoá. Luôn chạy
-    <code>terraform destroy</code> ngay sau khi hoàn thành bài lab, không để resource chạy qua đêm nếu không cần thiết.
+    <strong>Bắt buộc thực hiện:</strong> Toàn bộ resource trong bài lab này là <strong>hạ tầng AWS thật</strong> (VPC,
+    ALB, ECS Fargate, ECR, RDS, NAT Gateway) và <strong>sẽ tiếp tục phát sinh chi phí</strong> nếu không được xoá.
+    Lệnh <code>terraform destroy</code> dưới đây do chính bạn tự chạy — không nhờ Claude Code chạy giúp.
   </div>
-  <pre class="command-line" data-prompt="PS>"><code class="language-powershell">cd D:\lab-terraform-infra-co-ban
+  <pre class="command-line" data-prompt="PS>"><code class="language-powershell">cd D:\lab-expense-management\infra\terraform\environments\dev
 
-terraform destroy `
-  -var="allowed_ssh_cidr=203.0.113.10/32" `
-  -auto-approve</code></pre>
-  <p class="note-text">Sau khi lệnh trên hoàn thành, kiểm tra lại trên AWS Console (EC2, VPC, S3, DynamoDB, IAM) để xác nhận không còn resource nào sót lại từ bài lab — đặc biệt lưu ý S3 bucket có versioning bật sẵn đôi khi cần xoá thủ công các object version cũ nếu <code>terraform destroy</code> báo lỗi bucket chưa rỗng.</p>
+terraform destroy
+</code></pre>
+  <p class="note-text">Sau khi lệnh trên hoàn thành, kiểm tra lại trên AWS Console (VPC, ECS, ECR, RDS, CloudWatch, SNS) để xác nhận không còn resource nào sót lại. Lưu ý ECR repository có image bên trong đôi khi cần xoá thủ công các image tag trước nếu <code>terraform destroy</code> báo lỗi repository chưa rỗng.</p>
 
   <script>mermaid.initialize({ startOnLoad: true, theme: 'default' });</script>
 </body>

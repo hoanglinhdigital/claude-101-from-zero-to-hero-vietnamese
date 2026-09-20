@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Lab - Constitution & Specify cho tính năng mới – Claude 101</title>
+  <title>Lab - Implement & đối chiếu kết quả – Claude 101</title>
   <link rel="stylesheet" href="../../styles.css" />
   <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
   <script src="../../mermaid-config.js"></script>
@@ -16,147 +16,176 @@
   <div class="chapter-breadcrumb">
     <span class="section-part">10. Phát triển phần mềm với Spec-Kit Framework</span>
     <span class="sep">/</span>
-    <span class="chapter-part">Lab - Constitution & Specify cho tính năng mới</span>
+    <span class="chapter-part">Lab - Implement & đối chiếu kết quả</span>
   </div>
 
   <div class="alert alert-info">
-    Bài lab này <strong>tiếp tục dùng project <code>D:\lab-expense-management</code></strong> đã khởi tạo Spec-Kit ở
-    Chapter 5. Nếu chưa hoàn thành Chapter 5, hãy quay lại thực hiện trước.
-  </div>
-
-  <div class="alert alert-warning">
-    <strong>Phân biệt với tính năng đã làm ở Section 4 Chapter 6:</strong> Tính năng thực hành ở Section 10 là
-    <strong>"xuất báo cáo chi tiêu theo khoảng thời gian (từ ngày - đến ngày) dạng PDF hoặc Excel"</strong> — khác với
-    tính năng <strong>"xuất CSV danh sách chi tiêu theo tháng"</strong> đã làm ở Section 4. Hai tính năng độc lập,
-    tồn tại song song trong project, không thay thế nhau. Lý do chọn một tính năng mới: để thấy rõ toàn bộ quy trình
-    SDD từ đầu (spec → plan → task → code) trên một yêu cầu chưa từng được Claude Code implement trước đó.
+    Bài lab này <strong>tiếp tục dùng project <code>D:\lab-codekids-blocks</code></strong> và <code>tasks.md</code>
+    của tính năng <strong>"kéo thả khối lệnh vượt mê cung"</strong> đã tạo ở Chapter 5. Đây là bài lab khép lại vòng
+    SDD bằng giai đoạn <strong>Implementation</strong> và <strong>Convergence</strong> — Chapter 7 tiếp theo sẽ
+    triển khai sản phẩm hoàn chỉnh này lên Vercel và TiDB.
   </div>
 
   <h2 class="section-heading">Mục tiêu</h2>
   <ul class="feature-list">
-    <li>Dùng <code>/speckit.constitution</code> định nghĩa nguyên tắc chung cho project <code>lab-expense-management</code>.</li>
-    <li>Dùng <code>/speckit.specify</code> đặc tả chi tiết tính năng mới: xuất báo cáo chi tiêu theo khoảng thời gian, dạng PDF/Excel.</li>
-    <li>Xem lại file <code>constitution.md</code> và <code>spec.md</code> được Claude Code sinh ra, đối chiếu với yêu cầu đã nêu.</li>
+    <li>Dùng <code>/speckit.implement</code> để Claude Code triển khai lần lượt các task đã chia ở <code>tasks.md</code>.</li>
+    <li>Theo dõi tiến độ thực thi từng task, xác nhận từng bước trước khi cho phép ghi file.</li>
+    <li>Kiểm chứng màn chơi kéo thả vượt mê cung chạy đúng thực tế trên trình duyệt sau khi implement xong.</li>
+    <li>Đối chiếu kết quả thực tế với <code>spec.md</code> ban đầu (giai đoạn Convergence) — xác nhận không thiếu, không lệch yêu cầu.</li>
   </ul>
 
   <h2 class="section-heading">Mô hình kiến trúc</h2>
   <div class="mermaid">
-  flowchart LR
+  flowchart TB
       Dev(("<img src='../../assets/svg-icon/developer.svg' style='width:26px;height:26px;'/><br/><b>Developer</b>"))
       CC["<img src='../../assets/svg-icon/claude-logo.svg' style='width:28px;height:28px;'/><br/><b>Claude Code</b>"]
+      Tasks["📋 tasks.md<br/>(Chapter 5)"]
+      Spec["📝 spec.md<br/>(Chapter 4)"]
 
-      subgraph Step1["Bước 1"]
-          Cmd1["/speckit.constitution<br/>+ nguyên tắc chung"]
-          F1["📜 .specify/memory/constitution.md"]
+      subgraph Loop["🔁 /speckit.implement — lặp qua từng task"]
+          T1["Task 1: schema.prisma<br/>Level · Player · Progress"]
+          T2["Task 2: lib/maze-engine.ts"]
+          T3["Task 3: unit test engine"]
+          T4["Task 4: API /api/levels, /api/progress"]
+          T5["Task 5: UI kéo thả palette/workspace"]
+          T1 --> T2 --> T3 --> T4 --> T5
       end
 
-      subgraph Step2["Bước 2"]
-          Cmd2["/speckit.specify<br/>+ đặc tả tính năng"]
-          F2["📝 specs/{feature-id}/spec.md<br/>Xuất báo cáo PDF/Excel<br/>theo khoảng thời gian"]
-      end
+      Browser["<img src='../../assets/svg-icon/browser.svg' style='width:26px;height:26px;'/><br/>Kiểm chứng thực tế<br/>localhost:3000"]
+      Converge["✅ <b>Convergence</b><br/>Đối chiếu code với spec.md"]
 
-      Dev -->|"1."| Cmd1
-      Cmd1 --> CC --> F1
-      Dev -->|"2."| Cmd2
-      Cmd2 --> CC
-      F1 -.->|"Đọc lại làm ngữ cảnh"| CC
-      CC --> F2
+      Dev -->|"/speckit.implement"| CC
+      Tasks --> CC
+      CC --> Loop
+      Loop --> Browser
+      Browser --> Converge
+      Spec -.->|"Đối chiếu lại"| Converge
   </div>
-  <p class="arch-caption"><code>/speckit.specify</code> đọc lại <code>constitution.md</code> vừa tạo để đảm bảo bản đặc tả tính năng mới tuân theo nguyên tắc chung đã định nghĩa cho project.</p>
+  <p class="arch-caption">Claude Code thực thi tuần tự từng task trong <code>tasks.md</code>, đánh dấu hoàn thành ngược lại vào file này. Sau khi hết task, bước Convergence đối chiếu toàn bộ kết quả với <code>spec.md</code> gốc để xác nhận đúng yêu cầu — khép vòng SDD cho tính năng lõi của CodeKids Blocks.</p>
 
   <h2 class="section-heading">Yêu cầu trước khi bắt đầu</h2>
   <ul class="feature-list">
-    <li>Đã hoàn thành Chapter 5 — project <code>D:\lab-expense-management</code> đã có thư mục <code>.specify/</code>, slash command <code>/speckit.*</code> đã dùng được trong Claude Code.</li>
+    <li>Đã hoàn thành Chapter 5 — <code>specs/{feature-id}/plan.md</code> và <code>tasks.md</code> đã có nội dung chi tiết, đủ nhỏ để implement từng phần.</li>
+    <li>Docker Desktop đang chạy, MySQL container (<code>codekids-mysql</code>) đã khởi động lại nếu trước đó đã <code>docker compose down</code>.</li>
     <li>Claude Code CLI đã cài đặt và đăng nhập thành công.</li>
     <li>Terminal: PowerShell hoặc Windows Terminal.</li>
   </ul>
 
   <h2 class="section-heading">Các bước thực hành</h2>
 
-  <h3 class="sub-heading">Phần 1: Định nghĩa Constitution cho project</h3>
+  <h3 class="sub-heading">Phần 1: Triển khai bằng /speckit.implement</h3>
   <ol class="step-list">
     <li>
       <div>
-        <strong>Bước 1: Vào project và khởi động Claude Code</strong>
-        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">cd D:\lab-expense-management
+        <strong>Bước 1: Khởi động lại MySQL container và Claude Code</strong>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">cd D:\lab-codekids-blocks
+docker compose up -d
 claude</code></pre>
       </div>
     </li>
     <li>
       <div>
-        <strong>Bước 2: Chạy /speckit.constitution với nguyên tắc chung của project</strong>
-        <p>Nêu rõ các ràng buộc quan trọng nhất mà mọi tính năng sau này (bao gồm tính năng xuất báo cáo) phải tuân theo.</p>
-        <pre class="command-line" data-prompt=">"><code class="language-text">/speckit.constitution Định nghĩa nguyên tắc chung cho project lab-expense-management (Next.js + Prisma + MySQL):
-1. Mọi API route mới phải validate input đầu vào (kiểu dữ liệu, giá trị hợp lệ) trước khi xử lý, trả lỗi rõ ràng (status code + message) nếu input không hợp lệ.
-2. Không được thay đổi hoặc phá vỡ contract của các API route đã có (GET/POST /api/expenses, /api/categories, /api/expenses/export CSV, /api/expenses/summary) — chỉ được thêm route mới.
-3. Giữ style code nhất quán với phần code hiện có: TypeScript, dùng Prisma Client đã cấu hình sẵn, không thêm ORM/thư viện trùng chức năng đã có.
-4. Mọi logic nghiệp vụ quan trọng (tính toán, tạo file) nên tách thành hàm thuần trong thư mục lib/, tương tự cách đã làm với lib/csv-export.ts, để dễ viết unit test.
-5. Không tự ý xoá hoặc sửa dữ liệu trong database khi implement tính năng mới, trừ khi được yêu cầu rõ ràng.</code></pre>
+        <strong>Bước 2: Chạy /speckit.implement để bắt đầu triển khai</strong>
+        <p>Claude Code sẽ đọc <code>tasks.md</code> và thực thi lần lượt từng task theo đúng thứ tự đã chia ở Chapter 5.</p>
+        <pre class="command-line" data-prompt=">"><code class="language-text">/speckit.implement</code></pre>
       </div>
     </li>
     <li>
       <div>
-        <strong>Bước 3: Xem lại file constitution.md được sinh ra</strong>
-        <p>Đọc lại toàn bộ nội dung để xác nhận Claude Code ghi đúng và đủ các nguyên tắc đã nêu.</p>
-        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">code .specify\memory\constitution.md</code></pre>
+        <strong>Bước 3: Theo dõi và xác nhận từng task</strong>
+        <p>Ở mỗi task (cập nhật <code>schema.prisma</code>, tạo <code>lib/maze-engine.ts</code>, viết unit test, tạo API route, thêm UI kéo thả...), đọc qua thay đổi được đề xuất trước khi xác nhận cho ghi file — đặc biệt chú ý logic trong <code>lib/maze-engine.ts</code> vì đây là phần chấm điểm chính thức, ảnh hưởng trực tiếp đến tính công bằng của trò chơi.</p>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 4: Chạy migration Prisma khi task tạo/sửa schema.prisma hoàn tất</strong>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">npx prisma migrate dev --name add_level_player_progress</code></pre>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 5: Chạy unit test sau khi các task liên quan lib/maze-engine.ts hoàn tất</strong>
+        <p>Tự chạy lại test độc lập, không chỉ tin vào báo cáo "đã pass" của Claude Code.</p>
+        <pre class="command-line" data-prompt="PS>" data-output="2, 3, 4"><code class="language-powershell">npm test
+PASS  __tests__/maze-engine.test.ts
+  runProgram
+    ✓ nhân vật đến đúng ô đích khi chuỗi lệnh hợp lệ
+    ✓ dừng lại và báo va chạm khi đi vào ô tường</code></pre>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 6: Chờ Claude Code hoàn thành toàn bộ task và báo cáo tổng kết</strong>
+        <p>Sau khi hết task trong <code>tasks.md</code>, đọc lại tổng kết các file đã tạo/sửa trước khi qua bước kiểm chứng thực tế.</p>
       </div>
     </li>
   </ol>
 
-  <h3 class="sub-heading">Phần 2: Đặc tả tính năng xuất báo cáo</h3>
+  <h3 class="sub-heading">Phần 2: Kiểm chứng thực tế và Convergence</h3>
   <ol class="step-list">
     <li>
       <div>
-        <strong>Bước 4: Chạy /speckit.specify cho tính năng xuất báo cáo</strong>
-        <p>Mô tả rõ tính năng làm <em>gì</em> (hành vi, input, output mong đợi) — chưa cần nói đến thư viện hay tên file kỹ thuật, việc đó dành cho <code>/speckit.plan</code> ở bài lab sau.</p>
-        <pre class="command-line" data-prompt=">"><code class="language-text">/speckit.specify Thêm tính năng xuất báo cáo chi tiêu theo khoảng thời gian cho app Quản lý chi tiêu. Đây là tính năng MỚI, khác với tính năng xuất CSV theo tháng đã có. Yêu cầu:
-1. Người dùng chọn một khoảng thời gian bất kỳ (ngày bắt đầu, ngày kết thúc) trên trang chủ, không giới hạn theo tháng như tính năng CSV hiện tại.
-2. Người dùng chọn định dạng xuất báo cáo: PDF hoặc Excel (.xlsx).
-3. Báo cáo gồm: danh sách khoản chi tiêu trong khoảng thời gian đã chọn (ngày, danh mục, tiêu đề, số tiền), tổng chi tiêu theo từng danh mục, và tổng chi tiêu toàn bộ khoảng thời gian.
-4. Nếu không có khoản chi tiêu nào trong khoảng thời gian đã chọn, báo cáo vẫn được tạo ra bình thường, hiển thị rõ "Không có dữ liệu" và tổng bằng 0.
-5. Tính năng này không thay đổi hay xoá tính năng xuất CSV theo tháng đã có — cả hai cùng tồn tại, phục vụ hai nhu cầu khác nhau.</code></pre>
+        <strong>Bước 7: Khởi động dev server và thử màn chơi trên trình duyệt</strong>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">npm run dev</code></pre>
+        <p>Mở <code>http://localhost:3000</code>, nhập một biệt danh bất kỳ, kéo các khối lệnh (Đi tới, Rẽ trái, Rẽ phải, Lặp lại) vào khung làm việc ở màn 1, bấm "Chạy" và xác nhận nhân vật di chuyển từng bước đúng theo chuỗi lệnh đã ghép, đến đích thì hiển thị số sao đạt được.</p>
       </div>
     </li>
     <li>
       <div>
-        <strong>Bước 5: Trả lời các câu hỏi làm rõ (nếu Claude Code hỏi lại)</strong>
-        <p>Ở giai đoạn Specification, Claude Code có thể hỏi lại để làm rõ các điểm còn mơ hồ trong yêu cầu (vd định dạng ngày cụ thể, giới hạn khoảng thời gian tối đa). Trả lời rõ ràng để bản spec chính xác nhất có thể trước khi sang giai đoạn Planning.</p>
+        <strong>Bước 8: Thử trường hợp va chạm và chưa hoàn thành</strong>
+        <p>Ghép một chuỗi lệnh cố tình khiến nhân vật đi vào tường — xác nhận trò chơi dừng đúng vị trí va chạm, hiển thị thông báo thân thiện (không dùng từ "Thua"/"Sai") và cho phép sửa lại ngay. Sau đó thử một chuỗi lệnh ngắn hơn cần thiết để xác nhận trường hợp "chưa hoàn thành" (hết lệnh mà chưa đến đích) hiển thị đúng và không lưu kết quả.</p>
       </div>
     </li>
     <li>
       <div>
-        <strong>Bước 6: Xem lại file spec.md được sinh ra</strong>
-        <p>Xác nhận thư mục tính năng mới đã được tạo dưới <code>specs/</code> và nội dung <code>spec.md</code> phản ánh đúng yêu cầu đã nêu ở Bước 4.</p>
-        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">dir specs</code></pre>
-        <p>Mở file <code>spec.md</code> vừa được tạo (tên thư mục cụ thể tuỳ Spec-Kit tự đặt, ví dụ <code>specs/001-xuat-bao-cao-chi-tieu/spec.md</code>) để đọc lại toàn bộ nội dung.</p>
-        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">code specs\001-xuat-bao-cao-chi-tieu\spec.md</code></pre>
+        <strong>Bước 9: Thử màn khó hơn cần dùng khối Lặp lại</strong>
+        <p>Ở màn có độ khó cao hơn, thử ghép chuỗi lệnh không dùng khối Lặp lại (nhiều khối Đi tới lặp lại thủ công) và so sánh số sao đạt được với khi dùng khối Lặp lại để tối ưu — xác nhận cơ chế chấm sao theo số khối lệnh hoạt động đúng như đã đặc tả.</p>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 10: Đối chiếu kết quả với spec.md — giai đoạn Convergence</strong>
+        <p>Mở lại <code>spec.md</code> ở Chapter 4, lập checklist từng yêu cầu (9 mục đã liệt kê) và xác nhận từng mục đã đáp ứng đúng trên thực tế.</p>
+        <pre class="command-line" data-prompt=">"><code class="language-text">Đọc lại spec.md của tính năng kéo thả vượt mê cung và so sánh với code đã implement. Liệt kê rõ: yêu cầu nào đã đáp ứng đầy đủ, yêu cầu nào còn thiếu hoặc chưa đúng (nếu có), kèm vị trí file liên quan.</code></pre>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 11: Xử lý phần chưa khớp (nếu có)</strong>
+        <p>Nếu Bước 10 phát hiện sai lệch, quay lại cập nhật <code>spec.md</code>/<code>plan.md</code>/<code>tasks.md</code> cho đúng thực tế mong muốn rồi chạy lại <code>/speckit.implement</code> cho phần liên quan — không sửa tay trực tiếp vào code mà bỏ qua việc cập nhật spec.</p>
       </div>
     </li>
   </ol>
 
   <div class="verify-box">
     <h4>✅ Kết quả mong đợi</h4>
-    <p class="body-text"><code>.specify/memory/constitution.md</code> chứa đủ 5 nguyên tắc đã nêu. Thư mục <code>specs/{feature-id}/spec.md</code> mới xuất hiện, mô tả đầy đủ hành vi tính năng xuất báo cáo theo khoảng thời gian, dạng PDF/Excel — không nhắc đến hoặc trùng lặp với tính năng xuất CSV theo tháng đã có.</p>
+    <p class="body-text">Màn chơi kéo thả khối lệnh vượt mê cung hoạt động đúng với cả 3 kết quả (đến đích, va chạm, chưa hoàn thành), chấm sao đúng theo số khối lệnh đã dùng, chơi được ngay bằng biệt danh không cần đăng nhập. Toàn bộ yêu cầu trong <code>spec.md</code> được đối chiếu và xác nhận đã đáp ứng — hoàn tất giai đoạn Convergence, khép vòng SDD cho tính năng lõi của CodeKids Blocks.</p>
   </div>
 
   <h2 class="section-heading">Troubleshoot</h2>
   <div class="alert alert-warning">
-    <strong>Lỗi:</strong> <code>/speckit.constitution</code> báo đã có file constitution.md, hỏi có muốn ghi đè không.<br/>
-    <strong>Nguyên nhân:</strong> File đã được tạo sẵn (rỗng hoặc mẫu) khi chạy <code>specify init</code> ở Chapter 5.<br/>
-    <strong>Giải pháp:</strong> Xác nhận ghi đè (merge/overwrite) — vì đây là lần đầu định nghĩa nguyên tắc thật cho project.
+    <strong>Lỗi:</strong> <code>/speckit.implement</code> dừng giữa chừng, báo lỗi khi thực thi một task cụ thể.<br/>
+    <strong>Nguyên nhân:</strong> Task đó phụ thuộc vào một package chưa được cài đặt đúng, hoặc mô tả task chưa đủ rõ so với thực tế project.<br/>
+    <strong>Giải pháp:</strong> Đọc thông báo lỗi cụ thể, yêu cầu Claude Code cài package còn thiếu (<code>npm install</code>) hoặc làm rõ lại task đó rồi tiếp tục <code>/speckit.implement</code> — các task đã hoàn thành trước đó vẫn được giữ nguyên.
   </div>
   <div class="alert alert-warning">
-    <strong>Lỗi:</strong> Bản <code>spec.md</code> sinh ra vẫn nhắc đến logic của tính năng xuất CSV cũ, gây nhầm lẫn hai tính năng.<br/>
-    <strong>Nguyên nhân:</strong> Prompt ở Bước 4 chưa nhấn đủ mạnh sự khác biệt, hoặc Claude Code đọc lẫn ngữ cảnh từ code cũ.<br/>
-    <strong>Giải pháp:</strong> Chạy lại <code>/speckit.specify</code>, nhấn rõ hơn "đây là tính năng độc lập, không sửa/không dựa trên route export CSV hiện có".
+    <strong>Lỗi:</strong> Kéo thả khối lệnh trên trình duyệt bị giật, thả không đúng vị trí trong khung làm việc.<br/>
+    <strong>Nguyên nhân:</strong> Logic tính vị trí thả (drop) trong component workspace chưa xử lý đúng toạ độ tương đối khi khung làm việc có scroll hoặc padding.<br/>
+    <strong>Giải pháp:</strong> Yêu cầu Claude Code kiểm tra lại hàm xử lý sự kiện <code>ondrop</code>, tính toạ độ dựa trên <code>getBoundingClientRect()</code> của khung làm việc thay vì toạ độ tuyệt đối trên trang.
+  </div>
+  <div class="alert alert-warning">
+    <strong>Lỗi:</strong> Số sao lưu vào database khác với số sao hiển thị trên giao diện.<br/>
+    <strong>Nguyên nhân:</strong> UI tự tính sao ở client bằng logic riêng thay vì dùng đúng kết quả server trả về từ <code>/api/progress</code>.<br/>
+    <strong>Giải pháp:</strong> Yêu cầu Claude Code sửa UI để hiển thị đúng số sao lấy từ response của API — chỉ dùng logic client để xem trước hiệu ứng di chuyển, không dùng để tính điểm cuối cùng.
   </div>
 
   <h2 class="section-heading">Dọn dẹp resource</h2>
   <div class="alert alert-info">
-    Bài lab này chỉ tạo file Markdown (<code>constitution.md</code>, <code>spec.md</code>) trong project —
-    <strong>không tạo resource nào trên Cloud</strong>, không có gì cần dọn dẹp. Giữ nguyên toàn bộ file vừa tạo để
-    tiếp tục ở Chapter 7 (Plan & Tasks).
+    Bài lab này không tạo resource cloud tính phí. Chỉ cần dừng container MySQL khi tạm nghỉ giữa các buổi thực hành:
   </div>
+  <pre class="command-line" data-prompt="PS>"><code class="language-powershell">cd D:\lab-codekids-blocks
+docker compose down</code></pre>
+  <p class="note-text">Có thể commit toàn bộ thay đổi (bao gồm <code>.specify/</code>, <code>specs/</code>, và code tính năng lõi) vào Git để lưu lại minh chứng cho cả quy trình SDD đã thực hiện. Giữ nguyên project để tiếp tục ở Chapter 7 — triển khai lên Vercel và TiDB.</p>
 
   <script>mermaid.initialize({ startOnLoad: true, theme: 'default' });</script>
 </body>

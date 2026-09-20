@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Giới thiệu Spec-Kit & cài đặt specify CLI – Claude 101</title>
+  <title>Spec-Kit: 6 giai đoạn SDD & cấu trúc file – Claude 101</title>
   <link rel="stylesheet" href="../../styles.css" />
   <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
   <script src="../../mermaid-config.js"></script>
@@ -16,104 +16,188 @@
   <div class="chapter-breadcrumb">
     <span class="section-part">10. Phát triển phần mềm với Spec-Kit Framework</span>
     <span class="sep">/</span>
-    <span class="chapter-part">Giới thiệu Spec-Kit & cài đặt specify CLI</span>
+    <span class="chapter-part">Spec-Kit: 6 giai đoạn SDD & cấu trúc file</span>
   </div>
 
   <h2 class="section-heading">Giới thiệu</h2>
   <p class="body-text">
     <strong>Spec-Kit</strong> (<code>github.com/github/spec-kit</code>) là công cụ mã nguồn mở do GitHub phát hành,
     hiện thực hoá triết lý Spec-Driven Development đã học ở chương trước thành một quy trình cụ thể có thể dùng
-    ngay. Thành phần chính là CLI tên <code>specify</code> — dùng để khởi tạo bộ khung thư mục, template đặc tả, và
-    các slash command <code>/speckit.*</code> tương ứng cho AI coding agent (Claude Code, và một số agent khác).
-    Sau khi cài đặt, User chỉ cần gõ slash command ngay trong Claude Code để đi qua từng giai đoạn của SDD, không
-    cần tự tay tạo file hay nhớ cấu trúc đặc tả.
+    ngay. Spec-Kit chia quy trình đó thành <strong>6 giai đoạn</strong> nối tiếp nhau — <strong>Constitution →
+    Specification → Planning → Task Breakdown → Implementation → Convergence</strong> — mỗi giai đoạn tương ứng một
+    slash command <code>/speckit.*</code> trong Claude Code và sinh ra (hoặc cập nhật) một file Markdown cụ thể
+    trong project. User chỉ cần gõ slash command ngay trong Claude Code để đi qua từng giai đoạn, không cần tự tay
+    tạo file hay nhớ cấu trúc đặc tả.
   </p>
 
   <h2 class="section-heading">Các tính năng chính</h2>
   <ul class="feature-list">
-    <li>CLI <code>specify</code> khởi tạo (<code>init</code>) bộ khung Spec-Kit ngay trong một project — tạo thư mục <code>.specify/</code> và các file slash command mà Claude Code có thể nhận diện.</li>
-    <li>Hỗ trợ nhiều AI coding agent khác nhau (Claude Code là một trong số đó) — khi khởi tạo có thể chỉ định agent đích để Spec-Kit sinh đúng định dạng slash command phù hợp.</li>
-    <li>Đóng gói sẵn template cho từng giai đoạn SDD (constitution, specify, plan, tasks, implement) — User không cần tự thiết kế cấu trúc đặc tả từ đầu.</li>
-    <li>Mã nguồn mở, cập nhật thường xuyên trên GitHub — có thể theo dõi thay đổi, đóng góp, hoặc tuỳ biến template nếu cần.</li>
-    <li>Không phụ thuộc dịch vụ cloud nào — toàn bộ file sinh ra (constitution, spec, plan, tasks) đều là file Markdown lưu ngay trong project, quản lý được bằng Git như code thông thường.</li>
+    <li>Đóng gói sẵn slash command và template cho từng giai đoạn SDD (constitution, specify, plan, tasks, implement) — User không cần tự thiết kế cấu trúc đặc tả từ đầu.</li>
+    <li>Hỗ trợ nhiều AI coding agent khác nhau (Claude Code là một trong số đó) — mỗi agent nhận đúng định dạng slash command phù hợp.</li>
+    <li>Toàn bộ file Spec-Kit sinh ra đều là <strong>Markdown thuần</strong> — đọc được trực tiếp, chỉnh sửa tay được, và theo dõi lịch sử thay đổi qua Git như code thông thường.</li>
+    <li>Không phụ thuộc dịch vụ cloud nào — <code>.specify/</code>, <code>specs/</code> đều là thư mục nằm ngay trong project.</li>
+    <li>Mỗi slash command đọc ngữ cảnh từ file do lệnh trước đó sinh ra (vd <code>/speckit.plan</code> đọc lại <code>spec.md</code> và <code>constitution.md</code>) — giữ tính liên kết xuyên suốt cả quy trình.</li>
   </ul>
 
   <h2 class="section-heading">Mô hình kiến trúc</h2>
+
+  <h3 class="sub-heading">6 giai đoạn của quy trình SDD</h3>
   <div class="mermaid">
   flowchart LR
+      C1["📜<br/><b>1. Constitution</b><br/>/speckit.constitution<br/>→ .specify/memory/constitution.md"]
+      C2["📝<br/><b>2. Specification</b><br/>/speckit.specify<br/>→ specs/{feature-id}/spec.md"]
+      C3["🗺️<br/><b>3. Planning</b><br/>/speckit.plan<br/>→ plan.md"]
+      C4["📋<br/><b>4. Task Breakdown</b><br/>/speckit.tasks<br/>→ tasks.md"]
+      C5["<img src='../../assets/svg-icon/claude-logo.svg' style='width:26px;height:26px;'/><br/><b>5. Implementation</b><br/>/speckit.implement<br/>→ code thực tế"]
+      C6["✅<br/><b>6. Convergence</b><br/>Đối chiếu code với spec.md"]
+
+      C1 --> C2 --> C3 --> C4 --> C5 --> C6
+      C6 -.->|"Phát hiện sai lệch → cập nhật spec"| C2
+  </div>
+  <p class="arch-caption">6 giai đoạn chạy nối tiếp trong cùng một vòng đời tính năng. Constitution chỉ cần định nghĩa một lần cho cả project (có thể tái sử dụng cho nhiều tính năng), còn 5 giai đoạn sau lặp lại cho mỗi tính năng mới.</p>
+
+  <div class="phase-timeline">
+    <div class="phase-item">
+      <strong>1. Constitution</strong>
+      Nguyên tắc chung, ràng buộc không thể vi phạm của cả project (vd luôn validate input, không phá vỡ API hiện có) — định nghĩa một lần, dùng lại cho mọi tính năng.
+    </div>
+    <div class="phase-item purple">
+      <strong>2. Specification</strong>
+      Đặc tả chi tiết một tính năng cụ thể: tính năng làm <em>gì</em>, cho ai, hành vi mong đợi — chưa bàn đến công nghệ triển khai.
+    </div>
+    <div class="phase-item orange">
+      <strong>3. Planning</strong>
+      Lập kế hoạch kỹ thuật — chọn thư viện, thiết kế API/route, các thay đổi cần thực hiện để đáp ứng spec.
+    </div>
+    <div class="phase-item green">
+      <strong>4. Task Breakdown</strong>
+      Chia kế hoạch thành các task nhỏ, cụ thể, có thể thực hiện và kiểm tra độc lập từng phần.
+    </div>
+    <div class="phase-item">
+      <strong>5. Implementation</strong>
+      Claude Code thực thi lần lượt từng task, sinh/sửa code thực tế.
+    </div>
+    <div class="phase-item purple">
+      <strong>6. Convergence</strong>
+      Đối chiếu kết quả implement với spec ban đầu, xác nhận đúng yêu cầu, khép lại vòng SDD cho tính năng đó.
+    </div>
+  </div>
+
+  <h3 class="sub-heading">Slash command & file sinh ra tương ứng</h3>
+  <div class="mermaid">
+  flowchart TB
       Dev(("<img src='../../assets/svg-icon/developer.svg' style='width:26px;height:26px;'/><br/><b>Developer</b>"))
-      GH["<img src='../../assets/svg-icon/github.svg' style='width:28px;height:28px;'/><br/><b>github.com/github/spec-kit</b><br/>Mã nguồn Spec-Kit"]
+      CC["<img src='../../assets/svg-icon/claude-logo.svg' style='width:28px;height:28px;'/><br/><b>Claude Code</b>"]
 
-      subgraph Local["💻 Máy local"]
-          UV["🐍 <b>uv</b><br/>Python package/tool manager"]
-          CLI["⚙️ <b>specify CLI</b><br/>cài qua uv tool install"]
-          Project["<img src='../../assets/svg-icon/ide.svg' style='width:26px;height:26px;'/><br/><b>Project có sẵn</b><br/>(vd lab-expense-management)"]
-          SpecifyDir["📁 <b>.specify/</b><br/>+ slash command /speckit.*"]
-          CC["<img src='../../assets/svg-icon/claude-logo.svg' style='width:28px;height:28px;'/><br/><b>Claude Code</b>"]
-      end
+      Cmd1["/speckit.constitution"]
+      Cmd2["/speckit.specify"]
+      Cmd3["/speckit.plan"]
+      Cmd4["/speckit.tasks"]
+      Cmd5["/speckit.implement"]
 
-      Dev -->|"Cài đặt"| UV --> CLI
-      CLI -->|"Tải template"| GH
-      Dev -->|"specify init"| CLI
-      CLI -->|"Sinh vào project"| Project --> SpecifyDir
-      SpecifyDir -->|"Slash command /speckit.*<br/>được nhận diện"| CC
-      Dev -->|"Gõ /speckit.*"| CC
+      F1["📜 .specify/memory/constitution.md"]
+      F2["📝 specs/{feature-id}/spec.md"]
+      F3["🗺️ specs/{feature-id}/plan.md"]
+      F4["📋 specs/{feature-id}/tasks.md"]
+      F5["💻 Code thực tế trong project"]
+
+      Dev -->|"Gõ slash command"| CC
+      CC --> Cmd1 --> F1
+      CC --> Cmd2 -->|"Đọc lại"| F1
+      Cmd2 --> F2
+      CC --> Cmd3 -->|"Đọc lại"| F2
+      Cmd3 --> F3
+      CC --> Cmd4 -->|"Đọc lại"| F3
+      Cmd4 --> F4
+      CC --> Cmd5 -->|"Đọc lại"| F4
+      Cmd5 --> F5
   </div>
-  <p class="arch-caption"><code>specify</code> CLI (cài qua <code>uv</code>) tải template từ repository Spec-Kit trên GitHub, sinh thư mục <code>.specify/</code> và slash command ngay trong project có sẵn — Claude Code tự nhận diện các slash command <code>/speckit.*</code> này sau khi khởi tạo xong.</p>
+  <p class="arch-caption">Mỗi slash command vừa đọc lại file do lệnh trước sinh ra để giữ ngữ cảnh, vừa tạo file output riêng cho giai đoạn hiện tại — tạo thành một chuỗi phụ thuộc tuyến tính từ Constitution đến Implementation.</p>
 
-  <h3 class="sub-heading">Yêu cầu trước khi cài đặt</h3>
-  <div class="prereq-grid">
-    <div class="prereq-item">
-      <div class="label">Python</div>
-      Phiên bản 3.11 trở lên — kiểm tra bằng <code>python --version</code>.
-    </div>
-    <div class="prereq-item">
-      <div class="label">Git</div>
-      Đã cài đặt và có thể gọi từ terminal — kiểm tra bằng <code>git --version</code>.
-    </div>
-    <div class="prereq-item">
-      <div class="label">uv</div>
-      Python package/tool manager — dùng để cài và chạy <code>specify</code> CLI mà không cần quản lý virtualenv thủ công.
-    </div>
-    <div class="prereq-item">
-      <div class="label">Claude Code</div>
-      Đã cài đặt và đăng nhập thành công (xem lại Section 2) — nơi các slash command <code>/speckit.*</code> sẽ được sử dụng.
-    </div>
+  <h4>Cấu trúc thư mục Spec-Kit sinh ra</h4>
+  <div class="file-tree">
+    <span class="dir">.specify/</span><br/>
+    &nbsp;&nbsp;<span class="dir">memory/</span><br/>
+    &nbsp;&nbsp;&nbsp;&nbsp;<span class="file">constitution.md</span> <span class="desc">— nguyên tắc chung của cả project</span><br/>
+    &nbsp;&nbsp;<span class="dir">templates/</span> <span class="note">(nội bộ)</span> <span class="desc">— template Spec-Kit dùng để sinh các file trên</span><br/>
+    <span class="dir">specs/</span><br/>
+    &nbsp;&nbsp;<span class="dir">001-xuat-bao-cao/</span> <span class="note">(ví dụ feature-id)</span><br/>
+    &nbsp;&nbsp;&nbsp;&nbsp;<span class="file">spec.md</span> <span class="desc">— đặc tả tính năng, sinh bởi /speckit.specify</span><br/>
+    &nbsp;&nbsp;&nbsp;&nbsp;<span class="file">plan.md</span> <span class="desc">— kế hoạch kỹ thuật, sinh bởi /speckit.plan</span><br/>
+    &nbsp;&nbsp;&nbsp;&nbsp;<span class="file">tasks.md</span> <span class="desc">— danh sách task, sinh bởi /speckit.tasks</span>
   </div>
-
-  <h3 class="sub-heading">Ví dụ lệnh cài đặt</h3>
-  <p class="body-text">Cài <code>specify</code> CLI như một tool cố định (khuyến nghị nếu dùng thường xuyên):</p>
-  <pre class="command-line" data-prompt="PS>"><code class="language-powershell">uv tool install specify-cli --from git+https://github.com/github/spec-kit.git</code></pre>
-  <p class="body-text">Hoặc chạy trực tiếp không cần cài cố định (uv tự tải và chạy trong môi trường tạm):</p>
-  <pre class="command-line" data-prompt="PS>"><code class="language-powershell">uvx --from git+https://github.com/github/spec-kit.git specify init &lt;project-name&gt;</code></pre>
   <div class="alert alert-info">
-    <strong>Lưu ý:</strong> Tham số/flag cụ thể của lệnh <code>specify init</code> (chọn AI agent đích, khởi tạo vào
-    thư mục hiện tại thay vì tạo thư mục mới...) có thể thay đổi giữa các phiên bản Spec-Kit. Luôn chạy
-    <code>specify --help</code> hoặc <code>specify init --help</code>, hoặc tham khảo
-    <code>github.com/github/spec-kit</code> để có danh sách tuỳ chọn đầy đủ và mới nhất trước khi thực hành.
+    <strong>Lưu ý:</strong> Tên thư mục <code>{feature-id}</code> (vd <code>001-xuat-bao-cao</code>) do Spec-Kit tự
+    đặt dựa trên số thứ tự và tên tính năng khi chạy <code>/speckit.specify</code>. Quy ước đặt tên chính xác có thể
+    điều chỉnh theo phiên bản — quan trọng là luôn có một thư mục riêng cho mỗi tính năng chứa đủ 3 file
+    <code>spec.md</code>, <code>plan.md</code>, <code>tasks.md</code>.
   </div>
+
+  <h4>5 slash command chính</h4>
+  <table class="info-table">
+    <thead>
+      <tr><th>Slash command</th><th>Giai đoạn</th><th>File sinh ra / cập nhật</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><code>/speckit.constitution</code></td>
+        <td>Constitution</td>
+        <td><code>.specify/memory/constitution.md</code></td>
+      </tr>
+      <tr>
+        <td><code>/speckit.specify</code></td>
+        <td>Specification</td>
+        <td><code>specs/{feature-id}/spec.md</code></td>
+      </tr>
+      <tr>
+        <td><code>/speckit.plan</code></td>
+        <td>Planning</td>
+        <td><code>specs/{feature-id}/plan.md</code></td>
+      </tr>
+      <tr>
+        <td><code>/speckit.tasks</code></td>
+        <td>Task Breakdown</td>
+        <td><code>specs/{feature-id}/tasks.md</code></td>
+      </tr>
+      <tr>
+        <td><code>/speckit.implement</code></td>
+        <td>Implementation</td>
+        <td>Code thực tế trong project (đánh dấu tiến độ ngược lại vào <code>tasks.md</code>)</td>
+      </tr>
+    </tbody>
+  </table>
 
   <h2 class="section-heading">Use Cases</h2>
   <div class="usecase-grid">
     <div class="usecase-card">
-      <h4>Thêm SDD vào project đã có sẵn</h4>
-      <p>Không cần tạo project mới — Spec-Kit có thể khởi tạo ngay trong một codebase đang chạy để áp dụng SDD cho các tính năng mới.</p>
+      <h4>Tính năng phức tạp, nhiều bước</h4>
+      <p>Chia nhỏ theo 6 giai đoạn giúp kiểm soát tốt hơn một tính năng có nhiều phần liên quan (API, UI, xử lý dữ liệu) so với một prompt duy nhất.</p>
     </div>
     <div class="usecase-card">
-      <h4>Chuẩn hoá quy trình làm việc với AI agent</h4>
-      <p>Cùng một bộ slash command, cùng một cấu trúc file — dễ chia sẻ cách làm việc giữa nhiều thành viên trong team.</p>
+      <h4>Review đặc tả như review code</h4>
+      <p>Vì spec/plan/task đều là file Markdown trong Git, có thể tạo Pull Request riêng cho thay đổi spec, để đồng nghiệp review trước khi cho Claude Code implement.</p>
     </div>
     <div class="usecase-card">
-      <h4>Theo dõi lịch sử đặc tả qua Git</h4>
-      <p>Vì spec/plan/task đều là file Markdown, mọi thay đổi đặc tả đều có thể xem lại qua <code>git log</code>/<code>git diff</code> như code thông thường.</p>
+      <h4>Nhiều tính năng song song</h4>
+      <p>Mỗi tính năng có thư mục <code>specs/{feature-id}/</code> riêng — theo dõi được nhiều tính năng đang ở giai đoạn khác nhau cùng lúc, không lẫn với nhau.</p>
     </div>
   </div>
 
   <h2 class="section-heading">Thông tin bổ sung</h2>
   <p class="body-text">
-    Spec-Kit là project phát triển tích cực — tên lệnh con, cấu trúc thư mục sinh ra, hoặc danh sách agent được hỗ
-    trợ có thể được bổ sung/thay đổi theo thời gian. Chương thực hành tiếp theo (Lab - Cài đặt & khởi tạo project)
-    sẽ hướng dẫn cài đặt từng bước cụ thể trên project <code>lab-expense-management</code> đã tạo ở Section 4.
+    6 giai đoạn không bắt buộc phải chạy tuyến tính một chiều — nếu ở giai đoạn Convergence phát hiện kết quả chưa
+    đúng spec, hoàn toàn có thể quay lại cập nhật spec/plan/task rồi chạy lại Implementation cho phần bị lệch, thay
+    vì sửa tay trực tiếp vào code (điều này sẽ làm code và spec lệch nhau trở lại — đúng vấn đề SDD muốn tránh).
+    Ngoài 5 slash command chính ở trên, Spec-Kit có thể bổ sung thêm các lệnh phụ trợ khác theo thời gian (vd lệnh hỗ
+    trợ làm rõ yêu cầu, kiểm tra môi trường...). Gõ <code>/speckit.</code> trong Claude Code để xem danh sách lệnh
+    khả dụng thực tế trên phiên bản đang cài.
+  </p>
+  <div class="alert alert-info">
+    <strong>Lưu ý:</strong> Tên slash command, tên file output và cấu trúc thư mục ở trên là các quy ước ổn định của
+    Spec-Kit tại thời điểm biên soạn khoá học nhưng có thể thay đổi theo phiên bản mới — luôn tham khảo
+    <code>github.com/github/spec-kit</code> để có thông tin đầy đủ và mới nhất. Bài lab tiếp theo sẽ hướng dẫn cài
+    đặt <code>specify</code> CLI và khởi tạo Spec-Kit từng bước cụ thể trên project <code>lab-expense-management</code>
+    đã tạo ở Section 4.
   </p>
 
   <script>mermaid.initialize({ startOnLoad: true, theme: 'default' });</script>

@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Cấu trúc file sinh ra bởi Spec-Kit & slash command /speckit.* – Claude 101</title>
+  <title>Lab - Phân tích yêu cầu, Constitution & Specify – Claude 101</title>
   <link rel="stylesheet" href="../../styles.css" />
   <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
   <script src="../../mermaid-config.js"></script>
@@ -16,133 +16,203 @@
   <div class="chapter-breadcrumb">
     <span class="section-part">10. Phát triển phần mềm với Spec-Kit Framework</span>
     <span class="sep">/</span>
-    <span class="chapter-part">Cấu trúc file sinh ra bởi Spec-Kit & slash command /speckit.*</span>
+    <span class="chapter-part">Lab - Phân tích yêu cầu, Constitution & Specify</span>
   </div>
 
-  <h2 class="section-heading">Giới thiệu</h2>
-  <p class="body-text">
-    Mỗi giai đoạn SDD đã học ở chương trước đều gắn với một slash command <code>/speckit.*</code> cụ thể trong Claude
-    Code, và mỗi slash command đó lại sinh ra (hoặc cập nhật) một file Markdown cố định trong project. Nắm rõ file
-    nào nằm ở đâu, sinh ra từ lệnh nào giúp User dễ dàng đọc lại, chỉnh sửa tay khi cần, và hiểu Claude Code đang
-    lấy ngữ cảnh từ đâu ở mỗi bước.
-  </p>
+  <div class="alert alert-info">
+    Bài lab này <strong>tiếp tục dùng project <code>D:\lab-codekids-blocks</code></strong> đã khởi tạo Spec-Kit ở
+    Chapter 3. Nếu chưa hoàn thành Chapter 3, hãy quay lại thực hiện trước.
+  </div>
 
-  <h2 class="section-heading">Các tính năng chính</h2>
+  <div class="alert alert-warning">
+    <strong>Vì sao cần phân tích yêu cầu kỹ hơn ở bài lab này?</strong> Các bài lab dùng <code>lab-expense-management</code>
+    ở chapter trước là <em>thêm một tính năng</em> vào codebase đã có sẵn nghiệp vụ, quy ước, dữ liệu mẫu. CodeKids
+    Blocks là một <strong>sản phẩm hoàn toàn mới</strong>: chưa có nghiệp vụ, chưa có người dùng thật, đối tượng là
+    trẻ 7-12 tuổi — nhóm người dùng có nhu cầu rất khác người lớn (đọc chữ ít, thao tác đơn giản, cần an toàn nội
+    dung). Bỏ qua bước phân tích yêu cầu nghiệp vụ + kỹ thuật mà nhảy thẳng vào <code>/speckit.specify</code> rất dễ
+    khiến Claude Code đặc tả một sản phẩm "chung chung", không thực sự phù hợp đối tượng học sinh nhỏ tuổi.
+  </div>
+
+  <h2 class="section-heading">Mục tiêu</h2>
   <ul class="feature-list">
-    <li>Toàn bộ file Spec-Kit sinh ra đều là <strong>Markdown thuần</strong> — đọc được trực tiếp, chỉnh sửa tay được, và theo dõi lịch sử thay đổi qua Git như code thông thường.</li>
-    <li><code>.specify/memory/constitution.md</code> — nguyên tắc chung của cả project, dùng chung cho mọi tính năng, chỉ nằm ở một vị trí duy nhất.</li>
-    <li>Mỗi tính năng có một thư mục riêng dưới <code>specs/{feature-id}/</code> — chứa <code>spec.md</code>, <code>plan.md</code>, <code>tasks.md</code> của riêng tính năng đó, không lẫn với tính năng khác.</li>
-    <li>Slash command sau khi <code>specify init</code> được Claude Code tự nhận diện — gõ <code>/speckit.</code> trong khung chat để xem gợi ý danh sách lệnh khả dụng.</li>
-    <li>Mỗi slash command đọc ngữ cảnh từ file do lệnh trước đó sinh ra (vd <code>/speckit.plan</code> đọc lại <code>spec.md</code> và <code>constitution.md</code>) — giữ tính liên kết xuyên suốt cả quy trình.</li>
+    <li>Phân tích rõ yêu cầu <strong>nghiệp vụ (business)</strong>: đối tượng người dùng, mục tiêu giáo dục, ràng buộc an toàn cho trẻ em, tiêu chí thành công.</li>
+    <li>Phân tích rõ yêu cầu <strong>kỹ thuật</strong>: cơ chế kéo thả, mô hình dữ liệu mê cung/khối lệnh, cách chấm điểm chương trình học sinh ghép ra.</li>
+    <li>Dùng <code>/speckit.constitution</code> định nghĩa nguyên tắc chung cho project CodeKids Blocks, phản ánh đúng các ràng buộc đã phân tích.</li>
+    <li>Dùng <code>/speckit.specify</code> đặc tả chi tiết tính năng lõi: <strong>màn chơi kéo thả khối lệnh điều khiển nhân vật vượt mê cung</strong>.</li>
   </ul>
 
   <h2 class="section-heading">Mô hình kiến trúc</h2>
   <div class="mermaid">
-  flowchart TB
+  flowchart LR
       Dev(("<img src='../../assets/svg-icon/developer.svg' style='width:26px;height:26px;'/><br/><b>Developer</b>"))
       CC["<img src='../../assets/svg-icon/claude-logo.svg' style='width:28px;height:28px;'/><br/><b>Claude Code</b>"]
 
-      Cmd1["/speckit.constitution"]
-      Cmd2["/speckit.specify"]
-      Cmd3["/speckit.plan"]
-      Cmd4["/speckit.tasks"]
-      Cmd5["/speckit.implement"]
+      subgraph B0["Bước 0 — Phân tích yêu cầu (thủ công, chưa gõ slash command)"]
+          BR["📊 Yêu cầu nghiệp vụ<br/>đối tượng · mục tiêu · an toàn"]
+          TR["🧩 Yêu cầu kỹ thuật<br/>kéo thả · mô hình mê cung · chấm điểm"]
+      end
 
-      F1["📜 .specify/memory/constitution.md"]
-      F2["📝 specs/{feature-id}/spec.md"]
-      F3["🗺️ specs/{feature-id}/plan.md"]
-      F4["📋 specs/{feature-id}/tasks.md"]
-      F5["💻 Code thực tế trong project"]
+      subgraph Step1["Bước 1"]
+          Cmd1["/speckit.constitution"]
+          F1["📜 constitution.md"]
+      end
 
-      Dev -->|"Gõ slash command"| CC
-      CC --> Cmd1 --> F1
-      CC --> Cmd2 -->|"Đọc lại"| F1
-      Cmd2 --> F2
-      CC --> Cmd3 -->|"Đọc lại"| F2
-      Cmd3 --> F3
-      CC --> Cmd4 -->|"Đọc lại"| F3
-      Cmd4 --> F4
-      CC --> Cmd5 -->|"Đọc lại"| F4
-      Cmd5 --> F5
+      subgraph Step2["Bước 2"]
+          Cmd2["/speckit.specify"]
+          F2["📝 spec.md<br/>Kéo thả vượt mê cung"]
+      end
+
+      BR --> Cmd1
+      TR --> Cmd1
+      Dev --> Cmd1 --> CC --> F1
+      BR --> Cmd2
+      TR --> Cmd2
+      Dev --> Cmd2 --> CC
+      F1 -.->|"Đọc lại làm ngữ cảnh"| CC
+      CC --> F2
   </div>
-  <p class="arch-caption">Mỗi slash command vừa đọc lại file do lệnh trước sinh ra để giữ ngữ cảnh, vừa tạo file output riêng cho giai đoạn hiện tại — tạo thành một chuỗi phụ thuộc tuyến tính từ Constitution đến Implementation.</p>
+  <p class="arch-caption">Vì là project mới, Bước 0 (phân tích nghiệp vụ + kỹ thuật) làm bằng tay trước khi gõ bất kỳ slash command nào — kết quả phân tích này được đưa thẳng vào nội dung prompt của <code>/speckit.constitution</code> và <code>/speckit.specify</code>, thay vì để Claude Code tự đoán.</p>
 
-  <h3 class="sub-heading">Cấu trúc thư mục Spec-Kit sinh ra</h3>
-  <div class="file-tree">
-    <span class="dir">.specify/</span><br/>
-    &nbsp;&nbsp;<span class="dir">memory/</span><br/>
-    &nbsp;&nbsp;&nbsp;&nbsp;<span class="file">constitution.md</span> <span class="desc">— nguyên tắc chung của cả project</span><br/>
-    &nbsp;&nbsp;<span class="dir">templates/</span> <span class="note">(nội bộ)</span> <span class="desc">— template Spec-Kit dùng để sinh các file trên</span><br/>
-    <span class="dir">specs/</span><br/>
-    &nbsp;&nbsp;<span class="dir">001-xuat-bao-cao/</span> <span class="note">(ví dụ feature-id)</span><br/>
-    &nbsp;&nbsp;&nbsp;&nbsp;<span class="file">spec.md</span> <span class="desc">— đặc tả tính năng, sinh bởi /speckit.specify</span><br/>
-    &nbsp;&nbsp;&nbsp;&nbsp;<span class="file">plan.md</span> <span class="desc">— kế hoạch kỹ thuật, sinh bởi /speckit.plan</span><br/>
-    &nbsp;&nbsp;&nbsp;&nbsp;<span class="file">tasks.md</span> <span class="desc">— danh sách task, sinh bởi /speckit.tasks</span>
+  <h2 class="section-heading">Các bước thực hành</h2>
+
+  <h3 class="sub-heading">Phần 1: Phân tích yêu cầu nghiệp vụ (Business Analysis)</h3>
+  <ol class="step-list">
+    <li>
+      <div>
+        <strong>Bước 1: Xác định đối tượng người dùng và mục tiêu giáo dục</strong>
+        <p>Trước khi viết bất kỳ dòng spec nào, chốt rõ trên giấy/note các điểm sau — đây sẽ là input cho Constitution:</p>
+        <ul class="feature-list">
+          <li><strong>Đối tượng chính:</strong> học sinh 7-12 tuổi, phần lớn chưa biết khái niệm lập trình, khả năng đọc hiểu văn bản dài còn hạn chế.</li>
+          <li><strong>Đối tượng phụ:</strong> phụ huynh/giáo viên — cần xem được tiến độ học của con/học sinh, không trực tiếp thao tác kéo thả.</li>
+          <li><strong>Mục tiêu giáo dục:</strong> dạy tư duy tuần tự (sequence) và lặp (loop) thông qua việc ghép khối lệnh điều khiển nhân vật đi từ điểm xuất phát đến đích trong mê cung, không dạy cú pháp ngôn ngữ lập trình thật.</li>
+          <li><strong>Tiêu chí thành công của 1 màn chơi:</strong> học sinh ghép đúng dãy khối lệnh khiến nhân vật đến đích mà không va tường, được cộng sao theo số khối lệnh dùng (dùng càng ít khối, càng nhiều sao — khuyến khích tối ưu bằng khối Lặp lại).</li>
+        </ul>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 2: Xác định ràng buộc an toàn & trải nghiệm cho trẻ em</strong>
+        <ul class="feature-list">
+          <li>Không có tính năng mạng xã hội (chat, bình luận công khai, kết bạn) — loại bỏ rủi ro tương tác với người lạ.</li>
+          <li>Không thu thập thông tin cá nhân nhạy cảm — chỉ cần biệt danh (nickname) hiển thị, không email/số điện thoại của trẻ.</li>
+          <li>Giao diện dùng icon/màu sắc lớn, hạn chế chữ dài; mọi hành động chính (chạy chương trình, thử lại) chỉ 1 cú nhấp/kéo thả, không có thao tác ẩn hay phím tắt.</li>
+          <li>Không có "mất điểm"/thất bại mang tính trừng phạt — sai thì cho thử lại ngay, không giới hạn số lần chơi một màn.</li>
+        </ul>
+      </div>
+    </li>
+  </ol>
+
+  <h3 class="sub-heading">Phần 2: Phân tích yêu cầu kỹ thuật (Technical Analysis)</h3>
+  <ol class="step-list">
+    <li>
+      <div>
+        <strong>Bước 3: Xác định mô hình dữ liệu và cơ chế thực thi khối lệnh</strong>
+        <ul class="feature-list">
+          <li><strong>Mê cung (maze):</strong> mô hình dạng lưới ô vuông (grid) NxN, lưu dưới dạng JSON — mỗi ô là đường đi hoặc tường, có 1 ô xuất phát và 1 ô đích.</li>
+          <li><strong>Khối lệnh (block):</strong> tập lệnh cố định ban đầu gồm 4 loại — <em>Đi tới</em>, <em>Rẽ trái</em>, <em>Rẽ phải</em>, <em>Lặp lại N lần</em> (khối chứa các khối con bên trong).</li>
+          <li><strong>Chương trình học sinh ghép ra:</strong> một mảng tuần tự các khối lệnh (JSON), kéo-thả để sắp xếp trên khung làm việc (workspace).</li>
+          <li><strong>Engine thực thi:</strong> một hàm thuần (không phụ thuộc UI) nhận vào <code>maze</code> + mảng khối lệnh, "chạy" tuần tự từng lệnh, trả về danh sách vị trí nhân vật đi qua từng bước và kết quả (đến đích / va tường / chưa đến đích khi hết lệnh).</li>
+        </ul>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 4: Xác định cơ chế kéo thả và lưu tiến độ</strong>
+        <ul class="feature-list">
+          <li><strong>Kéo thả:</strong> dùng HTML5 Drag and Drop API (vanilla, không phụ thuộc thư viện ngoài) để kéo khối lệnh từ bảng lệnh (palette) vào khung làm việc, và sắp xếp lại thứ tự trong khung làm việc.</li>
+          <li><strong>Lưu tiến độ:</strong> mỗi lần học sinh hoàn thành một màn (đến đích), lưu vào database: <code>userId</code> (hoặc <code>guestId</code> nếu chơi không đăng nhập), <code>levelId</code>, số sao đạt được, số khối lệnh đã dùng, thời gian hoàn thành.</li>
+          <li><strong>Không yêu cầu real-time/multiplayer</strong> — mỗi phiên chơi độc lập, không cần WebSocket hay đồng bộ nhiều người chơi cùng lúc.</li>
+        </ul>
+      </div>
+    </li>
+  </ol>
+
+  <h3 class="sub-heading">Phần 3: Định nghĩa Constitution cho project</h3>
+  <ol class="step-list">
+    <li>
+      <div>
+        <strong>Bước 5: Vào project và khởi động Claude Code</strong>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">cd D:\lab-codekids-blocks
+claude</code></pre>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 6: Chạy /speckit.constitution dựa trên kết quả phân tích ở Phần 1-2</strong>
+        <pre class="command-line" data-prompt=">"><code class="language-text">/speckit.constitution Định nghĩa nguyên tắc chung cho project CodeKids Blocks (Next.js + Prisma + MySQL) — website học lập trình kéo thả cho trẻ 7-12 tuổi. Nguyên tắc bắt buộc:
+1. An toàn cho trẻ em là ưu tiên cao nhất: không thêm tính năng mạng xã hội (chat, bình luận công khai, kết bạn); không thu thập thông tin cá nhân nhạy cảm của trẻ (chỉ nickname, không email/SĐT của trẻ).
+2. Giao diện phải đơn giản cho trẻ 7-12 tuổi: ưu tiên icon/hình ảnh/màu sắc lớn hơn chữ, hạn chế đoạn văn bản dài, mọi hành động chính chỉ cần 1 thao tác kéo-thả hoặc 1 cú nhấp.
+3. Không có cơ chế "thua/mất điểm" mang tính trừng phạt — học sinh luôn được thử lại ngay lập tức, không giới hạn số lần chơi một màn.
+4. Mọi API route mới phải validate input đầu vào trước khi xử lý, trả lỗi rõ ràng nếu input không hợp lệ.
+5. Logic thực thi khối lệnh (chấm màn chơi) phải là hàm thuần, tách riêng khỏi UI và khỏi Next.js request/response, đặt trong thư mục lib/, để viết unit test dễ dàng và tái sử dụng được ở cả phía client (xem trước) lẫn server (chấm điểm chính thức).
+6. Dùng Prisma Client đã cấu hình sẵn cho mọi truy vấn database, không thêm ORM khác.</code></pre>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 7: Xem lại file constitution.md được sinh ra</strong>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">code .specify\memory\constitution.md</code></pre>
+      </div>
+    </li>
+  </ol>
+
+  <h3 class="sub-heading">Phần 4: Đặc tả tính năng lõi — Kéo thả vượt mê cung</h3>
+  <ol class="step-list">
+    <li>
+      <div>
+        <strong>Bước 8: Chạy /speckit.specify cho tính năng lõi</strong>
+        <p>Đưa toàn bộ kết quả phân tích nghiệp vụ + kỹ thuật ở Phần 1-2 vào prompt — mô tả rõ hành vi mong đợi, chưa cần nói chi tiết thư viện hay tên file kỹ thuật (việc đó dành cho <code>/speckit.plan</code> ở Chapter 5).</p>
+        <pre class="command-line" data-prompt=">"><code class="language-text">/speckit.specify Xây dựng tính năng lõi của CodeKids Blocks: màn chơi kéo thả khối lệnh điều khiển nhân vật vượt mê cung, dành cho học sinh 7-12 tuổi. Yêu cầu:
+1. Học sinh thấy một mê cung dạng lưới ô vuông, có 1 nhân vật ở ô xuất phát và 1 ô đích được đánh dấu rõ ràng bằng hình ảnh/màu sắc.
+2. Bên cạnh mê cung là bảng lệnh (palette) gồm 4 loại khối: Đi tới, Rẽ trái, Rẽ phải, Lặp lại N lần (khối chứa các khối con bên trong).
+3. Học sinh kéo khối lệnh từ bảng lệnh vào khung làm việc để ghép thành một chuỗi lệnh theo thứ tự mong muốn, có thể kéo để sắp xếp lại thứ tự hoặc kéo ra ngoài để xoá khối khỏi khung làm việc.
+4. Khi bấm nút "Chạy", nhân vật di chuyển từng bước minh hoạ trực quan theo đúng chuỗi lệnh đã ghép (không chạy tức thời, có hiệu ứng di chuyển từng ô để học sinh quan sát được).
+5. Nếu nhân vật đến đúng ô đích: hiển thị chúc mừng, tính số sao đạt được (3 sao nếu dùng số khối lệnh tối thiểu hoặc gần tối thiểu, 2 sao nếu nhiều hơn một chút, 1 sao nếu đến đích nhưng dùng quá nhiều khối lệnh) và lưu kết quả (số sao, số khối lệnh đã dùng) vào database.
+6. Nếu nhân vật va tường hoặc đi ra ngoài mê cung: dừng lại tại vị trí va chạm, hiển thị thông báo thân thiện (không dùng từ "Thua"/"Sai"), cho phép chỉnh sửa lại chuỗi lệnh và bấm "Chạy" lại ngay, không giới hạn số lần thử.
+7. Nếu hết chuỗi lệnh mà chưa đến đích và cũng chưa va tường: coi là chưa hoàn thành, hiển thị thông báo khuyến khích thử thêm khối lệnh, không lưu kết quả.
+8. Có ít nhất 3 màn chơi với độ khó tăng dần (mê cung lớn hơn, cần dùng khối Lặp lại để tối ưu số khối lệnh ở màn khó).
+9. Không yêu cầu đăng nhập bắt buộc để chơi — học sinh có thể chơi ngay với một biệt danh (nickname) tự đặt, tiến độ vẫn được lưu theo biệt danh đó.</code></pre>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 9: Trả lời các câu hỏi làm rõ (nếu Claude Code hỏi lại)</strong>
+        <p>Ở giai đoạn Specification, Claude Code có thể hỏi lại các điểm còn mơ hồ (vd kích thước lưới cụ thể, cách tính "số khối lệnh tối thiểu" cho từng màn, hành vi khi 2 học sinh dùng chung một biệt danh). Trả lời dựa trên phân tích ở Phần 1-2, ưu tiên đơn giản hoá cho đúng đối tượng 7-12 tuổi.</p>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 10: Xem lại file spec.md được sinh ra</strong>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">dir specs</code></pre>
+        <p>Mở file <code>spec.md</code> vừa được tạo (tên thư mục cụ thể tuỳ Spec-Kit tự đặt, ví dụ <code>specs/001-keo-tha-vuot-me-cung/spec.md</code>) để đọc lại toàn bộ nội dung, đối chiếu với 9 yêu cầu đã nêu ở Bước 8.</p>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">code specs\001-keo-tha-vuot-me-cung\spec.md</code></pre>
+      </div>
+    </li>
+  </ol>
+
+  <div class="verify-box">
+    <h4>✅ Kết quả mong đợi</h4>
+    <p class="body-text"><code>.specify/memory/constitution.md</code> phản ánh đúng các ràng buộc an toàn trẻ em, đơn giản hoá giao diện, và quy ước kỹ thuật đã phân tích. Thư mục <code>specs/{feature-id}/spec.md</code> mô tả đầy đủ hành vi màn chơi kéo thả vượt mê cung: 4 loại khối lệnh, cách chấm sao, xử lý va chạm/chưa hoàn thành, và cơ chế chơi bằng biệt danh không cần đăng nhập.</p>
   </div>
+
+  <h2 class="section-heading">Troubleshoot</h2>
+  <div class="alert alert-warning">
+    <strong>Lỗi:</strong> Bản <code>spec.md</code> sinh ra vẫn dùng ngôn ngữ/UX hướng đến người lớn (nhiều đoạn văn bản dài, thuật ngữ kỹ thuật trong màn chơi).<br/>
+    <strong>Nguyên nhân:</strong> Prompt ở Bước 8 chưa nhấn đủ mạnh ràng buộc "đối tượng 7-12 tuổi, hạn chế chữ, ưu tiên hình ảnh".<br/>
+    <strong>Giải pháp:</strong> Yêu cầu Claude Code cập nhật lại <code>spec.md</code>, dẫn lại nguyên tắc số 2 trong <code>constitution.md</code> để nhấn mạnh yêu cầu đơn giản hoá.
+  </div>
+  <div class="alert alert-warning">
+    <strong>Lỗi:</strong> Spec không nêu rõ cách xử lý khi nhân vật va tường, hoặc bỏ sót trường hợp hết lệnh mà chưa đến đích.<br/>
+    <strong>Nguyên nhân:</strong> Yêu cầu ở Bước 8 tuy đã liệt kê nhưng Claude Code có thể gộp chung các trường hợp lại.<br/>
+    <strong>Giải pháp:</strong> Yêu cầu Claude Code tách rõ 3 kết quả có thể xảy ra khi chạy chương trình (đến đích / va chạm / chưa hoàn thành) thành 3 mục riêng biệt trong <code>spec.md</code>.
+  </div>
+
+  <h2 class="section-heading">Dọn dẹp resource</h2>
   <div class="alert alert-info">
-    <strong>Lưu ý:</strong> Tên thư mục <code>{feature-id}</code> (vd <code>001-xuat-bao-cao</code>) do Spec-Kit tự
-    đặt dựa trên số thứ tự và tên tính năng khi chạy <code>/speckit.specify</code>. Quy ước đặt tên chính xác có thể
-    điều chỉnh theo phiên bản — quan trọng là luôn có một thư mục riêng cho mỗi tính năng chứa đủ 3 file
-    <code>spec.md</code>, <code>plan.md</code>, <code>tasks.md</code>.
+    Bài lab này chỉ tạo file Markdown (<code>constitution.md</code>, <code>spec.md</code>) trong project —
+    <strong>không tạo resource nào trên Cloud</strong>, không có gì cần dọn dẹp. Giữ nguyên toàn bộ file vừa tạo để
+    tiếp tục ở Chapter 5 (Plan & Tasks).
   </div>
-
-  <h3 class="sub-heading">5 slash command chính</h3>
-  <table class="info-table">
-    <thead>
-      <tr><th>Slash command</th><th>Giai đoạn</th><th>File sinh ra / cập nhật</th></tr>
-    </thead>
-    <tbody>
-      <tr>
-        <td><code>/speckit.constitution</code></td>
-        <td>Constitution</td>
-        <td><code>.specify/memory/constitution.md</code></td>
-      </tr>
-      <tr>
-        <td><code>/speckit.specify</code></td>
-        <td>Specification</td>
-        <td><code>specs/{feature-id}/spec.md</code></td>
-      </tr>
-      <tr>
-        <td><code>/speckit.plan</code></td>
-        <td>Planning</td>
-        <td><code>specs/{feature-id}/plan.md</code></td>
-      </tr>
-      <tr>
-        <td><code>/speckit.tasks</code></td>
-        <td>Task Breakdown</td>
-        <td><code>specs/{feature-id}/tasks.md</code></td>
-      </tr>
-      <tr>
-        <td><code>/speckit.implement</code></td>
-        <td>Implementation</td>
-        <td>Code thực tế trong project (đánh dấu tiến độ ngược lại vào <code>tasks.md</code>)</td>
-      </tr>
-    </tbody>
-  </table>
-
-  <h2 class="section-heading">Use Cases</h2>
-  <div class="usecase-grid">
-    <div class="usecase-card">
-      <h4>Đọc lại spec khi quên yêu cầu</h4>
-      <p>Không cần nhớ toàn bộ ngữ cảnh trong đầu — mở lại <code>specs/{feature-id}/spec.md</code> bất cứ lúc nào để xem lại yêu cầu gốc.</p>
-    </div>
-    <div class="usecase-card">
-      <h4>Review đặc tả như review code</h4>
-      <p>Vì là file Markdown trong Git, có thể tạo Pull Request riêng cho thay đổi spec, để đồng nghiệp review trước khi cho Claude Code implement.</p>
-    </div>
-    <div class="usecase-card">
-      <h4>Nhiều tính năng song song</h4>
-      <p>Mỗi tính năng có thư mục <code>specs/{feature-id}/</code> riêng — theo dõi được nhiều tính năng đang ở giai đoạn khác nhau cùng lúc.</p>
-    </div>
-  </div>
-
-  <h2 class="section-heading">Thông tin bổ sung</h2>
-  <p class="body-text">
-    Ngoài 5 slash command chính ở trên, Spec-Kit có thể bổ sung thêm các lệnh phụ trợ khác theo thời gian (vd lệnh hỗ
-    trợ làm rõ yêu cầu, kiểm tra môi trường...). Gõ <code>/speckit.</code> trong Claude Code để xem danh sách lệnh
-    khả dụng thực tế trên phiên bản đang cài, hoặc tham khảo <code>github.com/github/spec-kit</code> để có thông tin
-    đầy đủ và mới nhất.
-  </p>
 
   <script>mermaid.initialize({ startOnLoad: true, theme: 'default' });</script>
 </body>

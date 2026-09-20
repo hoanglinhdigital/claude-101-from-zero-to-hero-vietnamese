@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Kỹ thuật prompt cho tài liệu quản lý & Claude Projects – Claude 101</title>
+  <title>Lab - Soạn thảo kế hoạch dự án & estimation – Claude 101</title>
   <link rel="stylesheet" href="../../styles.css" />
   <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
   <script src="../../mermaid-config.js"></script>
@@ -16,101 +16,254 @@
   <div class="chapter-breadcrumb">
     <span class="section-part">7. Claude cho Project Manager</span>
     <span class="sep">/</span>
-    <span class="chapter-part">Kỹ thuật prompt cho tài liệu quản lý & Claude Projects</span>
+    <span class="chapter-part">Lab - Soạn thảo kế hoạch dự án & estimation</span>
   </div>
 
-  <h2 class="section-heading">Giới thiệu</h2>
-  <p class="body-text">
-    Chất lượng tài liệu Claude soạn ra phụ thuộc trực tiếp vào chất lượng thông tin đầu vào — cùng một yêu cầu "soạn
-    project plan" nhưng thiếu thông tin sẽ ra một bản chung chung, vô dụng. Chương này trình bày kỹ thuật viết prompt
-    cho 3 loại tài liệu quản lý phổ biến nhất: <strong>project plan</strong>, <strong>risk register</strong> và
-    <strong>status report</strong> — mỗi loại cần một nhóm thông tin đầu vào khác nhau. Đồng thời giới thiệu
-    <strong>Claude Projects</strong> — nơi lưu các thông tin đó lại một lần, dùng xuyên suốt nhiều buổi làm việc mà
-    không cần dán lại từ đầu mỗi lần chat.
-  </p>
+  <div class="alert alert-info">
+    <strong>Bối cảnh bài lab:</strong> Bạn đóng vai trò <strong>Project Manager</strong> vừa nhận yêu cầu xây dựng một
+    website <strong>quản lý đặt chỗ phòng khám</strong> (clinic booking) với 5 role: <code>Guest</code>,
+    <code>User</code>, <code>Doctor</code>, <code>Staff</code>, <code>Administrator</code>. Ban lãnh đạo yêu cầu có
+    <strong>Prototype trong 3 tuần</strong> và <strong>release bản chính thức trong 10 tuần</strong>. Bài lab dùng
+    <strong>Claude Cowork (Desktop App)</strong> để cùng Claude xây dựng một bản kế hoạch dự án theo quy trình
+    <strong>Agile</strong>, xuyên suốt từ requirement đến Sprint Plan, trong cùng một ngữ cảnh dự án duy nhất.
+  </div>
 
-  <h2 class="section-heading">Các tính năng chính</h2>
+  <h2 class="section-heading">Mục tiêu</h2>
   <ul class="feature-list">
-    <li><strong>Project plan</strong> — cần mô tả dự án, mục tiêu, deadline, quy mô team, ràng buộc (ngân sách, công nghệ) để Claude soạn được timeline và phân công thực tế, không chung chung.</li>
-    <li><strong>Risk register</strong> — cần bối cảnh dự án (loại dự án, công nghệ, đối tác liên quan) và các rủi ro đã biết (nếu có) để Claude bổ sung thêm rủi ro còn thiếu, không chỉ liệt lại đúng những gì PM đã biết.</li>
-    <li><strong>Status report</strong> — cần dữ liệu tiến độ thật (task hoàn thành/đang làm/trễ, % hoàn thành, vấn đề phát sinh) để Claude tổng hợp đúng số liệu, tránh Claude tự suy diễn tiến độ không có thật.</li>
-    <li><strong>Claude Projects</strong> — không gian riêng cho một dự án, gồm <em>Custom instructions</em> (mô tả ngắn về dự án, vai trò các bên) và <em>Project knowledge</em> (tài liệu nền: project plan, risk register, transcript...) — mọi cuộc chat mới trong Project đều tự động có sẵn ngữ cảnh này.</li>
-    <li>Nguyên tắc chung: prompt luôn nên nêu rõ <strong>cấu trúc output mong muốn</strong> (các phần cần có) để Claude trả lời đúng định dạng cần dùng ngay, không phải chỉnh sửa lại cấu trúc.</li>
+    <li>Dùng Claude Cowork để phân tích yêu cầu đầu bài và liệt kê đầy đủ tính năng <strong>functional</strong> và <strong>non-functional</strong> theo từng role (Guest/User/Doctor/Staff/Administrator).</li>
+    <li>Break các tính năng thành các <strong>User Story</strong> theo chuẩn Agile, ước lượng <strong>Story Point</strong> cho từng story.</li>
+    <li>Đề xuất <strong>cấu trúc team dự án</strong> (Product Owner, Developer, Tester, DevOps Engineer) phù hợp với timeline 10 tuần.</li>
+    <li>Phân chia toàn bộ backlog thành các <strong>Sprint</strong> cụ thể (Sprint Goal, danh sách task) — đảm bảo có Prototype ở tuần thứ 3 và release ở tuần thứ 10.</li>
+    <li>Biết cách giữ ngữ cảnh dự án xuyên suốt nhiều prompt bằng một Claude Cowork Project duy nhất, thay vì phải nhắc lại yêu cầu ở mỗi bước.</li>
   </ul>
 
-  <h3 class="sub-heading">Input cần cung cấp cho từng loại tài liệu</h3>
-  <table class="info-table">
-    <thead>
-      <tr><th>Loại tài liệu</th><th>Thông tin đầu vào cần có</th><th>Kết quả mong đợi</th></tr>
-    </thead>
-    <tbody>
-      <tr>
-        <td><strong>Project Plan</strong></td>
-        <td>Mô tả dự án · Mục tiêu · Deadline/thời hạn · Quy mô & vai trò team · Ràng buộc (ngân sách, công nghệ, phụ thuộc bên ngoài)</td>
-        <td>Mục tiêu · Phạm vi (in/out-scope) · Timeline theo giai đoạn · Phân công vai trò · Rủi ro chính</td>
-      </tr>
-      <tr>
-        <td><strong>Risk Register</strong></td>
-        <td>Bối cảnh dự án (loại dự án, công nghệ, đối tác/bên thứ ba liên quan) · Rủi ro đã biết trước (nếu có) · Mức độ chấp nhận rủi ro của tổ chức (nếu biết)</td>
-        <td>Danh sách rủi ro · Mức độ ảnh hưởng & xác suất · Biện pháp giảm thiểu (mitigation) · Người theo dõi (owner)</td>
-      </tr>
-      <tr>
-        <td><strong>Status Report</strong></td>
-        <td>Danh sách task & trạng thái thực tế (Done/In-progress/Blocked) · % hoàn thành tổng thể · Vấn đề/rủi ro mới phát sinh trong kỳ · Kỳ báo cáo (tuần/sprint nào)</td>
-        <td>Tóm tắt tiến độ tổng thể · Việc đã hoàn thành · Việc đang làm/trễ hẹn · Rủi ro cần lưu ý · Kế hoạch kỳ tới</td>
-      </tr>
-    </tbody>
-  </table>
-  <p class="table-note">Nguyên tắc chung: thông tin đầu vào KHÔNG có sẵn (ví dụ số liệu tiến độ thật) thì Claude không thể tự "biết" — luôn cung cấp đủ dữ liệu thô, đừng để Claude tự đoán.</p>
-
-  <h2 class="section-heading">Mô hình kiến trúc — Claude Projects lưu ngữ cảnh dự án</h2>
+  <h2 class="section-heading">Kiến trúc tổng quan</h2>
   <div class="mermaid">
   flowchart LR
-      PM(("<img src='../../assets/svg-icon/user.svg' style='width:26px;height:26px;'/><br/><b>Project Manager</b>"))
-      Proj["<img src='../../assets/svg-icon/claude-logo.svg' style='width:30px;height:30px;'/><br/><b>Claude Project</b><br/>'MediBook App'"]
-      CI["📋 <b>Custom Instructions</b><br/>Mô tả dự án, vai trò team"]
-      PK["<img src='../../assets/svg-icon/sharepoint.svg' style='width:26px;height:26px;'/><br/><b>Project Knowledge</b><br/>Project plan · Risk register · Transcript"]
-      Chat1["💬 <b>Chat 1</b><br/>Soạn status report"]
-      Chat2["💬 <b>Chat 2</b><br/>Phân tích rủi ro mới"]
-      Chat3["💬 <b>Chat 3</b><br/>Hỏi tiến độ 1 task"]
+      Req["📋 <b>Input đầu bài</b><br/>Website đặt lịch khám<br/>Role: Guest/User/Doctor/Staff/Admin<br/>Prototype: 3 tuần · Release: 10 tuần"]
+      PM(("<img src='../../assets/svg-icon/user.svg' style='width:24px;height:24px;'/><br/><b>Project Manager</b>"))
+      Cowork["<img src='../../assets/svg-icon/claude-logo.svg' style='width:28px;height:28px;'/><br/><b>Claude Cowork</b><br/><i>1 Project · giữ chung ngữ cảnh</i>"]
+      FR["📄 <b>Bước 1</b><br/>Functional /<br/>Non-functional requirements"]
+      Story["🗂️ <b>Bước 2</b><br/>User Story<br/>+ Story Point"]
+      Team["👥 <b>Bước 3</b><br/>Cấu trúc team<br/>PO · Dev · Tester · DevOps"]
+      Sprint["📅 <b>Bước 4</b><br/>Sprint Plan<br/>Sprint 1 → Sprint 5"]
 
-      PM -->|"Tạo Project"| Proj
-      Proj --> CI
-      Proj --> PK
-      CI -.->|"Ngữ cảnh dùng chung"| Chat1
-      CI -.->|"Ngữ cảnh dùng chung"| Chat2
-      PK -.->|"Ngữ cảnh dùng chung"| Chat2
-      PK -.->|"Ngữ cảnh dùng chung"| Chat3
+      Req --> PM -->|"Đưa input + mốc thời gian"| Cowork
+      Cowork --> FR --> Cowork
+      Cowork --> Story --> Cowork
+      Cowork --> Team --> Cowork
+      Cowork --> Sprint
+      Sprint -->|"Review & điều chỉnh"| PM
   </div>
-  <p class="arch-caption">Toàn bộ tài liệu nền của dự án chỉ cần đưa vào Project Knowledge một lần; mọi cuộc chat mới mở trong cùng Project đều tự động tham chiếu ngữ cảnh này, PM không cần dán lại thông tin dự án ở mỗi cuộc chat.</p>
+  <p class="arch-caption">Toàn bộ 4 bước (requirement → story → team → sprint plan) chạy trong <strong>cùng một Claude Cowork Project</strong> — Claude tự tham chiếu lại kết quả của bước trước khi thực hiện bước sau, PM không cần copy-paste lại ngữ cảnh ở mỗi prompt.</p>
 
-  <h2 class="section-heading">Use Cases</h2>
-  <div class="usecase-grid">
-    <div class="usecase-card">
-      <h4>Soạn nhiều tài liệu cùng một dự án</h4>
-      <p>Dùng chung một Claude Project cho project plan, risk register, status report — Claude luôn nhớ mục tiêu và ràng buộc dự án khi soạn từng tài liệu.</p>
-    </div>
-    <div class="usecase-card">
-      <h4>Không phải dán lại ngữ cảnh mỗi lần chat</h4>
-      <p>Sau khi thêm tài liệu nền vào Project Knowledge, các câu hỏi ngắn ("tuần này có rủi ro gì mới?") vẫn được Claude trả lời đúng ngữ cảnh dự án.</p>
-    </div>
-    <div class="usecase-card">
-      <h4>Chuẩn hoá cách viết prompt cho cả team</h4>
-      <p>Custom instructions của Project có thể quy định luôn định dạng output mong muốn, giúp mọi thành viên dùng Claude cho dự án theo cùng một chuẩn.</p>
-    </div>
+  <h2 class="section-heading">Yêu cầu trước khi bắt đầu</h2>
+  <ul class="feature-list">
+    <li><strong>Claude Desktop App</strong> đã cài đặt, đăng nhập bằng tài khoản Anthropic, có quyền sử dụng tính năng <strong>Cowork</strong> (Section 2).</li>
+    <li>Đã chuẩn bị sẵn nội dung mô tả yêu cầu đầu bài (xem khung "Bối cảnh bài lab" phía trên) để dán vào Claude Cowork.</li>
+    <li>Hiểu cơ bản các khái niệm Agile: User Story, Story Point, Sprint, Product Backlog (nếu chưa nắm rõ, có thể yêu cầu Claude giải thích ngay trong Bước 1).</li>
+  </ul>
+
+  <h2 class="section-heading">Các bước thực hành</h2>
+
+  <h3 class="sub-heading">Phần 1: Khởi tạo Project trên Claude Cowork</h3>
+  <ol class="step-list">
+    <li>
+      <div>
+        <strong>Bước 1: Tạo Project mới tên "Clinic Booking - Project Plan"</strong>
+        <p>Mở Claude Desktop App → chọn <strong>Cowork</strong> → tạo Project mới. Đặt tên rõ ràng để dễ quay lại làm việc ở các buổi sau (đúng tinh thần giữ ngữ cảnh dự án xuyên suốt đã học ở lý thuyết Section 7).</p>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 2: Đưa toàn bộ input đầu bài vào Project</strong>
+        <p>Dán nguyên văn yêu cầu dưới đây làm tin nhắn đầu tiên trong Project — đây sẽ là ngữ cảnh gốc mà Claude tham chiếu lại cho toàn bộ các bước sau.</p>
+        <pre class="command-line" data-prompt=">"><code class="language-text">
+Tôi cần xây dựng một website quản lý đặt chỗ phòng khám (clinic booking system). Hệ thống có 5 role:
+
+- Guest: người chưa đăng nhập, chỉ xem được thông tin phòng khám/bác sĩ.
+- User: bệnh nhân đã đăng ký tài khoản, đặt lịch khám.
+- Doctor: bác sĩ, quản lý lịch làm việc và hồ sơ khám bệnh.
+- Staff: nhân viên lễ tân, hỗ trợ vận hành đặt lịch hàng ngày.
+- Administrator: quản trị toàn hệ thống.
+
+Mốc thời gian bắt buộc:
+- Prototype (demo được luồng chính, UI chưa cần hoàn thiện): hoàn thành trong 3 tuần.
+- Release bản chính thức (đầy đủ tính năng, sẵn sàng vận hành thật): hoàn thành trong 10 tuần kể từ khi bắt đầu.
+
+Tôi sẽ làm việc với bạn qua nhiều bước trong Project này: (1) liệt kê functional/non-functional requirement, (2) break
+thành User Story kèm Story Point, (3) đề xuất cấu trúc team, (4) lập Sprint Plan. Xác nhận đã nắm được ngữ cảnh trước
+khi tôi gửi yêu cầu ở Bước 1.
+        </code></pre>
+      </div>
+    </li>
+  </ol>
+
+  <h3 class="sub-heading">Phần 2: Liệt kê Functional / Non-functional requirements</h3>
+  <ol class="step-list">
+    <li>
+      <div>
+        <strong>Bước 1: Yêu cầu Claude phân tích và liệt kê tính năng theo từng role</strong>
+        <pre class="command-line" data-prompt=">"><code class="language-text">
+Dựa trên yêu cầu đã nêu, hãy liệt kê đầy đủ:
+
+1. Functional requirement — nhóm theo từng role (Guest, User, Doctor, Staff, Administrator), mỗi role liệt kê các
+   tính năng chính dạng gạch đầu dòng.
+2. Non-functional requirement — hiệu năng, bảo mật (xác thực, phân quyền role-based), khả năng mở rộng, khả năng chịu
+   tải, sao lưu dữ liệu, tuân thủ bảo vệ dữ liệu cá nhân (thông tin y tế/bệnh nhân).
+
+Trình bày dưới dạng bảng, cột "Nhóm/Role" và "Yêu cầu chi tiết".
+        </code></pre>
+        <p>Đối chiếu kết quả với bảng tham khảo bên dưới — số lượng tính năng có thể khác nhau tùy cách Claude diễn giải, nhưng cần bao phủ đủ 5 role và các nhóm non-functional chính.</p>
+      </div>
+    </li>
+  </ol>
+
+  <table class="compare-table">
+    <thead>
+      <tr><th>Role / Nhóm</th><th>Yêu cầu chi tiết (tham khảo)</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><strong>Guest</strong></td><td>Xem danh sách phòng khám/chuyên khoa/bác sĩ, xem lịch trống, đăng ký tài khoản, đăng nhập.</td></tr>
+      <tr><td><strong>User</strong></td><td>Đặt lịch khám, huỷ/đổi lịch, xem lịch sử khám, nhận thông báo (email/SMS) nhắc lịch, đánh giá bác sĩ sau khi khám.</td></tr>
+      <tr><td><strong>Doctor</strong></td><td>Xem lịch làm việc cá nhân, xác nhận/từ chối lịch hẹn, ghi chú kết quả khám, xem lịch sử bệnh nhân đã từng khám với mình.</td></tr>
+      <tr><td><strong>Staff</strong></td><td>Quản lý lịch hẹn toàn phòng khám, đặt lịch hộ bệnh nhân (đặt qua điện thoại), quản lý thông tin bác sĩ/phòng khám, xử lý huỷ lịch phát sinh.</td></tr>
+      <tr><td><strong>Administrator</strong></td><td>Quản lý tài khoản người dùng, phân quyền role, xem báo cáo thống kê (lượt đặt lịch, tỷ lệ huỷ), cấu hình hệ thống (giờ làm việc, chuyên khoa).</td></tr>
+      <tr><td><strong>Non-functional</strong></td><td>Xác thực bằng OTP/email; phân quyền role-based access control (RBAC); mã hoá dữ liệu y tế nhạy cảm; uptime ≥ 99.5%; hỗ trợ đồng thời nhiều người đặt lịch không trùng slot (tránh race condition); tối ưu hiển thị trên mobile.</td></tr>
+    </tbody>
+  </table>
+
+  <h3 class="sub-heading">Phần 3: Break thành User Story và đánh Story Point</h3>
+  <ol class="step-list">
+    <li>
+      <div>
+        <strong>Bước 1: Yêu cầu Claude break requirement thành story</strong>
+        <pre class="command-line" data-prompt=">"><code class="language-text">
+Từ danh sách functional requirement ở Bước 1, hãy break thành các User Story theo format chuẩn Agile:
+"Là [role], tôi muốn [hành động], để [giá trị đạt được]".
+
+Với mỗi story:
+- Gắn Epic tương ứng (vd: Epic "Đặt lịch khám", Epic "Quản lý tài khoản"...).
+- Ước lượng Story Point theo thang Fibonacci (1, 2, 3, 5, 8, 13), giải thích ngắn gọn lý do estimate.
+- Đánh dấu độ ưu tiên: Must-have / Should-have / Could-have (MoSCoW) — Must-have là các story bắt buộc phải có trong
+  bản Prototype 3 tuần.
+
+Trình bày dưới dạng bảng: Epic | Story | Story Point | Ưu tiên.
+        </code></pre>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 2: Đối chiếu kết quả với ví dụ tham khảo</strong>
+        <p>Kiểm tra 3 điểm: (1) mỗi story đúng format "Là...tôi muốn...để..."; (2) story point tăng dần theo độ phức tạp hợp lý (vd "Đăng ký tài khoản" nên nhỏ hơn "Đặt lịch khám với kiểm tra trùng slot"); (3) đủ story Must-have để ghép thành Prototype khả thi trong 3 tuần.</p>
+      </div>
+    </li>
+  </ol>
+
+  <table class="compare-table">
+    <thead>
+      <tr><th>Epic</th><th>Story</th><th>Story Point</th><th>Ưu tiên</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Quản lý tài khoản</td><td>Là Guest, tôi muốn đăng ký tài khoản bằng email, để có thể đặt lịch khám.</td><td>3</td><td>Must-have</td></tr>
+      <tr><td>Đặt lịch khám</td><td>Là User, tôi muốn xem lịch trống của bác sĩ theo ngày, để chọn khung giờ phù hợp.</td><td>5</td><td>Must-have</td></tr>
+      <tr><td>Đặt lịch khám</td><td>Là User, tôi muốn đặt lịch khám và hệ thống tự kiểm tra không trùng slot, để tránh đặt trùng với người khác.</td><td>8</td><td>Must-have</td></tr>
+      <tr><td>Quản lý lịch bác sĩ</td><td>Là Doctor, tôi muốn xác nhận hoặc từ chối lịch hẹn, để chủ động sắp xếp thời gian khám.</td><td>5</td><td>Must-have</td></tr>
+      <tr><td>Vận hành lễ tân</td><td>Là Staff, tôi muốn đặt lịch hộ bệnh nhân gọi điện đến, để hỗ trợ người không dùng được app.</td><td>5</td><td>Should-have</td></tr>
+      <tr><td>Thông báo</td><td>Là User, tôi muốn nhận email nhắc lịch trước 1 ngày, để không quên lịch khám.</td><td>3</td><td>Should-have</td></tr>
+      <tr><td>Quản trị hệ thống</td><td>Là Administrator, tôi muốn xem báo cáo thống kê lượt đặt lịch theo tháng, để đánh giá hiệu quả vận hành.</td><td>5</td><td>Could-have</td></tr>
+    </tbody>
+  </table>
+
+  <h3 class="sub-heading">Phần 4: Đề xuất cấu trúc team dự án</h3>
+  <ol class="step-list">
+    <li>
+      <div>
+        <strong>Bước 1: Yêu cầu Claude đề xuất team phù hợp với timeline</strong>
+        <pre class="command-line" data-prompt=">"><code class="language-text">
+Với tổng story point đã ước lượng và timeline 10 tuần (release), hãy đề xuất cấu trúc team Agile gồm: Product Owner,
+Developer (Frontend/Backend), Tester, DevOps Engineer. Với mỗi vai trò, nêu rõ số lượng đề xuất và trách nhiệm chính
+trong dự án này. Giả định team làm việc theo Sprint 2 tuần/sprint.
+        </code></pre>
+      </div>
+    </li>
+  </ol>
+
+  <table class="compare-table">
+    <thead>
+      <tr><th>Vai trò</th><th>Số lượng</th><th>Trách nhiệm chính</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Product Owner</td><td>1</td><td>Quản lý Product Backlog, chốt ưu tiên story, nghiệm thu cuối mỗi Sprint.</td></tr>
+      <tr><td>Developer (Frontend + Backend)</td><td>3</td><td>Triển khai story theo Sprint, code review chéo, phối hợp Tester xử lý bug.</td></tr>
+      <tr><td>Tester (QA)</td><td>1</td><td>Viết test case, kiểm thử từng story trước khi Done, báo cáo bug.</td></tr>
+      <tr><td>DevOps Engineer</td><td>1 (part-time)</td><td>Thiết lập CI/CD, môi trường staging/production, hỗ trợ deploy cuối mỗi Sprint.</td></tr>
+    </tbody>
+  </table>
+
+  <h3 class="sub-heading">Phần 5: Lập Sprint Plan</h3>
+  <ol class="step-list">
+    <li>
+      <div>
+        <strong>Bước 1: Yêu cầu Claude chia backlog thành các Sprint cụ thể</strong>
+        <pre class="command-line" data-prompt=">"><code class="language-text">
+Với team đã đề xuất và Sprint dài 2 tuần, hãy chia toàn bộ story đã liệt kê thành các Sprint cụ thể, đảm bảo:
+
+- Sprint 1 + Sprint 2 (tuần 1-3, có buffer) đủ để hoàn thành Prototype — ưu tiên toàn bộ story Must-have liên quan
+  luồng chính: đăng ký, xem lịch, đặt lịch, xác nhận lịch.
+- Sprint 3, 4, 5 (tuần 4-10) hoàn thiện các story Should-have/Could-have còn lại, cộng thêm thời gian hardening/UAT
+  trước khi release ở tuần 10.
+
+Với mỗi Sprint, nêu: Sprint Goal, danh sách story (kèm story point), và tổng story point/Sprint. Trình bày dạng bảng.
+        </code></pre>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 2: Review lại toàn bộ kế hoạch với Claude</strong>
+        <pre class="command-line" data-prompt=">"><code class="language-text">
+Tổng hợp lại toàn bộ Project Plan từ Bước 1 đến Bước 4 thành một tài liệu duy nhất, gồm: Requirement Summary, Product
+Backlog (story + point), Cấu trúc team, và Sprint Plan. Chỉ ra rủi ro lớn nhất nếu team không kịp tiến độ Prototype ở
+tuần 3, và đề xuất phương án xử lý (cắt giảm scope story nào trước).
+        </code></pre>
+        <p>Đây là bước tận dụng đúng ưu điểm của Claude Cowork: vì cùng một Project, Claude tự tổng hợp lại toàn bộ kết quả 4 bước trước mà không cần bạn copy-paste lại từng phần.</p>
+      </div>
+    </li>
+  </ol>
+
+  <table class="compare-table">
+    <thead>
+      <tr><th>Sprint</th><th>Sprint Goal</th><th>Story chính (tham khảo)</th><th>Tổng điểm</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Sprint 1<br/>(Tuần 1-2)</td><td>Dựng nền tảng: đăng ký/đăng nhập, xem lịch bác sĩ</td><td>Đăng ký tài khoản (3), Xem lịch trống bác sĩ (5)</td><td>8</td></tr>
+      <tr><td>Sprint 2<br/>(Tuần 3)</td><td>Hoàn thành luồng đặt lịch cho bản Prototype</td><td>Đặt lịch + kiểm tra trùng slot (8), Doctor xác nhận lịch (5)</td><td>13</td></tr>
+      <tr><td>Sprint 3<br/>(Tuần 4-5)</td><td>Hỗ trợ vận hành lễ tân & thông báo</td><td>Staff đặt lịch hộ (5), Email nhắc lịch (3)</td><td>8</td></tr>
+      <tr><td>Sprint 4<br/>(Tuần 6-7)</td><td>Quản trị hệ thống & báo cáo</td><td>Báo cáo thống kê (5), phân quyền Admin</td><td>8</td></tr>
+      <tr><td>Sprint 5<br/>(Tuần 8-10)</td><td>Hardening, UAT, chuẩn bị release</td><td>Fix bug UAT, tối ưu hiệu năng, kiểm thử bảo mật</td><td>—</td></tr>
+    </tbody>
+  </table>
+
+  <div class="verify-box">
+    <h4>✅ Kết quả mong đợi</h4>
+    <p class="body-text">Sau bài lab, bạn có một Claude Cowork Project chứa đầy đủ 4 tài liệu liền mạch: bảng functional/non-functional requirement theo role, product backlog dạng story kèm story point, đề xuất cấu trúc team, và Sprint Plan chia rõ mốc Prototype (tuần 3) và Release (tuần 10) — sẵn sàng trình bày cho stakeholder mà không cần tổng hợp lại thủ công.</p>
   </div>
 
-  <h2 class="section-heading">Thông tin bổ sung</h2>
-  <p class="body-text">
-    Project Knowledge có giới hạn dung lượng tài liệu tuỳ theo gói sử dụng (Free/Pro/Max) — nên ưu tiên đưa vào các
-    tài liệu cốt lõi, cập nhật thường xuyên (project plan mới nhất, risk register), tránh nhồi nhét toàn bộ lịch sử
-    email/transcript cũ vì sẽ chiếm context window và làm chậm phản hồi. Với thông tin đã lỗi thời (ví dụ project plan
-    bản cũ), nên xoá hoặc thay bằng bản mới để Claude không lấy nhầm dữ liệu cũ khi trả lời.
-  </p>
-  <div class="alert alert-tip">
-    <strong>Mẹo:</strong> Luôn nêu rõ cấu trúc output mong muốn ngay trong prompt (ví dụ: "soạn theo cấu trúc: Mục
-    tiêu, Phạm vi, Timeline, Phân công, Rủi ro") — Claude sẽ trả về đúng định dạng đó ngay từ lần đầu, tiết kiệm thời
-    gian yêu cầu chỉnh sửa lại cấu trúc sau này.
+  <h2 class="section-heading">Troubleshoot</h2>
+  <div class="alert alert-warning">
+    <strong>Lỗi:</strong> Ở Bước 2 (Phần 3), Claude đánh Story Point không nhất quán giữa các story tương tự độ phức tạp. <br/>
+    <strong>Nguyên nhân:</strong> Chưa cung cấp story tham chiếu ("baseline") để Claude so sánh mức độ phức tạp tương đối. <br/>
+    <strong>Giải pháp:</strong> Chỉ định rõ 1 story làm baseline, ví dụ: "Coi story 'Đăng ký tài khoản' = 3 điểm là baseline, các story khác ước lượng tương đối theo baseline này."
+  </div>
+  <div class="alert alert-warning">
+    <strong>Lỗi:</strong> Tổng story point của Sprint 1-2 quá cao so với năng lực thực tế của team, không đủ 3 tuần cho Prototype. <br/>
+    <strong>Nguyên nhân:</strong> Chưa cho Claude biết velocity (số điểm team có thể hoàn thành mỗi sprint) hoặc số lượng Developer thực tế. <br/>
+    <strong>Giải pháp:</strong> Bổ sung thông tin velocity ước tính (vd "team có thể hoàn thành khoảng 10-13 điểm/sprint với 3 Developer") vào prompt, yêu cầu Claude phân bổ lại story cho khớp.
+  </div>
+  <div class="alert alert-warning">
+    <strong>Lỗi:</strong> Claude gợi ý dùng công nghệ/kiến trúc kỹ thuật cụ thể trong lúc chỉ đang cần Project Plan. <br/>
+    <strong>Nguyên nhân:</strong> Prompt để mở, Claude tự suy diễn thêm phần kỹ thuật ngoài phạm vi vai trò PM. <br/>
+    <strong>Giải pháp:</strong> Nhắc lại rõ trong prompt: "Chỉ tập trung vào project plan/estimation ở vai trò Project Manager, không đề xuất kiến trúc kỹ thuật/tech stack."
   </div>
 
   <script>mermaid.initialize({ startOnLoad: true, theme: 'default' });</script>

@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Lab - Viết script tự động hoá tác vụ vận hành – Claude 101</title>
+  <title>Lab - Implement CI/CD trên AWS CodePipeline với Claude – Claude 101</title>
   <link rel="stylesheet" href="../../styles.css" />
   <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
   <script src="../../mermaid-config.js"></script>
@@ -14,215 +14,339 @@
 <body class="chapter-body">
 
   <div class="chapter-breadcrumb">
-    <span class="section-part">5. Claude cho DevOps & Cloud Engineer</span>
+    <span class="section-part">6. Claude cho DevOps & Cloud Engineer</span>
     <span class="sep">/</span>
-    <span class="chapter-part">Lab - Viết script tự động hoá tác vụ vận hành</span>
+    <span class="chapter-part">Lab - Implement CI/CD trên AWS CodePipeline với Claude</span>
+  </div>
+
+  <div class="alert alert-info">
+    <strong>Tiếp nối bài lab trước:</strong> Ở Chapter 5, bạn đã dùng Terraform (sinh bởi Claude Code qua skill
+    <code>terraform-aws-generator</code>) để tạo hạ tầng ECS Fargate, ECR, RDS, ALB cho app Quản lý chi tiêu và app
+    đã chạy thành công. Bài lab này đi tiếp: tự động hoá việc build & deploy mỗi khi có commit mới trên Github, bằng
+    <strong>AWS CodePipeline (CodeBuild + CodeDeploy)</strong> — vẫn giữ nguyên nguyên tắc <strong>Claude không bao
+    giờ tự chạy lệnh Terraform/AWS CLI</strong>, chỉ sinh code và giải thích.
+  </div>
+
+  <div class="alert alert-danger">
+    <strong>Cảnh báo chi phí:</strong> Bài lab tạo thêm resource AWS thật (CodePipeline, CodeBuild, CodeDeploy, S3
+    artifact bucket, SNS Topic). Chi phí các dịch vụ này rất nhỏ (CodeBuild tính theo phút build, CodePipeline theo
+    số lượng pipeline active/tháng) nhưng vẫn cần thực hiện <a href="#cleanup">Dọn dẹp resource</a> ở cuối bài sau khi
+    hoàn thành để tránh phát sinh phí kéo dài.
   </div>
 
   <h2 class="section-heading">Mục tiêu</h2>
   <ul class="feature-list">
-    <li>Dùng Claude Code viết một script PowerShell tự động hoá tác vụ vận hành lặp lại: <strong>backup thư mục log và xoá log cũ hơn N ngày</strong>.</li>
-    <li>Test chạy thử script với dữ liệu log mẫu, xác nhận đúng hành vi trước khi đưa vào lịch chạy tự động.</li>
-    <li>Lên lịch chạy script tự động bằng <strong>Windows Task Scheduler</strong> (<code>schtasks</code>).</li>
+    <li>Kết nối Github repository của app Quản lý chi tiêu với AWS thông qua <strong>CodeStar Connection</strong>.</li>
+    <li>Yêu cầu Claude Code (dùng lại skill <code>terraform-aws-generator</code> đã tạo ở Chapter 5) sinh Terraform cho
+      <strong>CodeBuild</strong> (build & push Docker image), <strong>CodeDeploy</strong> (Blue/Green deploy lên ECS),
+      <strong>CodePipeline</strong> (nối 3 stage Source → Build → Deploy) và <strong>SNS Topic</strong> báo trạng thái.</li>
+    <li>Thêm <code>buildspec.yml</code>, <code>appspec.yaml</code>, <code>taskdef.template.json</code> vào repository ứng
+      dụng để CodeBuild/CodeDeploy biết cách build và deploy.</li>
+    <li>Tự chạy Terraform để tạo pipeline, sau đó push code lên Github để kiểm chứng pipeline tự động trigger, build,
+      deploy Blue/Green thành công.</li>
+    <li>Dọn dẹp toàn bộ resource CI/CD sau khi hoàn thành.</li>
   </ul>
 
   <h2 class="section-heading">Kiến trúc tổng quan</h2>
+
+  <h3 class="sub-heading">Luồng CI/CD: từ Github commit đến ECS Blue/Green Deploy</h3>
+  <div class="mermaid">
+  flowchart LR
+      Dev(("<img src='../../assets/svg-icon/operator.svg' style='width:26px;height:26px;'/><br/><b>Developer</b>"))
+      GH["<img src='../../assets/svg-icon/github.svg' style='width:28px;height:28px;'/><br/><b>Github</b><br/>repo: lab-expense-management"]
+      Conn["🔗 <b>CodeStar Connection</b><br/>(confirm thủ công 1 lần)"]
+      Pipe["🔄 <b>CodePipeline</b><br/>expense-dev-codepipeline-app-01"]
+      Build["🛠️ <b>CodeBuild</b><br/>docker build · push ECR<br/>render taskdef/appspec"]
+      ECR["📦 <b>ECR</b><br/>expense-dev-ecr-app"]
+      Deploy["🚀 <b>CodeDeploy</b><br/>Blue/Green ECS"]
+      ECS["<img src='../../assets/svg-icon/container.svg' style='width:26px;height:26px;'/><br/><b>ECS Fargate Service</b><br/>expense-dev-ecs-cluster"]
+      ALB["⚖️ ALB<br/>listener prod/test"]
+      SNS["📣 SNS Topic<br/>expense-dev-sns-pipeline-alert-01"]
+      Eng(("<img src='../../assets/svg-icon/operator.svg' style='width:24px;height:24px;'/><br/><b>Bạn</b><br/>nhận email"))
+
+      Dev -->|"git push"| GH
+      GH -->|"webhook qua"| Conn --> Pipe
+      Pipe -->|"1. Source stage"| Pipe
+      Pipe -->|"2. Build stage"| Build
+      Build -->|"push image mới"| ECR
+      Build -->|"3. artifact: taskdef.json, appspec.yaml"| Deploy
+      Pipe -->|"3. Deploy stage"| Deploy
+      Deploy -->|"đăng ký task def mới"| ECS
+      Deploy -->|"chuyển traffic Blue → Green"| ALB --> ECS
+      Pipe -.->|"Success/Failed"| SNS --> Eng
+  </div>
+  <p class="arch-caption">CodeDeploy dùng chiến lược <b>Blue/Green</b>: task định nghĩa mới (Green) được tạo song song
+  với task đang chạy (Blue), ALB chỉ chuyển traffic sang Green sau khi health check pass — nếu lỗi, rollback tự động
+  về Blue mà không gây downtime.</p>
+
+  <h3 class="sub-heading">Claude Code chỉ sinh Terraform cho CI/CD, không tự vận hành pipeline</h3>
   <div class="mermaid">
   flowchart LR
       Eng(("<img src='../../assets/svg-icon/operator.svg' style='width:26px;height:26px;'/><br/><b>DevOps Engineer</b>"))
+      Skill["🧩 <b>Skill</b><br/>terraform-aws-generator<br/>(đã có từ Chapter 5)"]
       CC["<img src='../../assets/svg-icon/claude-logo.svg' style='width:28px;height:28px;'/><br/><b>Claude Code</b>"]
-      Script["📄 <b>backup-and-cleanup-logs.ps1</b>"]
-      Test["🧪 <b>Test chạy tay</b><br/>Với log mẫu"]
+      TF["📄 <b>infra/terraform/modules/cicd/</b><br/>main.tf · variables.tf · outputs.tf"]
+      User_CLI(("<img src='../../assets/svg-icon/operator.svg' style='width:24px;height:24px;'/><br/><b>Bạn</b><br/>tự chạy terraform CLI"))
+      AWS["☁️ <b>CodePipeline · CodeBuild<br/>CodeDeploy · SNS</b>"]
 
-      subgraph Windows["🖥️ Windows — Task Scheduler"]
-          Task["<img src='../../assets/svg-icon/task.svg' style='width:26px;height:26px;'/><br/><b>Scheduled Task</b><br/>schtasks /create"]
-      end
-
-      LogDir["📁 <b>LogPath</b><br/>D:\\App\\logs"]
-      BackupDir["🗄️ <b>BackupPath</b><br/>D:\\App\\log-backups\\yyyyMMdd_HHmmss"]
-
-      Eng -->|"Yêu cầu bằng prompt"| CC
-      CC -->|"Sinh script"| Script
-      Script -->|"Chạy thử"| Test
-      Test -->|"Đạt yêu cầu"| Eng
-      Eng -->|"Đăng ký lịch chạy"| Task
-      Task -->|"Chạy định kỳ"| Script
-      Script -->|"Copy log mới hơn N ngày"| BackupDir
-      Script -->|"Xoá log cũ hơn N ngày"| LogDir
+      Eng -->|"1. Yêu cầu sinh module cicd"| CC
+      Skill -.->|"nạp quy ước có sẵn"| CC
+      CC -->|"2. Sinh code, KHÔNG tự chạy lệnh"| TF
+      CC -->|"3. Chỉ đưa ra lệnh để bạn tự chạy"| User_CLI
+      User_CLI -->|"terraform init/plan/apply"| TF
+      TF -->|"4. apply"| AWS
+      User_CLI -->|"5. Tự kiểm tra kết quả"| AWS
   </div>
-  <p class="arch-caption">Claude Code sinh script PowerShell, Engineer test chạy tay trước để xác nhận hành vi đúng, sau đó mới đăng ký vào Task Scheduler để chạy tự động định kỳ — không đưa script chưa test vào lịch chạy tự động.</p>
+  <p class="arch-caption">Vì <code>terraform-aws-generator</code> đã có sẵn từ Chapter 5, bạn không cần tạo Skill mới
+  — chỉ cần yêu cầu Claude Code mở rộng thêm module <code>cicd</code> tuân theo đúng quy ước vị trí file, naming,
+  security đã định nghĩa.</p>
 
   <h2 class="section-heading">Yêu cầu trước khi bắt đầu</h2>
   <ul class="feature-list">
-    <li>Máy Windows với PowerShell 5.1 trở lên (mặc định có sẵn trên Windows 10/11).</li>
-    <li>Claude Code CLI đã cài đặt và đăng nhập thành công (xem lại Section 2).</li>
-    <li>Quyền chạy script PowerShell trên máy (không bị chặn bởi Execution Policy — xem phần Troubleshoot nếu gặp lỗi).</li>
-    <li>Terminal: PowerShell hoặc Windows Terminal, chạy với quyền phù hợp để tạo Scheduled Task.</li>
+    <li>Đã hoàn thành Chapter 5 — hạ tầng ECS/ECR/RDS/ALB đang chạy, project tại <code>D:\lab-expense-management</code>.</li>
+    <li>Source code ứng dụng đã có <code>Dockerfile</code> hoạt động (dùng lại từ Chapter 5).</li>
+    <li>Tài khoản <strong>Github</strong> và quyền tạo repository mới (hoặc dùng repo đã có sẵn).</li>
+    <li><strong>AWS CLI v2</strong> và <strong>Terraform CLI ≥ 1.5.0</strong> đã cấu hình (dùng lại từ Chapter 5).</li>
+    <li>Claude Code CLI đã cài đặt, đăng nhập thành công, và Skill <code>terraform-aws-generator</code> vẫn còn trong
+      <code>.claude\skills\</code> của project.</li>
   </ul>
 
   <h2 class="section-heading">Các bước thực hành</h2>
 
-  <h3 class="sub-heading">Phần 1: Chuẩn bị dữ liệu log mẫu</h3>
+  <h3 class="sub-heading">Phần 1: Kết nối Github với AWS (thao tác thủ công — không dùng Claude/Terraform)</h3>
+  <div class="alert alert-tip">
+    <strong>Vì sao bước này không thể tự động hoá:</strong> Việc xác thực (OAuth handshake) giữa AWS CodeStar
+    Connection và Github <strong>bắt buộc</strong> phải xác nhận qua trình duyệt, đăng nhập tài khoản Github của
+    chính bạn. Đây là giới hạn của AWS, không phải giới hạn của Claude Code hay Terraform — nên bước này bạn tự thực
+    hiện hoàn toàn thủ công.
+  </div>
   <ol class="step-list">
     <li>
       <div>
-        <strong>Bước 1: Tạo thư mục log mẫu và một số file log giả để test</strong>
-        <p>Tạo vài file log với thời gian sửa đổi (<code>LastWriteTime</code>) khác nhau để kiểm chứng đúng logic lọc theo số ngày.</p>
-        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">mkdir D:\App\logs
-mkdir D:\App\log-backups
-
-"log moi nhat" | Out-File D:\App\logs\app-2026-07-08.log
-"log 10 ngay truoc" | Out-File D:\App\logs\app-2026-06-29.log
-(Get-Item D:\App\logs\app-2026-06-29.log).LastWriteTime = (Get-Date).AddDays(-10)
-
-"log 40 ngay truoc" | Out-File D:\App\logs\app-2026-05-30.log
-(Get-Item D:\App\logs\app-2026-05-30.log).LastWriteTime = (Get-Date).AddDays(-40)</code></pre>
-        <p>File <code>app-2026-05-30.log</code> (40 ngày trước) sẽ dùng để kiểm chứng logic xoá log cũ hơn <code>RetentionDays</code> mặc định (30 ngày).</p>
+        <strong>Bước 1: Đẩy source code lên Github (nếu chưa có repo)</strong>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">cd D:\lab-expense-management
+git init
+git add .
+git commit -m "Initial commit - expense management app"
+git branch -M main
+git remote add origin https://github.com/&lt;github-owner&gt;/lab-expense-management.git
+git push -u origin main</code></pre>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 2: Tạo CodeStar Connection bằng AWS CLI</strong>
+        <p>Lệnh dưới đây tạo connection ở trạng thái <code>PENDING</code> — chưa dùng được ngay.</p>
+        <pre class="command-line" data-prompt="PS>" data-output="2, 3, 4"><code class="language-powershell">
+aws codestar-connections create-connection --provider-type GitHub --connection-name expense-dev-github-connection --region ap-northeast-1
+#Kết quả trả về JSON có dạng:
+{
+    "ConnectionArn": "arn:aws:codestar-connections:ap-northeast-1:123456789012:connection/xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
+    "Tags": []
+}</code></pre>
+        <p>Lưu lại <code>ConnectionArn</code> — sẽ dùng làm biến <code>codestar_connection_arn</code> cho Terraform ở Phần 2.</p>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 3: Xác nhận (confirm) connection trên AWS Console</strong>
+        <p>Mở AWS Console → <strong>Developer Tools → Settings → Connections</strong>, tìm connection vừa tạo (trạng
+        thái <code>Pending</code>), bấm <strong>Update pending connection</strong> → chọn <strong>Install a new app</strong>
+        (nếu chưa từng cài) → đăng nhập Github → cấp quyền cho AWS Connector → chọn đúng repository
+        <code>lab-expense-management</code> → <strong>Connect</strong>. Sau bước này trạng thái connection chuyển
+        thành <code>Available</code>.</p>
       </div>
     </li>
   </ol>
 
-  <h3 class="sub-heading">Phần 2: Yêu cầu Claude Code viết script</h3>
+  <h3 class="sub-heading">Phần 2: Yêu cầu Claude Code sinh Terraform cho CodePipeline/CodeBuild/CodeDeploy/SNS</h3>
   <ol class="step-list">
     <li>
       <div>
-        <strong>Bước 2: Tạo thư mục project và khởi động Claude Code</strong>
-        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">mkdir D:\lab-script-tu-dong-hoa
-cd D:\lab-script-tu-dong-hoa
-claude</code></pre>
+        <strong>Bước 4: Yêu cầu Claude mở rộng module cicd</strong>
+        <pre class="command-line" data-prompt=">"><code class="language-text">
+Dùng skill terraform-aws-generator để thêm module mới "cicd" vào infra/terraform/modules/cicd/, sau đó gọi module
+này từ infra/terraform/environments/dev/main.tf. Module cần tạo:
+
+1. S3 bucket lưu artifact cho CodePipeline (versioning + encryption bật sẵn).
+2. CodeBuild project: build Docker image từ buildspec.yml, push lên ECR repository đã có (module.storage), IAM Role
+   theo least-privilege chỉ đủ quyền push đúng 1 ECR repository.
+3. CodeDeploy application + deployment group: deploy Blue/Green lên ECS Service đã có (module.compute), dùng 2 ALB
+   listener (prod/test) và 2 Target Group (blue/green) đã có (module.network hoặc module.compute).
+4. CodePipeline 3 stage: Source (CodeStarSourceConnection, trigger từ nhánh main), Build (CodeBuild), Deploy
+   (CodeDeployToECS).
+5. SNS Topic nhận thông báo pipeline Success/Failed qua CodeStar Notifications, subscription email dùng biến
+   alert_email (không hardcode).
+
+Biến đầu vào cần khai báo trong terraform.tfvars: github_owner, github_repo, codestar_connection_arn (ARN đã confirm
+ở Phần 1), alert_email.
+
+Sau khi sinh xong, liệt kê danh sách file đã tạo/sửa, KHÔNG chạy bất kỳ lệnh terraform nào.
+        </code></pre>
       </div>
     </li>
     <li>
       <div>
-        <strong>Bước 3: Giao yêu cầu viết script — nêu rõ hành vi, tham số, và yêu cầu xử lý lỗi</strong>
-        <pre class="command-line" data-prompt=">"><code class="language-text">Viết một script PowerShell tên backup-and-cleanup-logs.ps1 tự động hoá tác vụ backup và dọn log. Yêu cầu cụ thể:
-1. Tham số: -LogPath (bắt buộc, đường dẫn thư mục chứa log), -BackupPath (bắt buộc, đường dẫn thư mục gốc lưu backup), -RetentionDays (không bắt buộc, mặc định 30).
-2. Kiểm tra LogPath phải tồn tại và là thư mục, nếu không thì in lỗi rõ ràng và exit 1. Nếu BackupPath chưa tồn tại thì tự tạo mới.
-3. Copy toàn bộ file log hiện có trong LogPath sang một thư mục con mới trong BackupPath, đặt tên thư mục con theo timestamp hiện tại (định dạng yyyyMMdd_HHmmss).
-4. Sau khi backup xong, xoá các file trong LogPath có LastWriteTime cũ hơn RetentionDays ngày.
-5. In log ra console rõ ràng theo từng bước (có timestamp, level INFO/WARN/ERROR), báo rõ số file đã backup và số file đã xoá ở cuối.
-6. Bọc các lệnh copy/xoá file trong try/catch để xử lý lỗi cơ bản, không dừng toàn bộ script nếu một file lỗi.</code></pre>
-      </div>
-    </li>
-    <li>
-      <div>
-        <strong>Bước 4: Duyệt và xác nhận Claude Code tạo file script</strong>
-        <p>Đọc qua nội dung script trước khi cho phép ghi file — đặc biệt kiểm tra phần xoá file (<code>Remove-Item</code>) chỉ tác động đúng phạm vi <code>LogPath</code>, không có lệnh xoá rộng hơn dự kiến.</p>
+        <strong>Bước 5: Kiểm tra Claude có tuân thủ đúng Skill không</strong>
+        <p>Đối chiếu: (1) module mới có nằm đúng <code>infra/terraform/modules/cicd/</code> không; (2) naming có đúng
+        tiền tố <code>expense-dev-*-01</code> không; (3) IAM Role của CodeBuild có bị dùng <code>Resource = "*"</code>
+        cho action ECR push không (phải giới hạn đúng 1 repository); (4) Claude có tự ý chạy lệnh
+        <code>terraform</code> nào không.</p>
       </div>
     </li>
   </ol>
 
-  <h3 class="sub-heading">Phần 3: Tham khảo nội dung script (đối chiếu với kết quả Claude Code sinh ra)</h3>
-  <p class="body-text">Nội dung dưới đây là ví dụ tham khảo cho script Claude Code nên sinh ra ở Bước 3 — dùng để đối chiếu khi review, không cần gõ tay lại toàn bộ.</p>
-  <pre class="file-block"><span class="filename">backup-and-cleanup-logs.ps1</span><span class="cmt">&lt;#
-.SYNOPSIS
-    Backup file log moi va don dep (xoa) file log qua cu.
-#&gt;</span>
+  <h3 class="sub-heading">Phần 3: Tham khảo nội dung Terraform (đối chiếu với kết quả Claude Code sinh ra)</h3>
+  <p class="body-text">Nội dung dưới đây là ví dụ tham khảo cho module <code>cicd</code> — dùng để đối chiếu, không
+  cần tự tay gõ lại.</p>
 
-[CmdletBinding()]
-param(
-    [Parameter(Mandatory = $true)]
-    [string]$LogPath,
+  <div class="file-tree">
+    <span class="dir">lab-expense-management/</span><br/>
+    ├── <span class="file">buildspec.yml</span> <span class="desc"># CodeBuild: docker build, push ECR, render taskdef/appspec</span><br/>
+    ├── <span class="file">appspec.yaml</span> <span class="desc"># CodeDeploy: mapping container ↔ ECS Service</span><br/>
+    ├── <span class="file">taskdef.template.json</span> <span class="desc"># Template ECS Task Definition, image placeholder &lt;IMAGE1_NAME&gt;</span><br/>
+    └── <span class="dir">infra/terraform/modules/</span><br/>
+    &nbsp;&nbsp;&nbsp;&nbsp;└── <span class="dir">cicd</span> <span class="desc"># Module mới: CodePipeline, CodeBuild, CodeDeploy, SNS</span><br/>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;├── <span class="file">main.tf</span><br/>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;├── <span class="file">variables.tf</span><br/>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;└── <span class="file">outputs.tf</span>
+  </div>
+  <p class="note-text">Toàn bộ source code tham khảo được lưu tại
+  <code>sourcecode/section_6/lab_cicd_codepipeline/</code> trong repository của khoá học.</p>
 
-    [Parameter(Mandatory = $true)]
-    [string]$BackupPath,
-
-    [Parameter(Mandatory = $false)]
-    [int]$RetentionDays = 30
-)
-
-<span class="hl">function Write-Log</span> {
-    param([string]$Message, [string]$Level = <span class="str">"INFO"</span>)
-    $timestamp = Get-Date -Format <span class="str">"yyyy-MM-dd HH:mm:ss"</span>
-    Write-Host <span class="str">"[$timestamp] [$Level] $Message"</span>
-}
-
-<span class="cmt"># Kiểm tra LogPath tồn tại, tạo BackupPath nếu chưa có...</span>
-<span class="cmt"># Bước 1: copy log vào thư mục con theo timestamp...</span>
-<span class="cmt"># Bước 2: xoá log trong LogPath cũ hơn RetentionDays...</span></pre>
-  <p class="note-text">Toàn bộ script đầy đủ được lưu tại <code>sourcecode/section_5/lab_script_tu_dong_hoa/backup-and-cleanup-logs.ps1</code> trong repository của khoá học.</p>
-
-  <h3 class="sub-heading">Phần 4: Test chạy thử script bằng tay</h3>
+  <h3 class="sub-heading">Phần 4: Thêm buildspec.yml, appspec.yaml, taskdef.template.json vào repo (tự chạy Git)</h3>
   <ol class="step-list">
     <li>
       <div>
-        <strong>Bước 5: Chạy thử script với dữ liệu log mẫu đã tạo ở Phần 1</strong>
-        <p>Luôn test chạy tay trước khi đưa vào lịch chạy tự động — không tin tưởng script chỉ vì Claude Code báo "đã viết xong".</p>
-        <pre class="command-line" data-prompt="PS>" data-output="2, 3, 4, 5, 6, 7"><code class="language-powershell">.\backup-and-cleanup-logs.ps1 -LogPath "D:\App\logs" -BackupPath "D:\App\log-backups" -RetentionDays 30
-[2026-07-09 09:00:00] [INFO] ===== Bat dau backup-and-cleanup-logs =====
-[2026-07-09 09:00:00] [INFO] Cutoff date (log cu hon moc nay se bi xoa sau khi backup): 06/09/2026 09:00:00
-[2026-07-09 09:00:00] [INFO] Da backup 3 file log vao: D:\App\log-backups\20260709_090000
-[2026-07-09 09:00:00] [INFO] Da xoa: D:\App\logs\app-2026-05-30.log (LastWriteTime: 05/30/2026 09:00:00)
-[2026-07-09 09:00:00] [INFO] Tong so file log da xoa: 1
-[2026-07-09 09:00:00] [INFO] ===== Hoan thanh backup-and-cleanup-logs =====</code></pre>
-      </div>
-    </li>
-    <li>
-      <div>
-        <strong>Bước 6: Xác nhận kết quả</strong>
-        <p>Kiểm tra thư mục backup có đủ 3 file log (bản backup trước khi xoá), và thư mục <code>LogPath</code> chỉ còn lại 2 file log gần đây (file 40 ngày trước đã bị xoá đúng như kỳ vọng với <code>RetentionDays = 30</code>).</p>
-        <pre class="command-line" data-prompt="PS>" data-output="2, 3"><code class="language-powershell">dir D:\App\logs
-app-2026-07-08.log
-app-2026-06-29.log</code></pre>
+        <strong>Bước 6: Copy 3 file cấu hình build/deploy vào project và push lên Github</strong>
+        <p>Copy <code>buildspec.yml</code>, <code>appspec.yaml</code>, <code>taskdef.template.json</code> từ
+        <code>sourcecode/section_6/lab_cicd_codepipeline/</code> vào thư mục gốc <code>D:\lab-expense-management</code>,
+        sau đó điều chỉnh <code>&lt;EXECUTION_ROLE_ARN&gt;</code>, <code>&lt;TASK_ROLE_ARN&gt;</code>,
+        <code>&lt;DATABASE_URL&gt;</code> trong <code>taskdef.template.json</code> cho khớp output Terraform ở
+        Chapter 5 (<code>terraform output</code>), rồi commit &amp; push.</p>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">cd D:\lab-expense-management
+git add buildspec.yml appspec.yaml taskdef.template.json
+git commit -m "ci: add buildspec, appspec, taskdef template for CodePipeline"
+git push origin main</code></pre>
       </div>
     </li>
   </ol>
 
-  <h3 class="sub-heading">Phần 5: Lên lịch chạy tự động bằng Windows Task Scheduler</h3>
+  <h3 class="sub-heading">Phần 5: Tự chạy Terraform để tạo pipeline — Claude chỉ hướng dẫn, không thực thi</h3>
+  <div class="alert alert-tip">
+    <strong>Nhắc lại nguyên tắc:</strong> Nếu Claude Code chủ động đề nghị chạy giúp <code>terraform apply</code> hay
+    bất kỳ lệnh AWS CLI nào, hãy từ chối và tự thực hiện.
+  </div>
   <ol class="step-list">
     <li>
       <div>
-        <strong>Bước 7: Tạo Scheduled Task chạy script mỗi ngày lúc 2:00 sáng</strong>
-        <p>Dùng <code>schtasks /create</code> để đăng ký task, gọi <code>powershell.exe</code> kèm đủ tham số như đã test ở Bước 5.</p>
-        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">schtasks /create /tn "ClaudeLab-BackupCleanupLogs" /tr "powershell.exe -NoProfile -ExecutionPolicy Bypass -File D:\lab-script-tu-dong-hoa\backup-and-cleanup-logs.ps1 -LogPath D:\App\logs -BackupPath D:\App\log-backups -RetentionDays 30" /sc daily /st 02:00</code></pre>
+        <strong>Bước 7: terraform plan — bước review quan trọng nhất</strong>
+        <p>Thay các giá trị <code>&lt;...&gt;</code> bằng giá trị thật. Đọc kỹ output: kiểm tra IAM Policy của
+        CodeBuild không dùng <code>Resource = "*"</code> cho hành động ghi ECR, kiểm tra SNS subscription đúng email
+        của bạn.</p>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">
+cd D:\lab-expense-management\infra\terraform\environments\dev
+terraform plan </code></pre>
       </div>
     </li>
     <li>
       <div>
-        <strong>Bước 8: Kiểm tra task đã được tạo đúng</strong>
-        <pre class="command-line" data-prompt="PS>" data-output="2, 3, 4"><code class="language-powershell">schtasks /query /tn "ClaudeLab-BackupCleanupLogs"
-TaskName                          Next Run Time         Status
-==================================  ====================  ========
-ClaudeLab-BackupCleanupLogs        7/10/2026 2:00:00 AM   Ready</code></pre>
+        <strong>Bước 8: (Khuyến nghị) Nhờ Claude Code giải thích plan trước khi tự mình apply</strong>
+        <pre class="command-line" data-prompt=">"><code class="language-text">Giải thích các thay đổi trong terraform plan này bằng ngôn ngữ dễ hiểu, đặc biệt: IAM Role của CodeBuild có quyền
+gì, CodeDeploy dùng chiến lược Blue/Green như thế nào, và SNS Topic sẽ gửi thông báo trong trường hợp nào. Chỉ giải
+thích, không tự chạy apply giúp tôi.</code></pre>
       </div>
     </li>
     <li>
       <div>
-        <strong>Bước 9: Chạy thử task ngay lập tức (không chờ đến 2:00 sáng) để xác nhận</strong>
-        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">schtasks /run /tn "ClaudeLab-BackupCleanupLogs"</code></pre>
-        <p>Sau vài giây, kiểm tra lại thư mục <code>D:\App\log-backups</code> — nếu có thêm một thư mục con mới theo timestamp, task đã chạy thành công qua Task Scheduler.</p>
+        <strong>Bước 9: Tự chạy terraform apply</strong>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">terraform apply tfplan</code></pre>
+        <p>Kiểm tra hộp thư email và bấm <strong>Confirm subscription</strong> cho SNS Topic để nhận thông báo pipeline.</p>
       </div>
     </li>
+  </ol>
+
+  <h3 class="sub-heading">Phần 6: Kiểm chứng CI/CD tự động trigger từ Github</h3>
+  <ol class="step-list">
+    <li>
+      <div>
+        <strong>Bước 10: Tạo một thay đổi nhỏ và push lên Github để trigger pipeline</strong>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">
+#Prompt yêu cầu Claude implement tính năng Expense analysis:
+Tạo plan Frontend và Backend cho tính năng Expense Analysis trong tab Report, khi người dùng nhấn nút Expense Analysis thì show màn hình này. Mockup của màn hình này có tại thư mục: docs\mockup\report\expense-analysis
+Các tính năng chính gồm:
+-Biểu đồ pie chart phân tích các loại chi tiêu theo level 1 (parent category).
+-Chi tiết giao dịch cho từng loại chi tiêu parent category ví dụ chi tiêu cố định thì gồm Ăn sáng, Ăn trưa, Cafe.
+-Chọn thời gian linh động bao gồm Day, Month, Year với các loại popup khác nhau.
+Đợi tôi duyệt rồi mới bắt đầu implement.          
+        </code></pre>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 11: Theo dõi trạng thái pipeline trên AWS Console (CodePipeline/CodeDeploy)</strong>
+        <p>*Các bạn follow theo video để xác nhận các bước deploy, Switch traffic & Terminate version cũ</p>
+      </div>
+    </li>
+    
   </ol>
 
   <div class="verify-box">
     <h4>✅ Kết quả mong đợi</h4>
-    <p class="body-text">Script chạy tay ở Bước 5 in log rõ ràng, backup đúng số file và xoá đúng file cũ hơn <code>RetentionDays</code>. Scheduled Task <code>ClaudeLab-BackupCleanupLogs</code> xuất hiện trong Task Scheduler với trạng thái <code>Ready</code>, và khi chạy thử bằng <code>schtasks /run</code> tạo thêm được một thư mục backup mới — xác nhận việc tự động hoá hoạt động đúng.</p>
+    <p class="body-text">Mỗi lần <code>git push</code> lên nhánh <code>main</code>, CodePipeline tự động chạy đủ 3
+    stage Source → Build → Deploy mà không cần thao tác thủ công nào khác. CodeDeploy thực hiện Blue/Green — traffic
+    chỉ chuyển sang task mới sau khi health check pass, nếu health check fail thì tự động rollback về task cũ. Email
+    của bạn nhận được thông báo <code>Succeeded</code> hoặc <code>Failed</code> qua SNS sau mỗi lần chạy pipeline.</p>
   </div>
 
   <h2 class="section-heading">Troubleshoot</h2>
   <div class="alert alert-warning">
-    <strong>Lỗi:</strong> Chạy script báo <code>...cannot be loaded because running scripts is disabled on this system</code>.<br/>
-    <strong>Nguyên nhân:</strong> Execution Policy của PowerShell đang chặn chạy file <code>.ps1</code> chưa được ký (mặc định trên nhiều máy Windows là <code>Restricted</code>).<br/>
-    <strong>Giải pháp:</strong> Chạy PowerShell với quyền Administrator và nới policy cho user hiện tại: <code>Set-ExecutionPolicy -Scope CurrentUser RemoteSigned</code>, hoặc chạy trực tiếp bằng <code>powershell -ExecutionPolicy Bypass -File .\backup-and-cleanup-logs.ps1 ...</code> như đã dùng trong lệnh <code>schtasks /create</code> ở Bước 7.
+    <strong>Lỗi:</strong> CodePipeline Source stage báo <code>Access denied. Reason:PENDING connection</code>. <br/>
+    <strong>Nguyên nhân:</strong> Connection tạo bằng CLI ở Phần 1 chưa được confirm thủ công trên Console. <br/>
+    <strong>Giải pháp:</strong> Quay lại Phần 1, Bước 3 — mở Console, xác nhận connection chuyển sang trạng thái
+    <code>Available</code> trước khi apply Terraform.
   </div>
   <div class="alert alert-warning">
-    <strong>Lỗi:</strong> Scheduled Task hiển thị <code>Ready</code> nhưng đến giờ không tự chạy, hoặc <code>Last Run Result</code> khác 0.<br/>
-    <strong>Nguyên nhân:</strong> Task được tạo ở chế độ chỉ chạy khi user đã đăng nhập (<code>Run only when user is logged on</code>) nhưng máy đang khoá màn hình/đăng xuất; hoặc đường dẫn script/tham số trong <code>/tr</code> bị sai.<br/>
-    <strong>Giải pháp:</strong> Mở Task Scheduler (GUI), vào Properties của task, chọn <code>Run whether user is logged on or not</code> nếu cần chạy cả khi không đăng nhập; kiểm tra lại chính xác đường dẫn script trong câu lệnh <code>/tr</code>.
+    <strong>Lỗi:</strong> CodeBuild fail ở bước <code>docker push</code> với <code>no basic auth credentials</code>. <br/>
+    <strong>Nguyên nhân:</strong> IAM Role của CodeBuild thiếu quyền <code>ecr:GetAuthorizationToken</code>, hoặc
+    biến môi trường <code>ECR_REPOSITORY_URL</code> chưa được truyền vào CodeBuild project. <br/>
+    <strong>Giải pháp:</strong> Dán log lỗi cho Claude Code phân tích (chỉ phân tích, không tự sửa và apply lại),
+    kiểm tra lại <code>aws_iam_role_policy.codebuild</code> có đủ action <code>ecr:GetAuthorizationToken</code> ở
+    <code>Resource = "*"</code> (action này bắt buộc phải để <code>*</code>, không giới hạn theo repository được).
   </div>
   <div class="alert alert-warning">
-    <strong>Lỗi:</strong> Script báo lỗi <code>LogPath khong ton tai</code> dù thư mục có vẻ đã tồn tại.<br/>
-    <strong>Nguyên nhân:</strong> Đường dẫn truyền vào có dấu cách hoặc ký tự đặc biệt chưa được đặt trong dấu ngoặc kép, hoặc gõ sai ổ đĩa/tên thư mục.<br/>
-    <strong>Giải pháp:</strong> Luôn đặt đường dẫn trong dấu ngoặc kép (vd <code>-LogPath "D:\App\logs"</code>), kiểm tra lại bằng <code>Test-Path "D:\App\logs"</code> trước khi chạy script.
+    <strong>Lỗi:</strong> CodeDeploy deploy fail với <code>InvalidSignatureException</code> hoặc
+    <code>UnknownContainer: IMAGE1_NAME</code>. <br/>
+    <strong>Nguyên nhân:</strong> Tên container trong <code>taskdef.template.json</code> không khớp với
+    <code>Image1ContainerName</code> đã khai báo trong CodePipeline Deploy stage. <br/>
+    <strong>Giải pháp:</strong> Đảm bảo tên container trong <code>containerDefinitions[].name</code> của
+    <code>taskdef.template.json</code> và trong <code>appspec.yaml</code> đều dùng đúng chuỗi <code>IMAGE1_NAME</code>
+    như cấu hình action <code>ECS_BlueGreen_Deploy</code>.
+  </div>
+  <div class="alert alert-warning">
+    <strong>Lỗi:</strong> Deploy stage bị treo ở trạng thái <code>InProgress</code> quá lâu rồi rollback. <br/>
+    <strong>Nguyên nhân:</strong> Target Group Green không pass health check (thường do Security Group hoặc port
+    container sai). <br/>
+    <strong>Giải pháp:</strong> Kiểm tra log ECS Task mới trên CloudWatch, đối chiếu <code>ContainerPort</code> trong
+    <code>appspec.yaml</code> có khớp port ứng dụng lắng nghe (3000) không.
   </div>
 
-  <h2 class="section-heading">Dọn dẹp resource</h2>
-  <div class="alert alert-info">
-    Bài lab này <strong>không tạo resource Cloud</strong> nào — chỉ tạo Scheduled Task và thư mục cục bộ trên máy Windows. Nếu không muốn giữ lại task chạy định kỳ, xoá bằng lệnh sau.
+  <h2 class="section-heading" id="cleanup">Dọn dẹp resource</h2>
+  <div class="alert alert-danger">
+    <strong>Bắt buộc thực hiện:</strong> Resource CI/CD (CodePipeline, CodeBuild, CodeDeploy, S3 artifact bucket, SNS
+    Topic) do chính bạn tự chạy lệnh xoá — không nhờ Claude Code chạy giúp. Lệnh dưới đây chỉ xoá resource của module
+    <code>cicd</code>, hạ tầng ECS/ECR/RDS/ALB tạo ở Chapter 5 vẫn giữ nguyên (nếu muốn xoá toàn bộ, dùng
+    <code>terraform destroy</code> không kèm <code>-target</code> sau khi hoàn tất toàn bộ khoá học).
   </div>
-  <pre class="command-line" data-prompt="PS>"><code class="language-powershell">schtasks /delete /tn "ClaudeLab-BackupCleanupLogs" /f</code></pre>
-  <p class="note-text">Có thể giữ lại thư mục <code>D:\App\logs</code>, <code>D:\App\log-backups</code> và <code>D:\lab-script-tu-dong-hoa</code> để tham khảo lại script, hoặc xoá bằng <code>Remove-Item -Recurse -Force</code> nếu không cần dùng nữa.</p>
+  <pre class="command-line" data-prompt="PS>"><code class="language-powershell">cd D:\lab-expense-management\infra\terraform\environments\dev
+
+terraform destroy
+
+aws codestar-connections delete-connection `
+  --connection-arn &lt;connection-arn-đã-confirm-ở-Phần-1&gt; `
+  --region ap-northeast-1</code></pre>
+  <p class="note-text">Sau khi lệnh trên hoàn thành, kiểm tra lại trên AWS Console (CodePipeline, CodeBuild,
+  CodeDeploy, S3, SNS, Developer Tools → Connections) để xác nhận không còn resource nào sót lại.</p>
 
   <script>mermaid.initialize({ startOnLoad: true, theme: 'default' });</script>
 </body>

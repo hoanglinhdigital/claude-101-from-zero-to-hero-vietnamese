@@ -14,7 +14,7 @@
 <body class="chapter-body">
 
   <div class="chapter-breadcrumb">
-    <span class="section-part">5. Claude cho DevOps & Cloud Engineer</span>
+    <span class="section-part">6. Claude cho DevOps & Cloud Engineer</span>
     <span class="sep">/</span>
     <span class="chapter-part">Vai trò Claude trong vòng đời DevOps & nguyên tắc an toàn</span>
   </div>
@@ -23,16 +23,20 @@
   <p class="body-text">
     Công việc DevOps/Cloud Engineer thường lặp lại theo 4 giai đoạn: <strong>Plan (lập kế hoạch hạ tầng) – Provision
     (dựng hạ tầng) – Deploy (triển khai ứng dụng) – Monitor (giám sát vận hành)</strong>. Claude/Claude Code có thể hỗ
-    trợ đáng kể ở cả 4 giai đoạn — từ soạn thiết kế, sinh Infrastructure as Code, hỗ trợ pipeline triển khai, đến phân
-    tích log giám sát. Tuy nhiên hạ tầng là nơi một lệnh sai có thể gây downtime hoặc mất dữ liệu thật, nên chương này
-    cũng trình bày <strong>nguyên tắc an toàn bắt buộc</strong> khi để AI thao tác vào hạ tầng.
+    trợ đáng kể ở cả 4 giai đoạn — từ Thiết kế hệ thống, sinh Infrastructure as Code, hỗ trợ pipeline triển khai, đến phân
+    tích log giám sát. <br/>
+    Tuy nhiên hạ tầng là nơi một lệnh sai có thể gây downtime hoặc mất dữ liệu thật, nên chương này
+    cũng trình bày <strong>nguyên tắc an toàn bắt buộc</strong> khi sử dụng AI cho các task liên quan tới hạ tầng.
   </p>
-
+  <div class="figure-centered">
+    <img src="../../assets/images/ai-assistance-devops-lifecycle.jpg" alt="Minh họa Quy trình DevOps có hỗ trợ của AI Agent" />
+    <p class="figure-title">Minh họa Quy trình DevOps có hỗ trợ của AI Agent</p>
+  </div>
   <h2 class="section-heading">Các tính năng chính</h2>
   <ul class="feature-list">
-    <li><strong>Plan</strong> — Claude hỗ trợ phân tích yêu cầu, đề xuất kiến trúc, so sánh phương án (vd chọn loại compute, database phù hợp).</li>
-    <li><strong>Provision</strong> — Claude Code sinh Infrastructure as Code (Terraform/CloudFormation) để dựng hạ tầng theo thiết kế đã chọn.</li>
-    <li><strong>Deploy</strong> — Claude Code hỗ trợ viết/soát script triển khai, phân tích lý do pipeline CI/CD fail, đề xuất fix build script.</li>
+    <li><strong>Plan & Architect</strong> — Claude hỗ trợ phân tích yêu cầu, đề xuất kiến trúc, so sánh phương án (vd chọn loại Service Compute/Database/Storage phù hợp).</li>
+    <li><strong>Provision</strong> — Claude Code sinh Infrastructure as Code (Terraform/CloudFormation) để dựng hạ tầng theo thiết kế.</li>
+    <li><strong>Deploy</strong> — Claude Code hỗ trợ viết/soát script triển khai, phân tích lỗi pipeline CI/CD fail, đề xuất fix build script.</li>
     <li><strong>Monitor</strong> — Claude phân tích log lỗi, metrics bất thường, đề xuất nguyên nhân gốc rễ và hướng xử lý.</li>
     <li>Ở mọi giai đoạn, Claude chỉ nên đóng vai trò <strong>trợ lý đề xuất</strong> — quyết định cuối cùng (apply, deploy, xoá resource) luôn thuộc về con người.</li>
   </ul>
@@ -44,14 +48,17 @@
       CC["<img src='../../assets/svg-icon/claude-logo.svg' style='width:28px;height:28px;'/><br/><b>Claude / Claude Code</b>"]
 
       Plan["📋 <b>1. Plan</b><br/>Thiết kế kiến trúc<br/><i>Claude đề xuất, con người quyết định</i>"]
-      Provision["<img src='../../assets/svg-icon/container.svg' style='width:26px;height:26px;'/><br/><b>2. Provision</b><br/>Sinh Terraform/CloudFormation<br/><i>⚠️ Review kỹ terraform plan</i>"]
+      Architect["📝<b>Architect</b><br/>Bản thiết kế hệ thống<br/><i>Networking/Resource/Security</i>"]
+      Provision["<img src='../../assets/svg-icon/terraform.svg' style='width:26px;height:26px;'/><br/><b>2. Provision</b><br/>Sinh Terraform/CloudFormation<br/><i>⚠️ Review kỹ terraform plan</i>"]
       Deploy["🚀 <b>3. Deploy</b><br/>Triển khai ứng dụng<br/><i>⚠️ Xác nhận trước khi lên Production</i>"]
-      Monitor["📊 <b>4. Monitor</b><br/>Giám sát & phân tích log<br/><i>Claude đề xuất fix, không tự sửa Production</i>"]
+      Monitor["<img src='../../assets/svg-icon/Alarm.svg' style='width:26px;height:26px;'/><br/> <b>4. Monitor</b><br/>Giám sát & phân tích log<br/><i>Claude đề xuất fix, không tự sửa Production</i>"]
 
       Engineer -->|"Yêu cầu"| CC
       CC --> Plan --> Provision --> Deploy --> Monitor
       Monitor -.->|"Phát hiện vấn đề, quay lại"| Plan
       Plan -->|"Review & Approve"| Engineer
+      Plan -->Architect
+      Engineer -->|"Review & Approve"| Architect
       Provision -->|"Review terraform plan"| Engineer
       Deploy -->|"Xác nhận thủ công"| Engineer
       Engineer -->|"Approve"| CC
@@ -70,7 +77,7 @@
     </div>
     <div class="ts-card">
       <h4>🔐 Không tự động hoá thao tác trên Production</h4>
-      <p class="cause">Xoá/sửa resource trên môi trường Production luôn cần xác nhận thủ công — không đặt Claude Code ở chế độ Auto-accept cho các lệnh này.</p>
+      <p class="cause">Xoá/sửa resource trên môi trường Production luôn cần xác nhận thủ công — KHÔNG đặt Claude Code ở chế độ Auto-mode cho các lệnh này.</p>
     </div>
     <div class="ts-card">
       <h4>🧾 Giữ log/audit trail đầy đủ</h4>
@@ -79,8 +86,8 @@
   </div>
 
   <div class="alert alert-danger">
-    <strong>Không nên:</strong> Yêu cầu Claude Code "tự dọn dẹp hạ tầng không dùng nữa" rồi cho chạy Auto-accept mà
-    không xem trước danh sách resource sẽ bị xoá. Một CIDR sai, một tên resource trùng giữa môi trường dev/production
+    <strong>Không nên:</strong> Yêu cầu Claude Code "tự dọn dẹp hạ tầng không dùng nữa" rồi cho chạy Auto-mode mà
+    không xem trước danh sách resource sẽ bị xoá. Một tên resource trùng giữa môi trường dev/production
     có thể khiến lệnh destructive ảnh hưởng nhầm sang hệ thống đang chạy thật.
   </div>
 
@@ -103,13 +110,12 @@
   <h2 class="section-heading">Thông tin bổ sung</h2>
   <p class="body-text">
     Claude không "biết" đâu là môi trường Production của tổ chức bạn trừ khi được nói rõ trong prompt hoặc file
-    <code>CLAUDE.md</code>. Nên luôn nêu rõ ngữ cảnh môi trường (dev/staging/production) khi giao tác vụ hạ tầng, và
+    <code>CLAUDE.md</code>. Nên nêu rõ ngữ cảnh môi trường (dev/staging/production) khi giao tác vụ hạ tầng, và
     coi mọi đề xuất của Claude ở giai đoạn Provision/Deploy là <strong>bản dự thảo cần review</strong>, không phải
     lệnh sẵn sàng thực thi ngay.
   </p>
   <div class="alert alert-tip">
-    <strong>Mẹo:</strong> Có thể yêu cầu Claude Code giải thích từng thay đổi trong <code>terraform plan</code> bằng
-    ngôn ngữ dễ hiểu ("giải thích các thay đổi trong plan này, đặc biệt resource nào sẽ bị xoá hoặc replace") — giúp
+    <strong>Mẹo:</strong> Nếu bạn không có kiến thức chuyên môn về Terraform/Cloudformation, có thể yêu cầu Claude Code giải thích từng thay đổi trong <code>terraform plan</code> bằng ngôn ngữ dễ hiểu ("giải thích các thay đổi trong plan này, đặc biệt resource nào sẽ bị xoá hoặc replace") — giúp
     review nhanh hơn mà không bỏ sót chi tiết quan trọng.
   </div>
 

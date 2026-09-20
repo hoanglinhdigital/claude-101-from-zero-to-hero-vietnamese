@@ -32,11 +32,11 @@
     So với test API, test E2E kiểm được cả luồng thực tế xuyên suốt: UI → API → database → UI.
   </p>
   <ul class="feature-list">
-    <li><strong>Auto-wait</strong> — tự chờ phần tử UI sẵn sàng trước khi thao tác, giảm test "flaky".</li>
+    <li><strong>Auto-wait</strong> — tự chờ phần tử UI sẵn sàng trước khi thao tác, giảm test "flaky" (kết quả chập chờn do UI chưa ready).</li>
     <li><strong>Locator theo vai trò</strong> — <code>getByRole</code>, <code>getByLabel</code>, <code>getByText</code> bám theo ngữ nghĩa giao diện thay vì CSS selector dễ vỡ.</li>
     <li><strong>Trace, screenshot, video</strong> — tự ghi lại bằng chứng mỗi khi test fail.</li>
     <li><strong>HTML report</strong> — báo cáo trực quan có sẵn, không cần cài thêm.</li>
-    <li><strong>Codegen</strong> — <code>npx playwright codegen &lt;url&gt;</code> ghi lại thao tác tay thành code mẫu.</li>
+    <li><strong>Codegen</strong> — <code>npx playwright codegen &lt;url&gt;</code> ghi lại thao tác thực tế & convert thành code mẫu.</li>
   </ul>
 
   <h2 class="section-heading">Mục tiêu</h2>
@@ -153,7 +153,13 @@ test(<span class="str">'trang đăng nhập hiển thị đúng'</span>, <span c
       <div>
         <strong>Bước 4: Dùng Codegen để xem Playwright "dịch" thao tác tay thành code</strong>
         <p>Lệnh dưới mở trình duyệt kèm cửa sổ ghi code; bạn thao tác tay, Playwright sinh script tương ứng. Dùng để học cú pháp locator nhanh:</p>
-        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">npx playwright codegen https://claude101expensemanagement.vercel.app</code></pre>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">
+npx playwright codegen https://claude101expensemanagement.vercel.app --channel=chrome
+# Nếu văng lỗi hoặc không khởi động được, Thử thay thế bằng lệnh sau (Chạy bằng MS.Edge):
+npx playwright codegen https://claude101expensemanagement.vercel.app --channel=msedge 
+
+
+</code></pre>
         <div class="alert alert-tip">
           Ưu tiên <code>getByRole</code> / <code>getByLabel</code> / <code>getByText</code>. Chỉ dùng <code>locator('css=...')</code> hoặc <code>getByTestId</code> khi không có cách nào theo vai trò.
         </div>
@@ -232,26 +238,12 @@ Trường nhập:
 
 Nút "Lưu": disable khi form chưa hợp lệ.
 Lưu thành công -&gt; hiện toast "Đã thêm giao dịch".
-Lỗi validate -&gt; hiện message đỏ ngay dưới trường tương ứng, không gọi API.</pre>
+Lỗi validate -&gt; hiện message đỏ ngay dưới trường tương ứng, không gọi API.
+</pre>
 <p>
           Hoặc sử dụng screen shot để mô tả màn hình, ví dụ: <code>docs\screenshot\record-expense
         </p>
-        <pre class="file-block">
-Yêu cầu đăng nhập trước tại /login. Nếu chưa đăng nhập, redirect về /login.
-Thiết kế của màn hình record dựa theo các screenshot sau đây:
-  - docs\screenshot\record-expense\record-expense.png
-  - docs\screenshot\record-expense\record-expense-select-account.png
-  - docs\screenshot\record-expense\record-expense-select-category.png
-Trường nhập:
-- Số tiền (bắt buộc, lớn hơn 0)
-- Danh mục (bắt buộc, chọn từ dropdown)
-- Tài khoản (bắt buộc, chọn từ dropdown)
-- Ngày, giờ (bắt buộc, có thể chọn ngày tương lai). Mặc định khi vào màn hình sẽ lấy giờ hiện tại.
-- Ghi chú (tuỳ chọn, tối đa 500 ký tự)
-
-Nút "Lưu": disable khi form chưa hợp lệ.
-Lưu thành công -&gt; hiện toast "Đã lưu giao dịch".
-Lỗi validate -&gt; hiện message đỏ ngay dưới trường tương ứng, không gọi API.</pre>
+ 
       </div>
     </li>
     <li>
@@ -272,9 +264,10 @@ Trường nhập:
 - Ghi chú (tuỳ chọn, tối đa 500 ký tự)
 
 Nút "Lưu": disable khi form chưa hợp lệ.
-Lưu thành công -&gt; chuyển về /transactions và hiện toast "Đã thêm giao dịch".
+Lưu thành công -&gt; chuyển về /transactions và hiện toast "Đã lưu giao dịch".
 Lỗi validate -&gt; hiện message đỏ ngay dưới trường tương ứng, không gọi API.
 
+API để dọn dữ liệu test: DELETE /api/transactions/:id (xác thực bằng token Bearer). Token lấy từ cookie sau khi login thành công
 Output: e2e-test/transaction_expense.spec.ts</code></pre>
         <p>Quan sát dòng <code>Skill: playwright-e2e-generator</code> ở đầu phản hồi để xác nhận Skill được gọi.</p>
       </div>
@@ -296,7 +289,8 @@ Output: e2e-test/transaction_expense.spec.ts</code></pre>
     <li>
       <div>
         <strong>Bước 10: Chạy toàn bộ bộ test E2E</strong>
-        <pre class="command-line" data-prompt="PS>" data-output="2,3,4,5,6,7,8,9,10"><code class="language-powershell">npx playwright test
+        <pre class="command-line" data-prompt="PS>" data-output="2,3,4,5,6,7,8,9,10"><code class="language-powershell">
+npx playwright test e2e-test/transaction_expense.spec.ts
 Running 4 tests using 1 worker
 
   ✓  1 e2e-test/them-chi-tieu.spec.ts:12:3 › thêm chi tiêu hợp lệ (3.1s)

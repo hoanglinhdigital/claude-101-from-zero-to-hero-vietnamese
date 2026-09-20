@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Lab - Plan & Tasks – Claude 101</title>
+  <title>Lab - Triển khai CodeKids Blocks lên Vercel & TiDB Serverless – Claude 101</title>
   <link rel="stylesheet" href="../../styles.css" />
   <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
   <script src="../../mermaid-config.js"></script>
@@ -16,138 +16,221 @@
   <div class="chapter-breadcrumb">
     <span class="section-part">10. Phát triển phần mềm với Spec-Kit Framework</span>
     <span class="sep">/</span>
-    <span class="chapter-part">Lab - Plan & Tasks</span>
+    <span class="chapter-part">Lab - Triển khai CodeKids Blocks lên Vercel & TiDB Serverless</span>
   </div>
 
   <div class="alert alert-info">
-    Bài lab này <strong>tiếp tục dùng project <code>D:\lab-expense-management</code></strong> và bản đặc tả
-    <code>spec.md</code> của tính năng <strong>"xuất báo cáo chi tiêu theo khoảng thời gian dạng PDF/Excel"</strong>
-    đã tạo ở Chapter 6. Nếu chưa hoàn thành Chapter 6, hãy quay lại thực hiện trước.
+    Bài lab cuối của Section 10 — đưa <strong>CodeKids Blocks</strong> (project <code>D:\lab-codekids-blocks</code>
+    đã hoàn thiện ở Chapter 6) từ máy local lên Internet: database chuyển từ MySQL chạy trong Docker sang
+    <strong>TiDB Serverless</strong> (tương thích giao thức MySQL, có gói miễn phí), và ứng dụng Next.js được host
+    trên <strong>Vercel</strong>.
   </div>
 
   <h2 class="section-heading">Mục tiêu</h2>
   <ul class="feature-list">
-    <li>Dùng <code>/speckit.plan</code> lập kế hoạch kỹ thuật cho tính năng xuất báo cáo: chọn thư viện tạo PDF/Excel, thiết kế API route mới, xác định các file cần thêm/sửa.</li>
-    <li>Dùng <code>/speckit.tasks</code> chia kế hoạch kỹ thuật thành các task nhỏ, cụ thể, thực hiện được từng phần.</li>
-    <li>Xem lại file <code>plan.md</code> và <code>tasks.md</code> được sinh ra, đối chiếu với <code>spec.md</code> ở Chapter 6.</li>
+    <li>Tạo một TiDB Serverless cluster miễn phí trên TiDB Cloud, lấy connection string.</li>
+    <li>Cập nhật cấu hình Prisma để kết nối đúng chuẩn TiDB (SSL bắt buộc) và chạy migration lên database này.</li>
+    <li>Đẩy code CodeKids Blocks lên GitHub và import vào Vercel.</li>
+    <li>Cấu hình biến môi trường, build command trên Vercel và deploy thành công.</li>
+    <li>Kiểm chứng màn chơi kéo thả vượt mê cung hoạt động đúng trên domain thực tế do Vercel cấp.</li>
   </ul>
 
   <h2 class="section-heading">Mô hình kiến trúc</h2>
   <div class="mermaid">
   flowchart LR
       Dev(("<img src='../../assets/svg-icon/developer.svg' style='width:26px;height:26px;'/><br/><b>Developer</b>"))
-      CC["<img src='../../assets/svg-icon/claude-logo.svg' style='width:28px;height:28px;'/><br/><b>Claude Code</b>"]
+      GH["<img src='../../assets/svg-icon/github.svg' style='width:26px;height:26px;'/><br/><b>GitHub</b><br/>repo lab-codekids-blocks"]
+      Vercel["<img src='../../assets/svg-icon/vercel.ico' style='width:26px;height:26px;'/><br/><b>Vercel</b><br/>Build & host Next.js<br/>(Serverless Functions)"]
+      TiDB[("🐬 <b>TiDB Serverless</b><br/>Level · Player · Progress")]
+      Browser["<img src='../../assets/svg-icon/browser.svg' style='width:26px;height:26px;'/><br/><b>Học sinh</b><br/>truy cập qua trình duyệt"]
 
-      F0["📜 constitution.md"]
-      F1["📝 spec.md<br/>(Chapter 6)"]
-
-      subgraph Step1["Bước 1"]
-          Cmd1["/speckit.plan<br/>+ định hướng kỹ thuật"]
-          F2["🗺️ plan.md<br/>Thư viện PDF/Excel,<br/>route mới, file cần sửa"]
-      end
-
-      subgraph Step2["Bước 2"]
-          Cmd2["/speckit.tasks"]
-          F3["📋 tasks.md<br/>Danh sách task nhỏ"]
-      end
-
-      Dev -->|"1."| Cmd1
-      F0 -.->|"Ngữ cảnh"| CC
-      F1 -.->|"Ngữ cảnh"| CC
-      Cmd1 --> CC --> F2
-      Dev -->|"2."| Cmd2
-      F2 -.->|"Ngữ cảnh"| CC
-      Cmd2 --> CC --> F3
+      Dev -->|"1. git push"| GH
+      GH -->|"2. Import project"| Vercel
+      Vercel -->|"3. DATABASE_URL (TLS)"| TiDB
+      Dev -->|"4. Tạo cluster + migrate"| TiDB
+      Browser -->|"5. Truy cập domain .vercel.app"| Vercel
+      Vercel -->|"Render kết quả"| Browser
   </div>
-  <p class="arch-caption"><code>/speckit.plan</code> đọc lại <code>spec.md</code> và <code>constitution.md</code> để đảm bảo kế hoạch kỹ thuật đúng yêu cầu và tuân theo nguyên tắc chung; <code>/speckit.tasks</code> đọc lại <code>plan.md</code> vừa tạo để chia thành các task cụ thể.</p>
+  <p class="arch-caption">Vercel build và chạy Next.js dưới dạng Serverless Function cho mỗi request, không giữ kết nối cố định tới database — vì vậy CodeKids Blocks cần một database serverless-friendly như TiDB Serverless thay vì container MySQL chạy trên máy local.</p>
 
   <h2 class="section-heading">Yêu cầu trước khi bắt đầu</h2>
   <ul class="feature-list">
-    <li>Đã hoàn thành Chapter 6 — <code>constitution.md</code> và <code>specs/{feature-id}/spec.md</code> đã tồn tại và đúng nội dung tính năng xuất báo cáo.</li>
-    <li>Claude Code CLI đã cài đặt và đăng nhập thành công.</li>
-    <li>Terminal: PowerShell hoặc Windows Terminal.</li>
+    <li>Đã hoàn thành Chapter 6 — project <code>D:\lab-codekids-blocks</code> chạy đúng với MySQL local.</li>
+    <li>Tài khoản GitHub, đã đăng nhập <code>git</code> trên máy local.</li>
+    <li>Tài khoản TiDB Cloud (đăng ký miễn phí tại <code>tidbcloud.com</code>).</li>
+    <li>Tài khoản Vercel (đăng ký miễn phí tại <code>vercel.com</code>, có thể đăng nhập bằng GitHub).</li>
+    <li>Vercel CLI (tuỳ chọn, dùng để deploy/kiểm tra từ terminal): <code>npm install -g vercel</code>.</li>
   </ul>
 
   <h2 class="section-heading">Các bước thực hành</h2>
 
-  <h3 class="sub-heading">Phần 1: Lập kế hoạch kỹ thuật với /speckit.plan</h3>
+  <h3 class="sub-heading">Phần 1: Tạo TiDB Serverless cluster</h3>
   <ol class="step-list">
     <li>
       <div>
-        <strong>Bước 1: Vào project và khởi động Claude Code</strong>
-        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">cd D:\lab-expense-management
-claude</code></pre>
+        <strong>Bước 1: Tạo cluster mới trên TiDB Cloud</strong>
+        <p>Đăng nhập <code>tidbcloud.com</code> → <strong>Create Cluster</strong> → chọn gói <strong>Serverless</strong> (miễn phí) → đặt tên cluster (vd <code>codekids-blocks</code>) → chọn region gần Việt Nam nhất (vd Singapore/ap-southeast) → <strong>Create</strong>.</p>
       </div>
     </li>
     <li>
       <div>
-        <strong>Bước 2: Chạy /speckit.plan với định hướng kỹ thuật cụ thể</strong>
-        <p>Nêu rõ các quyết định kỹ thuật mong muốn — chọn thư viện, đặt tên route mới — để Claude Code lập kế hoạch bám sát thực tế project (Next.js API Routes, Prisma).</p>
-        <pre class="command-line" data-prompt=">"><code class="language-text">/speckit.plan Lập kế hoạch kỹ thuật để triển khai tính năng xuất báo cáo trong spec.md. Định hướng cụ thể:
-1. Tạo API route mới app/api/reports/export/route.ts, nhận query param startDate, endDate (định dạng YYYY-MM-DD, bắt buộc) và format (giá trị "pdf" hoặc "excel", bắt buộc).
-2. Dùng thư viện exceljs để sinh file Excel (.xlsx), và một thư viện tạo PDF phù hợp với Next.js API Route (đề xuất cụ thể, ưu tiên thư viện chạy tốt trên Node.js runtime, không cần trình duyệt).
-3. Tách logic truy vấn dữ liệu + tính tổng theo danh mục ra hàm thuần trong lib/report-generator.ts, tương tự cách đã tổ chức lib/csv-export.ts và lib/expense-service.ts hiện có — không phụ thuộc Next.js request/response, để viết unit test dễ dàng.
-4. Route trả về file với Content-Type và Content-Disposition phù hợp để browser tải file xuống, đặt tên file theo mẫu bao-cao-chi-tieu_{startDate}_{endDate}.pdf hoặc .xlsx.
-5. Thêm giao diện chọn khoảng thời gian (2 ô ngày) và dropdown chọn định dạng trên trang chủ, kèm nút "Xuất báo cáo".
-6. Đảm bảo tuân theo constitution.md: validate input ngày/format, không đổi các route hiện có.</code></pre>
+        <strong>Bước 2: Lấy connection string</strong>
+        <p>Sau khi cluster khởi tạo xong (thường vài chục giây), vào tab <strong>Connect</strong>, chọn <strong>Prisma</strong> trong danh sách framework/driver để TiDB Cloud sinh sẵn connection string đúng định dạng Prisma cần, dạng:</p>
+        <pre class="command-line"><code class="language-bash">mysql://&lt;user&gt;.root:&lt;password&gt;@gateway01.ap-southeast-1.prod.aws.tidbcloud.com:4000/codekids_blocks?sslaccept=strict</code></pre>
+        <div class="alert alert-warning">
+          <strong>Lưu ý:</strong> Mật khẩu chỉ hiển thị/tải xuống được <strong>một lần duy nhất</strong> khi tạo. Lưu
+          lại ngay vào nơi an toàn (không commit vào Git).
+        </div>
       </div>
     </li>
     <li>
       <div>
-        <strong>Bước 3: Xem lại file plan.md được sinh ra</strong>
-        <p>Đối chiếu kế hoạch với <code>spec.md</code> ở Chapter 6 — xác nhận kế hoạch đáp ứng đủ hành vi đã đặc tả, không bỏ sót yêu cầu nào (vd trường hợp không có dữ liệu, tổng theo danh mục).</p>
-        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">code specs\001-xuat-bao-cao-chi-tieu\plan.md</code></pre>
+        <strong>Bước 3: Cập nhật DATABASE_URL cục bộ để kiểm tra kết nối</strong>
+        <p>Tạm sửa <code>.env</code> trỏ sang TiDB (nhớ backup connection string MySQL local trước đó) rồi thử kết nối.</p>
+        <pre class="command-line"><code class="language-bash">DATABASE_URL="mysql://&lt;user&gt;.root:&lt;password&gt;@gateway01.ap-southeast-1.prod.aws.tidbcloud.com:4000/codekids_blocks?sslaccept=strict"</code></pre>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">npx prisma db pull</code></pre>
+        <p>Nếu lệnh chạy không báo lỗi kết nối, connection string đã đúng.</p>
       </div>
     </li>
   </ol>
 
-  <h3 class="sub-heading">Phần 2: Chia nhỏ kế hoạch với /speckit.tasks</h3>
+  <h3 class="sub-heading">Phần 2: Chạy migration lên TiDB</h3>
   <ol class="step-list">
     <li>
       <div>
-        <strong>Bước 4: Chạy /speckit.tasks để chia plan.md thành các task cụ thể</strong>
-        <pre class="command-line" data-prompt=">"><code class="language-text">/speckit.tasks Chia kế hoạch trong plan.md thành các task nhỏ, mỗi task chỉ nên tập trung vào một phần cụ thể (vd một file, một hàm, hoặc một phần giao diện), có thể thực hiện và kiểm tra độc lập theo đúng thứ tự phụ thuộc.</code></pre>
+        <strong>Bước 4: Áp dụng toàn bộ migration đã tạo ở Chapter 6 lên TiDB</strong>
+        <p>Dùng <code>migrate deploy</code> (áp dụng migration đã có sẵn, không tạo migration mới) thay vì <code>migrate dev</code> — đúng lệnh dùng cho môi trường không phải máy phát triển cục bộ.</p>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">npx prisma migrate deploy</code></pre>
       </div>
     </li>
     <li>
       <div>
-        <strong>Bước 5: Xem lại file tasks.md được sinh ra</strong>
-        <p>Kiểm tra danh sách task có hợp lý, đủ chi tiết để thực hiện từng task một cách độc lập ở bài lab tiếp theo (vd: tạo <code>lib/report-generator.ts</code>, viết unit test cho hàm sinh dữ liệu báo cáo, tạo API route, thêm UI chọn khoảng thời gian, nối UI với API).</p>
-        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">code specs\001-xuat-bao-cao-chi-tieu\tasks.md</code></pre>
+        <strong>Bước 5: Kiểm tra bảng đã được tạo đúng trên TiDB</strong>
+        <p>Vào tab <strong>Chat2Query</strong> hoặc <strong>SQL Editor</strong> trên TiDB Cloud, chạy thử truy vấn kiểm tra.</p>
+        <pre class="command-line"><code class="language-sql">SHOW TABLES;</code></pre>
+        <p>Xác nhận có đủ 3 bảng <code>Level</code>, <code>Player</code>, <code>Progress</code> (tên bảng cụ thể tuỳ theo <code>schema.prisma</code> đã viết ở Chapter 5).</p>
       </div>
     </li>
     <li>
       <div>
-        <strong>Bước 6: Yêu cầu chia nhỏ thêm nếu task còn quá lớn</strong>
-        <p>Nếu một task trong danh sách vẫn gộp quá nhiều việc (vd vừa tạo hàm sinh PDF vừa tạo hàm sinh Excel vừa viết route trong 1 task), yêu cầu Claude Code chia nhỏ thêm trước khi sang giai đoạn Implementation.</p>
-        <pre class="command-line" data-prompt=">"><code class="language-text">Task số [X] trong tasks.md vẫn còn gộp nhiều việc khác nhau. Hãy chia nhỏ task này thành các task con cụ thể hơn, cập nhật lại tasks.md.</code></pre>
+        <strong>Bước 6: Seed dữ liệu màn chơi (nếu project có script seed)</strong>
+        <p>Nếu Claude Code đã tạo <code>prisma/seed.ts</code> chứa dữ liệu mẫu 3 màn chơi ở Chapter 6, chạy lại seed nhắm vào TiDB.</p>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">npx prisma db seed</code></pre>
+      </div>
+    </li>
+  </ol>
+
+  <h3 class="sub-heading">Phần 3: Đẩy code lên GitHub và import vào Vercel</h3>
+  <ol class="step-list">
+    <li>
+      <div>
+        <strong>Bước 7: Khôi phục lại .env cho môi trường local, thêm .env vào .gitignore</strong>
+        <p>Trả <code>DATABASE_URL</code> trong <code>.env</code> về lại MySQL local (dùng cho máy phát triển), và đảm bảo file <code>.env</code> không bị commit lên Git (connection string TiDB sẽ được cấu hình riêng trên Vercel ở Bước 9).</p>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">git status</code></pre>
+        <p>Xác nhận <code>.env</code> nằm trong danh sách bị ignore, không xuất hiện trong <code>git status</code>.</p>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 8: Tạo repository GitHub và push code</strong>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">cd D:\lab-codekids-blocks
+git init
+git add .
+git commit -m "CodeKids Blocks: keo tha vuot me cung, hoan tat SDD voi Spec-Kit"
+gh repo create lab-codekids-blocks --private --source=. --remote=origin --push</code></pre>
+        <div class="alert alert-info">
+          <strong>Lưu ý:</strong> Nếu chưa cài <code>gh</code> CLI, tạo repository thủ công trên <code>github.com/new</code>
+          rồi chạy <code>git remote add origin &lt;url&gt;</code> và <code>git push -u origin main</code>.
+        </div>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 9: Import project vào Vercel</strong>
+        <p>Đăng nhập <code>vercel.com</code> → <strong>Add New → Project</strong> → chọn repository <code>lab-codekids-blocks</code> vừa push → Vercel tự nhận diện đây là Next.js project.</p>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 10: Cấu hình biến môi trường DATABASE_URL trỏ vào TiDB</strong>
+        <p>Ở màn hình cấu hình project trước khi deploy (hoặc <strong>Settings → Environment Variables</strong> sau khi tạo project), thêm biến sau cho cả 3 môi trường Production/Preview/Development:</p>
+        <pre class="command-line"><code class="language-bash">DATABASE_URL=mysql://&lt;user&gt;.root:&lt;password&gt;@gateway01.ap-southeast-1.prod.aws.tidbcloud.com:4000/codekids_blocks?sslaccept=strict</code></pre>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 11: Cấu hình build command để tự sinh Prisma Client khi deploy</strong>
+        <p>Vào <strong>Settings → Build & Development Settings</strong>, đặt Build Command để chạy <code>prisma generate</code> trước khi build Next.js (tránh lỗi thiếu Prisma Client trên môi trường build của Vercel).</p>
+        <pre class="command-line"><code class="language-bash">prisma generate && next build</code></pre>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 12: Deploy</strong>
+        <p>Bấm <strong>Deploy</strong> và theo dõi log build. Sau khi hoàn tất, Vercel cấp một domain dạng <code>lab-codekids-blocks.vercel.app</code>.</p>
+      </div>
+    </li>
+  </ol>
+
+  <h3 class="sub-heading">Phần 4: Kiểm chứng trên domain thực tế</h3>
+  <ol class="step-list">
+    <li>
+      <div>
+        <strong>Bước 13: Mở domain Vercel và chơi thử màn chơi kéo thả</strong>
+        <p>Truy cập <code>https://lab-codekids-blocks.vercel.app</code>, nhập biệt danh mới, thử ghép khối lệnh và chạy màn 1 — xác nhận hành vi giống hệt khi chạy local ở Chapter 6 (di chuyển từng bước, chấm sao, xử lý va chạm).</p>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 14: Xác nhận dữ liệu được lưu đúng vào TiDB</strong>
+        <p>Sau khi hoàn thành một màn trên domain thực, vào lại TiDB Cloud SQL Editor kiểm tra bản ghi <code>Progress</code> vừa được tạo.</p>
+        <pre class="command-line"><code class="language-sql">SELECT * FROM Progress ORDER BY completedAt DESC LIMIT 5;</code></pre>
       </div>
     </li>
   </ol>
 
   <div class="verify-box">
     <h4>✅ Kết quả mong đợi</h4>
-    <p class="body-text"><code>specs/{feature-id}/plan.md</code> nêu rõ thư viện PDF/Excel được chọn, route mới, và các file cần tạo/sửa — tuân theo <code>constitution.md</code>. <code>specs/{feature-id}/tasks.md</code> chứa danh sách task nhỏ, đủ chi tiết, đúng thứ tự phụ thuộc, sẵn sàng cho <code>/speckit.implement</code> ở Chapter 8.</p>
+    <p class="body-text">CodeKids Blocks chạy được trên domain công khai do Vercel cấp, kết nối và ghi dữ liệu đúng vào TiDB Serverless. Toàn bộ hành vi của màn chơi kéo thả vượt mê cung (đã kiểm chứng local ở Chapter 6) hoạt động giống hệt trên môi trường production.</p>
   </div>
 
   <h2 class="section-heading">Troubleshoot</h2>
   <div class="alert alert-warning">
-    <strong>Lỗi:</strong> <code>plan.md</code> đề xuất thư viện PDF không chạy được trên Node.js runtime của Next.js API Route (yêu cầu trình duyệt hoặc binary hệ điều hành riêng).<br/>
-    <strong>Nguyên nhân:</strong> Một số thư viện PDF phổ biến được thiết kế chạy phía client (browser) hoặc cần cài thêm dependency hệ thống, không phù hợp API Route.<br/>
-    <strong>Giải pháp:</strong> Yêu cầu Claude Code chạy lại <code>/speckit.plan</code>, nêu rõ ràng buộc "chỉ dùng thư viện Node.js thuần, không phụ thuộc trình duyệt hoặc binary ngoài", để đề xuất lại thư viện phù hợp.
+    <strong>Lỗi:</strong> Build trên Vercel báo lỗi <code>PrismaClientInitializationError</code> hoặc không tìm thấy Prisma Client.<br/>
+    <strong>Nguyên nhân:</strong> Vercel cache <code>node_modules</code> giữa các lần build, không tự chạy lại <code>prisma generate</code> nếu chưa cấu hình build command.<br/>
+    <strong>Giải pháp:</strong> Xác nhận lại Build Command ở Bước 11 có <code>prisma generate</code>, hoặc thêm script <code>"postinstall": "prisma generate"</code> vào <code>package.json</code> để tự chạy sau mỗi lần <code>npm install</code>.
   </div>
   <div class="alert alert-warning">
-    <strong>Lỗi:</strong> <code>tasks.md</code> chỉ có 2-3 task rất lớn, không đủ chi tiết để implement từng phần.<br/>
-    <strong>Nguyên nhân:</strong> Prompt ở Bước 4 chưa nhấn đủ mạnh yêu cầu chia nhỏ.<br/>
-    <strong>Giải pháp:</strong> Dùng lại prompt ở Bước 6, chỉ định rõ số lượng task tối thiểu mong muốn hoặc phạm vi cụ thể của từng task con.
+    <strong>Lỗi:</strong> Deploy thành công nhưng gọi API trả lỗi kết nối database (connection refused/timeout).<br/>
+    <strong>Nguyên nhân:</strong> <code>DATABASE_URL</code> trên Vercel bị gõ sai, thiếu tham số <code>?sslaccept=strict</code> bắt buộc của TiDB Serverless, hoặc chưa áp dụng cho đúng môi trường (Production).<br/>
+    <strong>Giải pháp:</strong> Vào lại <strong>Settings → Environment Variables</strong>, kiểm tra chính xác giá trị đã copy từ TiDB Cloud, đảm bảo áp dụng cho môi trường Production, sau đó <strong>Redeploy</strong>.
+  </div>
+  <div class="alert alert-warning">
+    <strong>Lỗi:</strong> Ứng dụng chạy chậm hoặc báo lỗi hết kết nối (too many connections) khi nhiều học sinh chơi cùng lúc.<br/>
+    <strong>Nguyên nhân:</strong> Mỗi Serverless Function của Vercel có thể mở một kết nối Prisma riêng; nếu không quản lý đúng, số kết nối có thể vượt giới hạn cho phép của TiDB Serverless.<br/>
+    <strong>Giải pháp:</strong> Yêu cầu Claude Code áp dụng mẫu khởi tạo <code>PrismaClient</code> dạng singleton (tái sử dụng instance có sẵn thay vì tạo mới mỗi request) — mẫu phổ biến khi dùng Prisma với Next.js trên môi trường serverless.
   </div>
 
   <h2 class="section-heading">Dọn dẹp resource</h2>
-  <div class="alert alert-info">
-    Bài lab này chỉ tạo file Markdown (<code>plan.md</code>, <code>tasks.md</code>) trong project —
-    <strong>không tạo resource nào trên Cloud</strong>, không có gì cần dọn dẹp. Giữ nguyên toàn bộ file vừa tạo để
-    tiếp tục ở Chapter 8 (Implement & đối chiếu kết quả).
+  <div class="alert alert-warning">
+    <strong>Quan trọng:</strong> TiDB Serverless và Vercel đều có gói miễn phí, nhưng nếu không dùng nữa nên dọn dẹp
+    để tránh chiếm quota tài khoản hoặc phát sinh chi phí nếu sau này nâng cấp gói.
   </div>
+  <ol class="step-list">
+    <li>
+      <div>
+        <strong>Xoá project trên Vercel</strong>
+        <p>Vào project <code>lab-codekids-blocks</code> trên <code>vercel.com</code> → <strong>Settings → Advanced → Delete Project</strong> → xác nhận tên project để xoá.</p>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Xoá cluster trên TiDB Cloud</strong>
+        <p>Vào cluster <code>codekids-blocks</code> trên <code>tidbcloud.com</code> → <strong>Settings → Delete Cluster</strong> → xác nhận tên cluster để xoá. Toàn bộ dữ liệu (<code>Level</code>, <code>Player</code>, <code>Progress</code>) sẽ mất vĩnh viễn sau bước này.</p>
+      </div>
+    </li>
+  </ol>
+  <p class="note-text">Repository trên GitHub và code trên máy local (<code>D:\lab-codekids-blocks</code>) không cần xoá — vẫn là minh chứng đầy đủ cho toàn bộ quy trình SDD đã thực hiện qua Section 10, từ phân tích yêu cầu đến triển khai production.</p>
 
   <script>mermaid.initialize({ startOnLoad: true, theme: 'default' });</script>
 </body>

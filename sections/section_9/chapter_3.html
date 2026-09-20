@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Use case thực tế & lưu ý an toàn – Claude 101</title>
+  <title>Lab - Cấu hình Hook PostToolUse tự động format code – Claude 101</title>
   <link rel="stylesheet" href="../../styles.css" />
   <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
   <script src="../../mermaid-config.js"></script>
@@ -16,68 +16,184 @@
   <div class="chapter-breadcrumb">
     <span class="section-part">9. Claude Code Hooks</span>
     <span class="sep">/</span>
-    <span class="chapter-part">Use case thực tế & lưu ý an toàn</span>
+    <span class="chapter-part">Lab - Cấu hình Hook PostToolUse tự động format code</span>
   </div>
 
-  <h2 class="section-heading">Giới thiệu</h2>
-  <p class="body-text">
-    Sau khi đã hiểu Hook là gì và cách khai báo trong <code>settings.json</code>, chương này tập trung vào ba
-    tình huống thực tế phổ biến nhất khi áp dụng Hook vào công việc hằng ngày với Claude Code, đồng thời nhấn mạnh
-    những lưu ý an toàn <strong>bắt buộc</strong> phải nắm trước khi thêm bất kỳ Hook nào chạy tự động trên máy.
-  </p>
+  <div class="alert alert-info">
+    <strong>Tái sử dụng project:</strong> Bài lab này dùng lại project <code>D:\lab-expense-management</code>
+    (Next.js + TypeScript) đã tạo ở Chapter 4, Section 4. Nếu chưa có project này, hãy hoàn thành bài Lab ở Section 4
+    trước, hoặc dùng bất kỳ project Next.js/TypeScript nào tương tự.
+  </div>
 
-  <h2 class="section-heading">Các tính năng chính</h2>
+  <h2 class="section-heading">Mục tiêu</h2>
   <ul class="feature-list">
-    <li><code>PostToolUse</code> hook có thể đọc thông tin về file vừa được sửa để chạy formatter tương ứng ngay sau khi Claude Code ghi thay đổi — không cần User tự nhớ chạy lệnh format.</li>
-    <li><code>PreToolUse</code> hook có thể kiểm tra nội dung command trước khi nó chạy, và ngăn hành động lại nếu phát hiện pattern nguy hiểm (tham khảo tài liệu chính thức để biết chính xác cơ chế/exit code dùng để chặn theo từng phiên bản Claude Code).</li>
-    <li><code>Stop</code> hook có thể chạy bất kỳ hành động "phụ trợ" nào khi một tác vụ hoàn thành — ghi log, hiện thông báo, gọi tiếp một script nội bộ khác.</li>
-    <li>Vì Hook chỉ là shell command thông thường, có thể kết hợp nhiều hành động trong cùng một Hook (vd vừa ghi log vừa hiện thông báo trong cùng một script).</li>
+    <li>Cấu hình một Hook <code>PostToolUse</code> trong project <code>lab-expense-management</code>, tự động chạy Prettier mỗi khi Claude Code sửa hoặc tạo file qua tool <code>Edit</code>/<code>Write</code>.</li>
+    <li>Hiểu cách khai báo <code>matcher</code> theo tên tool trong <code>settings.json</code>.</li>
+    <li>Kiểm chứng Hook hoạt động thông qua log terminal và <code>git diff</code> sau khi yêu cầu Claude Code sửa một file cụ thể.</li>
   </ul>
 
   <h2 class="section-heading">Mô hình kiến trúc</h2>
   <div class="mermaid">
   flowchart LR
-      Model["<img src='../../assets/svg-icon/claude-logo.svg' style='width:28px;height:28px;'/><br/>Model muốn chạy<br/>Bash command"]
-      Pre["<img src='../../assets/svg-icon/operator.svg' style='width:26px;height:26px;'/><br/><b>PreToolUse Hook</b><br/>kiểm tra nội dung command"]
-      Danger{"Có khớp pattern nguy hiểm?<br/>(rm -rf, git push --force...)"}
-      Block["🚫<br/><b>Chặn thực thi</b><br/>trả lỗi lại cho model"]
-      Allow["✅<br/><b>Cho phép chạy</b><br/>Bash command tiếp tục"]
+      Dev(("<img src='../../assets/svg-icon/developer.svg' style='width:26px;height:26px;'/><br/><b>User</b>"))
+      CC["<img src='../../assets/svg-icon/claude-logo.svg' style='width:28px;height:28px;'/><br/><b>Claude Code</b>"]
+      Edit["<img src='../../assets/svg-icon/ide.svg' style='width:26px;height:26px;'/><br/>Edit / Write tool<br/>sửa file trong project"]
+      Hook["<img src='../../assets/svg-icon/operator.svg' style='width:26px;height:26px;'/><br/><b>PostToolUse Hook</b><br/>matcher: Edit|Write"]
+      Prettier["📐<br/><b>Prettier</b><br/>npx prettier --write ."]
+      Repo["<img src='../../assets/svg-icon/ide.svg' style='width:26px;height:26px;'/><br/><b>lab-expense-management</b><br/>toàn bộ file project"]
 
-      Model --> Pre --> Danger
-      Danger -->|"Có"| Block
-      Danger -->|"Không"| Allow
+      Dev -->|"Yêu cầu sửa file"| CC
+      CC --> Edit --> Repo
+      Edit -->|"Sau khi tool chạy xong"| Hook
+      Hook --> Prettier --> Repo
   </div>
-  <p class="arch-caption">PreToolUse hook đóng vai trò một "trạm kiểm soát" độc lập, chạy trước khi command thực sự được thực thi — hoàn toàn không phụ thuộc việc model có tự nhận ra rủi ro hay không.</p>
+  <p class="arch-caption">Ngay sau khi Claude Code dùng tool Edit/Write để sửa file, Hook PostToolUse tự động chạy Prettier để định dạng lại code trong project, không cần User tự nhắc.</p>
 
-  <h2 class="section-heading">Use Cases</h2>
-  <div class="usecase-grid">
-    <div class="usecase-card">
-      <h4>Tự động format code (PostToolUse)</h4>
-      <p>Mỗi khi Claude Code sửa hoặc tạo file qua tool <code>Edit</code>/<code>Write</code>, Hook tự động chạy formatter (vd Prettier, Black) ngay sau đó — đảm bảo code luôn đúng chuẩn của team, không phụ thuộc việc model có được nhắc hay không.</p>
-    </div>
-    <div class="usecase-card">
-      <h4>Chặn lệnh nguy hiểm (PreToolUse)</h4>
-      <p>Trước khi tool <code>Bash</code> chạy, Hook kiểm tra nội dung command và chặn lại nếu khớp các pattern nguy hiểm như <code>rm -rf</code>, <code>git push --force</code>, hoặc lệnh xoá dữ liệu không có xác nhận — thêm một lớp an toàn nằm ngoài khả năng "tự ý thức" của model.</p>
-    </div>
-    <div class="usecase-card">
-      <h4>Thông báo khi hoàn thành tác vụ dài (Stop)</h4>
-      <p>Khi Claude Code hoàn thành một tác vụ mất nhiều thời gian (vd refactor lớn, sinh nhiều file), Hook <code>Stop</code> ghi log và/hoặc hiện thông báo để User biết ngay mà không cần ngồi canh terminal.</p>
-    </div>
-  </div>
-
-  <h2 class="section-heading">Thông tin bổ sung</h2>
-  <h3 class="sub-heading">Lưu ý an toàn khi sử dụng Hook</h3>
-  <div class="alert alert-danger">
-    <strong>Hook chạy với đúng quyền của người dùng hiện tại trên máy</strong> — không có sandbox riêng biệt như một
-    số cơ chế khác. Một Hook có nội dung sai hoặc độc hại có thể gây hậu quả thật trên máy (xoá file, gửi dữ liệu ra
-    ngoài...), giống như khi tự tay chạy command đó trong terminal.
-  </div>
+  <h2 class="section-heading">Yêu cầu trước khi bắt đầu</h2>
   <ul class="feature-list">
-    <li><strong>Luôn review kỹ nội dung command</strong> trước khi thêm vào <code>settings.json</code> — đặc biệt với Hook copy từ nguồn không tin cậy (repository lạ, script chia sẻ trên mạng chưa kiểm chứng).</li>
-    <li><strong>Tránh để Hook tự ý gửi dữ liệu ra ngoài</strong> (gọi API/webhook không rõ mục đích) mà User không kiểm soát được nội dung gửi đi — vì Hook chạy tự động, không có bước xác nhận thủ công như khi model đề xuất chạy một tool thông thường.</li>
-    <li><strong>Test riêng Hook trước khi đưa vào cấu hình chính thức</strong> — chạy thử command trực tiếp trong terminal để chắc chắn không có lỗi cú pháp hoặc hành vi ngoài ý muốn, vì lỗi trong Hook có thể làm gián đoạn luồng làm việc của cả phiên Claude Code.</li>
-    <li><strong>Hạn chế phạm vi tác động</strong> — ưu tiên Hook chỉ đọc/kiểm tra thay vì Hook có khả năng ghi/xoá dữ liệu trên phạm vi rộng, trừ khi thực sự cần thiết.</li>
+    <li>Đã hoàn thành bài Lab ở Chapter 4, Section 4 — project <code>D:\lab-expense-management</code> đã tồn tại.</li>
+    <li>Claude Code CLI đã cài đặt và đăng nhập thành công.</li>
+    <li>Node.js phiên bản 18 trở lên đã cài đặt (<code>node -v</code> chạy được).</li>
+    <li>Terminal: PowerShell hoặc Windows Terminal.</li>
   </ul>
+
+  <h2 class="section-heading">Các bước thực hành</h2>
+  <ol class="step-list">
+    <li>
+      <div>
+        <strong>Bước 1: Mở lại project và cài đặt Prettier</strong>
+        <p>Cài Prettier như một dev-dependency của project (nếu project chưa có sẵn) để Hook có thể gọi <code>npx prettier</code> mà không cần tải lại mỗi lần chạy.</p>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">cd D:\lab-expense-management
+npm install --save-dev prettier</code></pre>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 2: Tạo file cấu hình Prettier cơ bản</strong>
+        <p>Tạo file <code>.prettierrc</code> ở gốc project với vài quy tắc format cơ bản.</p>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">@'
+{
+  "semi": true,
+  "singleQuote": true,
+  "trailingComma": "es5"
+}
+'@ | Set-Content -Path .prettierrc -Encoding utf8</code></pre>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 3: Tạo thư mục .claude và file settings.json khai báo Hook PostToolUse</strong>
+        <p>Hook cần được khai báo trong <code>settings.json</code> ở phạm vi project (<code>.claude/settings.json</code>) — chia sẻ được cho cả team qua Git nếu muốn.</p>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">mkdir .claude -Force
+@'
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "npx prettier --write ."
+          }
+        ]
+      }
+    ]
+  }
+}
+'@ | Set-Content -Path .claude\settings.json -Encoding utf8</code></pre>
+        <p>Nội dung file tương đương như sau:</p>
+        <pre class="file-block"><span class="filename">.claude/settings.json</span>{
+  <span class="hl">"hooks"</span>: {
+    <span class="hl">"PostToolUse"</span>: [
+      {
+        <span class="hl">"matcher"</span>: <span class="str">"Edit|Write"</span>,
+        <span class="hl">"hooks"</span>: [
+          {
+            <span class="hl">"type"</span>: <span class="str">"command"</span>,
+            <span class="hl">"command"</span>: <span class="str">"npx prettier --write ."</span>
+          }
+        ]
+      }
+    ]
+  }
+}</pre>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 4: Đánh đổi khi chọn cách format toàn bộ project</strong>
+        <p>Lệnh <code>npx prettier --write .</code> format lại <strong>toàn bộ project</strong> mỗi lần Hook chạy, thay vì chỉ đúng 1 file vừa được sửa — đơn giản và chắc chắn chạy được, không cần đọc/phân tích JSON đầu vào. Đánh đổi là Hook sẽ chậm hơn một chút với project lớn, và có thể format cả những file User chưa muốn động vào.</p>
+        <div class="alert alert-warning">
+          <strong>Phương án chính xác hơn (tuỳ chọn, không bắt buộc trong bài lab):</strong> Có thể viết một script PowerShell nhỏ đọc JSON từ stdin để lấy đúng đường dẫn file vừa được Claude Code sửa, rồi chỉ chạy <code>prettier --write &lt;đường dẫn đó&gt;</code>. Tên field JSON chính xác (đường dẫn file, tên tool...) có thể khác nhau theo phiên bản Claude Code — tham khảo tài liệu chính thức tại <code>docs.claude.com</code> trước khi triển khai theo hướng này cho công việc thật.
+        </div>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 5: Khởi động lại Claude Code để áp dụng cấu hình Hook mới</strong>
+        <p>Thoát phiên Claude Code hiện tại (nếu đang mở) và mở lại trong đúng thư mục project để Hook mới trong <code>.claude/settings.json</code> được nạp.</p>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">cd D:\lab-expense-management
+claude</code></pre>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 6: Yêu cầu Claude Code sửa một file cụ thể để kiểm tra Hook</strong>
+        <p>Cố ý yêu cầu Claude Code thêm một đoạn code viết chưa đúng chuẩn format (thiếu dấu chấm phẩy, dấu cách không chuẩn) để dễ quan sát Prettier đã chạy lại sau đó.</p>
+        <pre class="command-line" data-prompt=">"><code class="language-text">Thêm vào cuối file app/page.tsx đúng nguyên văn đoạn code sau, không tự chỉnh sửa format hay style:
+const testHookFormat = {a:1,b:2, c:3}
+Chỉ cần thêm nguyên văn như trên, không cần chuẩn hoá theo coding convention.</code></pre>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 7: Quan sát log terminal khi Hook chạy</strong>
+        <p>Ngay sau khi Claude Code ghi xong file, quan sát terminal — Claude Code thường hiển thị thông báo đang chạy Hook đã khai báo (tên command <code>npx prettier --write .</code>) trước khi trả lời hoàn tất.</p>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 8: Kiểm chứng bằng git diff</strong>
+        <p>Mở lại file để xác nhận Prettier đã tự động định dạng lại đoạn code vừa thêm (thêm dấu chấm phẩy, chuẩn hoá dấu cách, quy tắc dấu nháy theo <code>.prettierrc</code>).</p>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">git diff app/page.tsx</code></pre>
+      </div>
+    </li>
+  </ol>
+
+  <div class="verify-box">
+    <h4>✅ Kết quả mong đợi</h4>
+    <p class="body-text">Đoạn code <code>const testHookFormat = {a:1,b:2, c:3}</code> được Claude Code ghi ra ban đầu chưa đúng chuẩn, nhưng ngay sau đó Hook PostToolUse tự động chạy Prettier và <code>git diff</code> cho thấy đoạn code đã được định dạng lại đúng theo <code>.prettierrc</code> (có dấu chấm phẩy, dấu cách chuẩn, dấu nháy đơn) — mà User không cần tự chạy lệnh format nào.</p>
+  </div>
+
+  <h2 class="section-heading">Troubleshoot</h2>
+  <div class="alert alert-warning">
+    <strong>Lỗi:</strong> Hook không chạy, terminal không thấy thông báo thực thi command nào.<br/>
+    <strong>Nguyên nhân:</strong> File <code>settings.json</code> không đặt đúng vị trí (<code>.claude/settings.json</code> ở gốc project), hoặc Claude Code chưa được khởi động lại sau khi thêm Hook.<br/>
+    <strong>Giải pháp:</strong> Kiểm tra lại đường dẫn file, đảm bảo cú pháp JSON hợp lệ (không thiếu dấu phẩy/ngoặc), rồi thoát và mở lại phiên Claude Code trong đúng thư mục project.
+  </div>
+  <div class="alert alert-warning">
+    <strong>Lỗi:</strong> <code>npx prettier --write .</code> báo lỗi không tìm thấy package hoặc cần tải lại mỗi lần chạy.<br/>
+    <strong>Nguyên nhân:</strong> Prettier chưa được cài làm dev-dependency của project (bỏ qua Bước 1) — <code>npx</code> phải tải tạm mỗi lần, chậm và cần mạng ổn định.<br/>
+    <strong>Giải pháp:</strong> Chạy lại <code>npm install --save-dev prettier</code> trong thư mục project để Prettier có sẵn trong <code>node_modules</code>.
+  </div>
+  <div class="alert alert-warning">
+    <strong>Lỗi:</strong> Prettier báo lỗi cú pháp khi format (<code>SyntaxError</code>).<br/>
+    <strong>Nguyên nhân:</strong> File vừa được Claude Code ghi có lỗi cú pháp TypeScript/JavaScript thật (không liên quan đến style), Prettier không thể parse để format.<br/>
+    <strong>Giải pháp:</strong> Sửa lại lỗi cú pháp trong file trước, Hook sẽ tự chạy lại đúng ở lần Edit/Write tiếp theo.
+  </div>
+
+  <h2 class="section-heading">Dọn dẹp resource</h2>
+  <div class="alert alert-info">
+    Bài lab này không tạo resource trên Cloud, chỉ thêm một file cấu hình cục bộ. Không cần xoá gì bắt buộc — chỉ dọn nếu không muốn Prettier tiếp tục tự chạy ở các bài lab sau.
+  </div>
+  <p class="note-text">Nếu muốn tạm ngưng Hook mà không xoá project, comment hoặc xoá phần <code>"PostToolUse"</code> trong <code>.claude/settings.json</code>:</p>
+  <pre class="file-block"><span class="filename">.claude/settings.json (đã tắt Hook)</span>{
+  <span class="hl">"hooks"</span>: {}
+}</pre>
+  <div class="alert alert-warning">
+    <strong>Quan trọng:</strong> Không xoá thư mục <code>D:\lab-expense-management</code> — project này còn được dùng lại ở các Section trước (Chapter 6, 7 Section 4; Section 8) và có thể còn dùng ở Section 10.
+  </div>
 
   <script>mermaid.initialize({ startOnLoad: true, theme: 'default' });</script>
 </body>

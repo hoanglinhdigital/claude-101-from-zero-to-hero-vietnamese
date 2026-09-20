@@ -22,12 +22,12 @@
   <h2 class="section-heading">Giới thiệu</h2>
   <p class="body-text">
     Khác với prompt sinh code ứng dụng, prompt cho Infrastructure as Code (IaC) tác động trực tiếp lên tài nguyên
-    Cloud thật — CIDR mở sai, IAM quá rộng quyền hay thiếu tag đều có thể gây rủi ro bảo mật hoặc khó quản lý chi phí
+    Cloud thật — Security Rule mở sai, IAM quá rộng quyền hay thiếu tag đều có thể gây rủi ro bảo mật hoặc khó quản lý chi phí
     về sau. Chương này trình bày cách cấu trúc một prompt IaC rõ ràng, đủ chi tiết để Claude Code sinh Terraform đúng
     ý định ngay từ đầu, giảm số lần phải sửa lại sau khi đã <code>plan</code>/<code>apply</code>.
   </p>
 
-  <h2 class="section-heading">Các tính năng chính</h2>
+  <h2 class="section-heading">Các thành phần chính cần đưa vào prompt</h2>
   <ul class="feature-list">
     <li><strong>Resource cần tạo</strong> — nêu rõ loại resource (VPC, EC2, S3, DynamoDB, IAM...) và mối quan hệ giữa chúng (vd EC2 nằm trong subnet nào).</li>
     <li><strong>Region</strong> — luôn chỉ định rõ region triển khai, tránh để Terraform provider dùng region mặc định ngoài ý muốn.</li>
@@ -86,8 +86,7 @@
 
   <div class="alert alert-tip">
     <strong>Mẹo:</strong> Với prompt IaC, nên chốt trước 4 mục: <strong>Resource – Region – Naming/Tag – Ràng buộc bảo
-    mật</strong> thành một danh sách gạch đầu dòng ngay trong prompt, tương tự cấu trúc đã dùng để soạn file
-    <code>variables.tf</code>/<code>iam.tf</code> ở bài Lab của chương này. Cách này giúp Claude Code không cần hỏi
+    mật</strong> thành một danh sách gạch đầu dòng ngay trong prompt. Cách này giúp Claude Code không cần hỏi
     lại nhiều lần và kết quả <code>terraform plan</code> ít bất ngờ hơn.
   </div>
 
@@ -98,7 +97,7 @@
       <p>Nêu rõ input variables và ràng buộc bảo mật giúp Claude Code sinh module Terraform dễ tái sử dụng cho nhiều môi trường (dev/staging/prod).</p>
     </div>
     <div class="usecase-card">
-      <h4>Chuẩn hoá tagging cho FinOps</h4>
+      <h4>Chuẩn hoá tagging cho Cost Monitor</h4>
       <p>Yêu cầu tag nhất quán ngay từ prompt giúp team dễ theo dõi chi phí theo project/môi trường trên AWS Cost Explorer.</p>
     </div>
     <div class="usecase-card">
@@ -110,8 +109,7 @@
   <h2 class="section-heading">Thông tin bổ sung</h2>
   <p class="body-text">
     Một prompt IaC đầy đủ 4 phần không cần viết lại từ đầu mỗi lần — có thể lưu thành template trong file
-    <code>CLAUDE.md</code> của project hạ tầng (naming convention, tag chuẩn, danh sách ràng buộc bảo mật cố định),
-    để Claude Code tự áp dụng nhất quán cho mọi resource mới mà không cần nhắc lại trong từng prompt.
+    <code>CLAUDE.md</code> của project hạ tầng hoặc trong skill terraform-creator. Chứa các quy tắc về naming convention, tag chuẩn, danh sách ràng buộc bảo mật cố định. Điều này giúp Claude Code tự áp dụng nhất quán cho mọi resource mới mà không cần nhắc lại trong từng prompt.
   </p>
   <div class="alert alert-warning">
     <strong>Lưu ý:</strong> Dù prompt đã rõ ràng, vẫn phải đọc lại <code>terraform plan</code> trước khi apply — prompt

@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Các giai đoạn trong quy trình SDD – Claude 101</title>
+  <title>Lab - Khởi tạo project mới CodeKids Blocks với specify init – Claude 101</title>
   <link rel="stylesheet" href="../../styles.css" />
   <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
   <script src="../../mermaid-config.js"></script>
@@ -16,95 +16,214 @@
   <div class="chapter-breadcrumb">
     <span class="section-part">10. Phát triển phần mềm với Spec-Kit Framework</span>
     <span class="sep">/</span>
-    <span class="chapter-part">Các giai đoạn trong quy trình SDD</span>
+    <span class="chapter-part">Lab - Khởi tạo project mới CodeKids Blocks với specify init</span>
   </div>
 
-  <h2 class="section-heading">Giới thiệu</h2>
-  <p class="body-text">
-    Spec-Kit chia quy trình Spec-Driven Development thành <strong>6 giai đoạn</strong> nối tiếp nhau, mỗi giai đoạn
-    tương ứng một slash command <code>/speckit.*</code> và sinh ra (hoặc cập nhật) một file cụ thể: <strong>Constitution
-    → Specification → Planning → Task Breakdown → Implementation → Convergence</strong>. Hiểu rõ từng giai đoạn làm
-    gì, nhận input nào và tạo ra output nào là điều kiện để dùng Spec-Kit hiệu quả trong 4 bài lab tiếp theo.
-  </p>
+  <div class="alert alert-info">
+    Từ chapter này, cả 5 bài lab của Section 10 (Chapter 3-7) sẽ xây dựng một sản phẩm <strong>hoàn toàn mới</strong>:
+    <strong>CodeKids Blocks</strong> — website học lập trình dạng <strong>kéo thả khối lệnh (drag-and-drop)</strong>
+    dành cho học sinh <strong>7-12 tuổi</strong>, giúp các em điều khiển một nhân vật vượt mê cung bằng cách ghép các
+    khối lệnh (Đi tới, Rẽ trái, Rẽ phải, Lặp lại...) — tương tự tinh thần của Scratch/Blockly. Đây là project mới
+    hoàn toàn (khác với <code>lab-expense-management</code> ở các section trước), vì mục tiêu của Section 10 là trải
+    nghiệm trọn vẹn quy trình SDD từ con số 0: phân tích yêu cầu → constitution → spec → plan → tasks → implement.
+  </div>
 
-  <h2 class="section-heading">Các tính năng chính</h2>
+  <h2 class="section-heading">Mục tiêu</h2>
   <ul class="feature-list">
-    <li><strong>Constitution</strong> — định nghĩa nguyên tắc chung, ràng buộc không thể vi phạm của cả project (vd luôn validate input, không phá vỡ API hiện có).</li>
-    <li><strong>Specification</strong> — đặc tả chi tiết một tính năng cụ thể: tính năng làm <em>gì</em>, cho ai, hành vi mong đợi — chưa bàn đến công nghệ triển khai.</li>
-    <li><strong>Planning</strong> — lập kế hoạch kỹ thuật: chọn thư viện, thiết kế API/route, các thay đổi cần thực hiện để đáp ứng spec.</li>
-    <li><strong>Task Breakdown</strong> — chia kế hoạch thành các task nhỏ, cụ thể, có thể thực hiện và kiểm tra độc lập từng phần.</li>
-    <li><strong>Implementation</strong> — AI agent (Claude Code) thực thi lần lượt từng task, sinh/sửa code thực tế.</li>
-    <li><strong>Convergence</strong> — đối chiếu kết quả implement với spec ban đầu, xác nhận đúng yêu cầu, khép lại vòng SDD cho tính năng đó.</li>
+    <li>Cài đặt Python 3.11+, <code>uv</code> và <code>specify</code> CLI (nếu máy chưa có).</li>
+    <li>Khởi tạo project Next.js + TypeScript + Prisma hoàn toàn mới cho CodeKids Blocks.</li>
+    <li>Chạy <code>specify init</code> để thêm bộ khung Spec-Kit vào project vừa tạo.</li>
+    <li>Xác nhận cấu trúc <code>.specify/</code> và slash command <code>/speckit.*</code> dùng được trong Claude Code.</li>
   </ul>
 
   <h2 class="section-heading">Mô hình kiến trúc</h2>
   <div class="mermaid">
   flowchart LR
-      C1["📜<br/><b>1. Constitution</b><br/>/speckit.constitution<br/>→ .specify/memory/constitution.md"]
-      C2["📝<br/><b>2. Specification</b><br/>/speckit.specify<br/>→ specs/{feature-id}/spec.md"]
-      C3["🗺️<br/><b>3. Planning</b><br/>/speckit.plan<br/>→ plan.md"]
-      C4["📋<br/><b>4. Task Breakdown</b><br/>/speckit.tasks<br/>→ tasks.md"]
-      C5["<img src='../../assets/svg-icon/claude-logo.svg' style='width:26px;height:26px;'/><br/><b>5. Implementation</b><br/>/speckit.implement<br/>→ code thực tế"]
-      C6["✅<br/><b>6. Convergence</b><br/>Đối chiếu code với spec.md"]
+      Dev(("<img src='../../assets/svg-icon/developer.svg' style='width:26px;height:26px;'/><br/><b>Developer</b>"))
+      UV["🐍 <b>uv</b>"]
+      CLI["⚙️ <b>specify CLI</b>"]
+      GH["<img src='../../assets/svg-icon/github.svg' style='width:26px;height:26px;'/><br/>github.com/github/spec-kit"]
+      NextCLI["▲ <b>create-next-app</b>"]
 
-      C1 --> C2 --> C3 --> C4 --> C5 --> C6
-      C6 -.->|"Phát hiện sai lệch → cập nhật spec"| C2
+      subgraph Project["📁 D:\\lab-codekids-blocks (project mới)"]
+          Scaffold["<img src='../../assets/svg-icon/ide.svg' style='width:24px;height:24px;'/><br/>Next.js + TypeScript<br/>+ Prisma (mới sinh)"]
+          DB[("<img src='../../assets/svg-icon/database.svg' style='width:24px;height:24px;'/><br/>MySQL (Docker, local dev)")]
+          SpecifyDir["📁 .specify/ + slash command"]
+      end
+
+      CC["<img src='../../assets/svg-icon/claude-logo.svg' style='width:26px;height:26px;'/><br/><b>Claude Code</b>"]
+
+      Dev -->|"1. Cài đặt"| UV --> CLI
+      CLI -.->|"Tải template"| GH
+      Dev -->|"2. Tạo project mới"| NextCLI --> Scaffold
+      Scaffold --- DB
+      Dev -->|"3. specify init"| CLI
+      CLI -->|"Sinh vào project"| SpecifyDir
+      Scaffold --- SpecifyDir
+      Dev -->|"4. Mở Claude Code"| CC
+      SpecifyDir -->|"Nhận diện /speckit.*"| CC
   </div>
-  <p class="arch-caption">6 giai đoạn chạy nối tiếp trong cùng một vòng đời tính năng. Constitution chỉ cần định nghĩa một lần cho cả project (có thể tái sử dụng cho nhiều tính năng), còn 5 giai đoạn sau lặp lại cho mỗi tính năng mới.</p>
+  <p class="arch-caption">Khác với các bài lab trước dùng lại <code>lab-expense-management</code>, CodeKids Blocks là project Next.js + Prisma hoàn toàn mới, chạy MySQL cục bộ qua Docker khi phát triển — Chapter 7 sẽ thay database này bằng TiDB Serverless khi triển khai lên Vercel.</p>
 
-  <h3 class="sub-heading">Tổng quan 6 giai đoạn</h3>
-  <div class="phase-timeline">
-    <div class="phase-item">
-      <strong>1. Constitution</strong>
-      Nguyên tắc chung của project — định nghĩa một lần, dùng lại cho mọi tính năng.
-    </div>
-    <div class="phase-item purple">
-      <strong>2. Specification</strong>
-      Đặc tả "làm gì" cho một tính năng cụ thể — chưa bàn công nghệ.
-    </div>
-    <div class="phase-item orange">
-      <strong>3. Planning</strong>
-      Kế hoạch kỹ thuật — chọn thư viện, thiết kế API, các thay đổi cần làm.
-    </div>
-    <div class="phase-item green">
-      <strong>4. Task Breakdown</strong>
-      Chia plan thành các task nhỏ, cụ thể, kiểm tra được từng phần.
-    </div>
-    <div class="phase-item">
-      <strong>5. Implementation</strong>
-      Claude Code thực thi lần lượt từng task, sinh code thật.
-    </div>
-    <div class="phase-item purple">
-      <strong>6. Convergence</strong>
-      Đối chiếu kết quả với spec ban đầu, xác nhận đúng yêu cầu.
-    </div>
+  <h2 class="section-heading">Yêu cầu trước khi bắt đầu</h2>
+  <ul class="feature-list">
+    <li>Node.js 20+ và npm đã cài đặt — kiểm tra bằng <code>node --version</code>.</li>
+    <li>Docker Desktop đã cài đặt và đang chạy (dùng cho MySQL cục bộ khi phát triển).</li>
+    <li>Claude Code CLI đã cài đặt và đăng nhập thành công.</li>
+    <li>Git đã cài đặt — kiểm tra bằng <code>git --version</code>.</li>
+    <li>Python 3.11 trở lên đã cài đặt hoặc sẽ được cài ở Bước 1.</li>
+    <li>Terminal: PowerShell hoặc Windows Terminal. Kết nối Internet ổn định để tải package/template.</li>
+  </ul>
+
+  <h2 class="section-heading">Các bước thực hành</h2>
+
+  <h3 class="sub-heading">Phần 1: Cài đặt Python, uv và specify CLI</h3>
+  <ol class="step-list">
+    <li>
+      <div>
+        <strong>Bước 1: Kiểm tra phiên bản Python hiện có</strong>
+        <p>Spec-Kit yêu cầu Python 3.11 trở lên.</p>
+        <pre class="command-line" data-prompt="PS>" data-output="2"><code class="language-powershell">python --version
+Python 3.12.4</code></pre>
+        <p>Nếu chưa có Python hoặc phiên bản thấp hơn 3.11, tải bản mới nhất tại <code>python.org/downloads</code> và cài đặt trước khi tiếp tục.</p>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 2: Cài đặt uv (Python package/tool manager)</strong>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"</code></pre>
+        <p>Mở lại terminal mới để PATH được nạp lại, sau đó kiểm tra <code>uv</code> đã cài thành công.</p>
+        <pre class="command-line" data-prompt="PS>" data-output="2"><code class="language-powershell">uv --version
+uv 0.5.11</code></pre>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 3: Cài đặt specify CLI từ repository Spec-Kit</strong>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">uv tool install specify-cli --from git+https://github.com/github/spec-kit.git</code></pre>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">specify --help</code></pre>
+      </div>
+    </li>
+  </ol>
+
+  <h3 class="sub-heading">Phần 2: Khởi tạo project Next.js + Prisma mới cho CodeKids Blocks</h3>
+  <ol class="step-list">
+    <li>
+      <div>
+        <strong>Bước 4: Tạo project Next.js mới</strong>
+        <p>Chạy tại thư mục cha nơi bạn muốn chứa project (vd <code>D:\</code>).</p>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">cd D:\
+npx create-next-app@latest lab-codekids-blocks --typescript --app --eslint --tailwind=false --src-dir=false --import-alias "@/*"</code></pre>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">cd D:\lab-codekids-blocks</code></pre>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 5: Cài Prisma và khởi tạo schema</strong>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">npm install prisma @prisma/client
+npx prisma init --datasource-provider mysql</code></pre>
+        <p>Lệnh trên tạo thư mục <code>prisma/</code> với file <code>schema.prisma</code> (provider <code>mysql</code> — tương thích cả MySQL cục bộ lẫn TiDB Serverless dùng ở Chapter 7) và file <code>.env</code> chứa biến <code>DATABASE_URL</code>.</p>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 6: Tạo docker-compose.yml chạy MySQL cục bộ</strong>
+        <p>Tạo file <code>docker-compose.yml</code> ở thư mục gốc project với nội dung sau.</p>
+        <pre class="command-line"><code class="language-yaml">services:
+  mysql:
+    image: mysql:8.0
+    container_name: codekids-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: codekids_root
+      MYSQL_DATABASE: codekids
+      MYSQL_USER: codekids
+      MYSQL_PASSWORD: codekids_pass
+    ports:
+      - "3306:3306"
+    volumes:
+      - codekids_mysql_data:/var/lib/mysql
+
+volumes:
+  codekids_mysql_data:</code></pre>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">docker compose up -d</code></pre>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 7: Cập nhật DATABASE_URL trỏ vào MySQL vừa chạy</strong>
+        <p>Sửa lại file <code>.env</code> tại thư mục gốc project.</p>
+        <pre class="command-line"><code class="language-bash">DATABASE_URL="mysql://codekids:codekids_pass@localhost:3306/codekids"</code></pre>
+      </div>
+    </li>
+  </ol>
+
+  <h3 class="sub-heading">Phần 3: Khởi tạo Spec-Kit vào project vừa tạo</h3>
+  <ol class="step-list">
+    <li>
+      <div>
+        <strong>Bước 8: Chạy specify init để khởi tạo Spec-Kit vào project hiện tại</strong>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">specify init --here --ai claude</code></pre>
+        <div class="alert alert-warning">
+          <strong>Lưu ý:</strong> Tên flag chính xác (<code>--here</code>, <code>--ai</code>...) có thể thay đổi theo
+          phiên bản Spec-Kit mới nhất. Nếu lệnh trên báo lỗi flag không hợp lệ, chạy <code>specify init --help</code>
+          để xem đúng tên tuỳ chọn hiện hành.
+        </div>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 9: Xác nhận các bước khởi tạo (nếu CLI hỏi)</strong>
+        <p><code>specify init</code> có thể hỏi xác nhận trước khi ghi file vào project đã có sẵn Next.js/Prisma. Đọc kỹ và xác nhận đồng ý.</p>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 10: Kiểm tra cấu trúc .specify/ vừa được tạo</strong>
+        <pre class="command-line" data-prompt="PS>" data-output="2, 3, 4, 5, 6"><code class="language-powershell">dir
+.specify
+app
+prisma
+docker-compose.yml
+package.json</code></pre>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 11: Mở Claude Code và xác nhận slash command /speckit.* xuất hiện</strong>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">claude</code></pre>
+        <pre class="command-line" data-prompt=">"><code class="language-text">/speckit.</code></pre>
+        <p>Danh sách gợi ý hiện ra nên có đủ <code>/speckit.constitution</code>, <code>/speckit.specify</code>, <code>/speckit.plan</code>, <code>/speckit.tasks</code>, <code>/speckit.implement</code>.</p>
+      </div>
+    </li>
+  </ol>
+
+  <div class="verify-box">
+    <h4>✅ Kết quả mong đợi</h4>
+    <p class="body-text">Project <code>D:\lab-codekids-blocks</code> là một app Next.js + Prisma chạy được (<code>npm run dev</code> mở <code>localhost:3000</code> ra trang mặc định), có MySQL chạy trong Docker, và có thêm thư mục <code>.specify/</code>. Trong Claude Code, gõ <code>/speckit.</code> hiện ra đủ 5 slash command chính, sẵn sàng cho bài lab phân tích yêu cầu tiếp theo.</p>
   </div>
 
-  <h2 class="section-heading">Use Cases</h2>
-  <div class="usecase-grid">
-    <div class="usecase-card">
-      <h4>Tính năng phức tạp, nhiều bước</h4>
-      <p>Chia nhỏ theo 6 giai đoạn giúp kiểm soát tốt hơn một tính năng có nhiều phần liên quan (API, UI, xử lý dữ liệu) so với một prompt duy nhất.</p>
-    </div>
-    <div class="usecase-card">
-      <h4>Cần đối chiếu lại sau khi code xong</h4>
-      <p>Giai đoạn Convergence đóng vai trò checklist, giúp phát hiện sớm phần nào Claude Code hiểu sai hoặc bỏ sót so với spec.</p>
-    </div>
-    <div class="usecase-card">
-      <h4>Constitution dùng lại nhiều lần</h4>
-      <p>Một khi định nghĩa xong nguyên tắc chung, các tính năng sau chỉ cần chạy lại từ giai đoạn Specification, không cần lặp lại Constitution.</p>
-    </div>
+  <h2 class="section-heading">Troubleshoot</h2>
+  <div class="alert alert-warning">
+    <strong>Lỗi:</strong> Terminal báo <code>uv</code> hoặc <code>specify</code> không phải lệnh nhận diện được (not recognized).<br/>
+    <strong>Nguyên nhân:</strong> PATH chưa được nạp lại sau khi cài — terminal đang mở là session cũ.<br/>
+    <strong>Giải pháp:</strong> Đóng hẳn terminal đang dùng, mở terminal mới rồi chạy lại lệnh kiểm tra phiên bản.
+  </div>
+  <div class="alert alert-warning">
+    <strong>Lỗi:</strong> <code>docker compose up -d</code> báo cổng 3306 đã được dùng.<br/>
+    <strong>Nguyên nhân:</strong> Đã có MySQL khác (vd container của <code>lab-expense-management</code>) đang chiếm cổng 3306.<br/>
+    <strong>Giải pháp:</strong> Dừng container cũ (<code>docker compose down</code> ở project cũ) hoặc đổi cổng mapping trong <code>docker-compose.yml</code> của CodeKids Blocks sang cổng khác (vd <code>3307:3306</code>) và cập nhật lại <code>DATABASE_URL</code> tương ứng.
+  </div>
+  <div class="alert alert-warning">
+    <strong>Lỗi:</strong> Trong Claude Code, gõ <code>/speckit.</code> không thấy gợi ý slash command nào.<br/>
+    <strong>Nguyên nhân:</strong> Claude Code đang chạy phiên mở từ trước khi <code>specify init</code> hoàn tất.<br/>
+    <strong>Giải pháp:</strong> Thoát phiên Claude Code hiện tại (<code>/exit</code>) và chạy lại <code>claude</code> trong đúng thư mục project.
   </div>
 
-  <h2 class="section-heading">Thông tin bổ sung</h2>
-  <p class="body-text">
-    6 giai đoạn không bắt buộc phải chạy tuyến tính một chiều — nếu ở giai đoạn Convergence phát hiện kết quả chưa
-    đúng spec, hoàn toàn có thể quay lại cập nhật spec/plan/task rồi chạy lại Implementation cho phần bị lệch, thay
-    vì sửa tay trực tiếp vào code (điều này sẽ làm code và spec lệch nhau trở lại — đúng vấn đề SDD muốn tránh).
-  </p>
+  <h2 class="section-heading">Dọn dẹp resource</h2>
   <div class="alert alert-info">
-    <strong>Lưu ý:</strong> Tên slash command và tên file output ở trên là các quy ước ổn định của Spec-Kit tại thời
-    điểm biên soạn khoá học. Chương tiếp theo sẽ đi sâu vào cấu trúc file cụ thể và bảng chi tiết từng slash command.
+    Bài lab này chỉ cài công cụ trên máy local và tạo project mới — <strong>không tạo resource nào trên Cloud</strong>,
+    không có gì cần dọn dẹp. Giữ nguyên project <code>D:\lab-codekids-blocks</code> để tiếp tục dùng ở Chapter 4-7.
   </div>
 
   <script>mermaid.initialize({ startOnLoad: true, theme: 'default' });</script>

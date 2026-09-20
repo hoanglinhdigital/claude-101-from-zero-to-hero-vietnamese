@@ -1,0 +1,29 @@
+version: 0.2
+
+phases:
+  pre_build:
+    commands:
+      - echo "Đăng nhập ECR..."
+      - aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin $ECR_REPOSITORY_URL
+      - COMMIT_HASH=$(echo $CODEBUILD_RESOLVED_SOURCE_VERSION | cut -c 1-7)
+      - IMAGE_TAG=${COMMIT_HASH:-latest}
+
+  build:
+    commands:
+      - echo "Build Docker image..."
+      - docker build -t $ECR_REPOSITORY_URL:$IMAGE_TAG .
+      - docker tag $ECR_REPOSITORY_URL:$IMAGE_TAG $ECR_REPOSITORY_URL:latest
+
+  post_build:
+    commands:
+      - echo "Push image lên ECR..."
+      - docker push $ECR_REPOSITORY_URL:$IMAGE_TAG
+      - docker push $ECR_REPOSITORY_URL:latest
+      - echo "Render taskdef.json & appspec.yaml với image mới..."
+      - sed -e "s|<IMAGE1_NAME>|$ECR_REPOSITORY_URL:$IMAGE_TAG|g" taskdef.template.json > taskdef.json
+      - cat taskdef.json
+
+artifacts:
+  files:
+    - taskdef.json
+    - appspec.yaml

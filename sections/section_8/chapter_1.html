@@ -33,14 +33,19 @@
     khác nhau và N hệ thống/công cụ cần kết nối tới, theo cách truyền thống cần viết tới M × N đoạn tích hợp riêng lẻ
     (mỗi Agent tự viết code kết nối riêng cho từng hệ thống). Với MCP, mỗi hệ thống chỉ cần expose <strong>một
     MCP Server</strong>, và mỗi AI Agent chỉ cần implement <strong>một MCP Client</strong> hiểu chuẩn chung — số
-    lượng tích hợp cần xây giảm từ M × N xuống còn <strong>M + N</strong>.
+    lượng tích hợp cần xây giảm từ M × N xuống còn <strong>M + N</strong>. Để làm được điều này, một hệ thống MCP
+    luôn gồm 3 thành phần phối hợp với nhau: <strong>MCP Host</strong> — ứng dụng AI mà bạn đang dùng,
+    <strong>MCP Client</strong> — phần nằm bên trong Host chịu trách nhiệm quản lý kết nối và gửi/nhận thông điệp, và
+    <strong>MCP Server</strong> — chương trình cung cấp khả năng thực tế (đọc file, truy vấn database, gọi API...).
   </p>
 
   <h2 class="section-heading">Các tính năng chính</h2>
   <ul class="feature-list">
     <li><strong>Chuẩn mở, không ràng buộc vào một AI App cụ thể</strong> — bất kỳ AI Agent nào implement đúng chuẩn MCP (Claude Code, Claude Desktop, hoặc các AI App khác) đều có thể dùng lại cùng một MCP Server.</li>
     <li><strong>Giảm số lượng tích hợp cần viết</strong> — từ M × N xuống M + N, mỗi hệ thống chỉ cần viết/duy trì một MCP Server duy nhất cho mọi AI Agent sử dụng.</li>
-    <li><strong>Mở rộng khả năng của Agent không cần sửa code Agent</strong> — muốn Claude Code đọc thêm một hệ thống mới, chỉ cần thêm một MCP Server tương ứng, không cần chờ cập nhật bản thân Claude Code.</li>
+    <li><strong>MCP Host</strong> — ứng dụng AI mà người dùng tương tác trực tiếp (Claude Code, Claude Desktop). Host có thể kết nối với <strong>nhiều MCP Server cùng lúc</strong>, kể cả kết hợp Server local và Server remote.</li>
+    <li><strong>MCP Client</strong> — thành phần nằm bên trong Host (người dùng không thấy trực tiếp), giữ một kết nối riêng tới mỗi MCP Server, gửi yêu cầu (gọi Tool, đọc Resource...) và nhận kết quả trả về cho model xử lý.</li>
+    <li><strong>MCP Server</strong> — chương trình độc lập cung cấp khả năng cụ thể, có thể do Anthropic, nhà cung cấp dịch vụ, hoặc bất kỳ ai (kể cả bạn) viết ra, chạy local hoặc remote.</li>
     <li><strong>Hệ sinh thái MCP Server sẵn có đang phát triển nhanh</strong> — nhiều MCP Server cho các hệ thống phổ biến (filesystem, Git, database, các dịch vụ SaaS...) đã được cộng đồng và các nhà cung cấp xây dựng sẵn, có thể tái sử dụng thay vì tự viết từ đầu.</li>
     <li><strong>Giao tiếp theo chuẩn JSON-RPC 2.0</strong>, hỗ trợ cả kết nối chạy trên máy local (qua stdio) và kết nối tới server ở nơi khác (qua HTTP/SSE) — sẽ tìm hiểu chi tiết ở Chapter 3.</li>
   </ul>
@@ -80,6 +85,46 @@
   </div>
   <p class="arch-caption">Trước MCP, mỗi AI App phải tự viết tích hợp riêng cho từng hệ thống (số lượng tích hợp = số AI App × số hệ thống). Sau khi có MCP, mọi AI App nói cùng một chuẩn để dùng chung mọi MCP Server — số lượng tích hợp cần xây chỉ còn bằng tổng số AI App cộng tổng số hệ thống.</p>
 
+  <h3 class="sub-heading">Bên trong một kết nối MCP: Host – Client – Server</h3>
+  <div class="mermaid">
+  flowchart LR
+      subgraph Host["MCP Host — Claude Code / Claude Desktop"]
+          direction TB
+          CCIcon["<img src='../../assets/svg-icon/claude-logo.svg' style='width:26px;height:26px;'/>"]
+          Client["🔗 <b>MCP Client</b><br/>Quản lý kết nối<br/>Gọi Tools/Resources/Prompts"]
+          CCIcon --- Client
+      end
+      S1["<img src='../../assets/svg-icon/mysql-workbench.svg' style='width:26px;height:26px;'/><br/><b>MCP Server</b><br/>Database"]
+      S2["📁 <b>MCP Server</b><br/>Filesystem"]
+      S3["<img src='../../assets/svg-icon/github.svg' style='width:26px;height:26px;'/><br/><b>MCP Server</b><br/>Git"]
+      S4["🌐 <b>MCP Server</b><br/>Remote API"]
+
+      Client -->|"JSON-RPC qua stdio"| S1
+      Client -->|"JSON-RPC qua stdio"| S2
+      Client -->|"JSON-RPC qua stdio"| S3
+      Client -->|"JSON-RPC qua HTTP/SSE"| S4
+  </div>
+  <p class="arch-caption">MCP Client nằm bên trong Host, giữ kết nối riêng tới từng MCP Server. Một Host có thể kết nối nhiều Server cùng lúc, kể cả kết hợp Server chạy local (qua stdio) và Server chạy remote (qua HTTP/SSE) — xem chi tiết ở Chapter 3.</p>
+
+  <h3 class="sub-heading">Ba primitive chính mà MCP Server cung cấp</h3>
+  <div class="capability-grid">
+    <div class="capability-card">
+      <div class="icon">🔧</div>
+      <h4>Tools</h4>
+      <p>Hành động cụ thể mà Server cho phép Host/model gọi để thực thi — ví dụ chạy một câu SQL, tạo một file, gọi một API. Model chủ động quyết định khi nào gọi Tool nào.</p>
+    </div>
+    <div class="capability-card">
+      <div class="icon">📄</div>
+      <h4>Resources</h4>
+      <p>Dữ liệu mà Server expose ra để Host đọc — ví dụ nội dung một file, một bản ghi trong database, một trang tài liệu nội bộ. Giống việc "nạp" thêm ngữ cảnh cho model.</p>
+    </div>
+    <div class="capability-card">
+      <div class="icon">📝</div>
+      <h4>Prompts</h4>
+      <p>Template prompt dựng sẵn do Server cung cấp cho một tác vụ lặp lại thường gặp (ví dụ "tóm tắt issue", "review PR") — người dùng chọn dùng lại thay vì tự soạn prompt từ đầu mỗi lần.</p>
+    </div>
+  </div>
+
   <h2 class="section-heading">Use Cases</h2>
   <div class="usecase-grid">
     <div class="usecase-card">
@@ -87,8 +132,8 @@
       <p>Một MCP Server phân tích quan hệ code (call graph, dependency) giúp Claude Code hiểu kiến trúc project phức tạp trước khi sửa một tính năng, thay vì chỉ đọc file rời rạc.</p>
     </div>
     <div class="usecase-card">
-      <h4>Kiểm chứng dữ liệu tự động</h4>
-      <p>Một MCP Server kết nối database cho phép Claude Code tự truy vấn để xác nhận một thao tác ghi dữ liệu (tạo/sửa/xoá) đã thực sự đúng, không cần User tự mở công cụ quản trị DB kiểm tra tay.</p>
+      <h4>Một Host, nhiều Server</h4>
+      <p>Claude Code kết nối đồng thời MCP Server filesystem, MCP Server Git và MCP Server database trong cùng một phiên làm việc, phối hợp cả 3 để hoàn thành một tác vụ.</p>
     </div>
     <div class="usecase-card">
       <h4>Kết nối hệ thống doanh nghiệp</h4>
@@ -103,6 +148,12 @@
     trước khi thêm bất kỳ MCP Server nào (đặc biệt là MCP Server do cộng đồng viết) vào Claude Code, cần đánh giá độ
     tin cậy của nó — nguồn gốc, mã nguồn có công khai không, phạm vi quyền yêu cầu là gì. Chương 3 của Section này sẽ
     đi sâu vào các nguyên tắc an toàn khi cấp quyền cho MCP Server.
+  </p>
+  <p class="body-text">
+    Không phải MCP Server nào cũng implement đủ cả 3 primitive — rất nhiều Server chỉ tập trung vào Tools vì đó là
+    dạng phổ biến và hữu ích nhất trong thực tế. Khi kết nối nhiều Server cùng lúc, số lượng Tools khả dụng cho model
+    cũng tăng lên — cần lưu ý điều này có thể làm tăng độ dài ngữ cảnh mỗi lượt gọi (model cần "biết" mô tả của mọi
+    Tool đang kết nối), vì vậy chỉ nên giữ kết nối những MCP Server thực sự cần dùng cho phiên làm việc hiện tại.
   </p>
 
   <script>mermaid.initialize({ startOnLoad: true, theme: 'default' });</script>
