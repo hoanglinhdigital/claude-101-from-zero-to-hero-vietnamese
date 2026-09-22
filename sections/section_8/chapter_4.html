@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Lab - Cấu hình MCP Server CodeGraph – Claude 101</title>
+  <title>Lab - Cấu hình MCP Server Graphify – Claude 101</title>
   <link rel="stylesheet" href="../../styles.css" />
   <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
   <script src="../../mermaid-config.js"></script>
@@ -16,7 +16,7 @@
   <div class="chapter-breadcrumb">
     <span class="section-part">8. Model Context Protocol (MCP)</span>
     <span class="sep">/</span>
-    <span class="chapter-part">Lab - Cấu hình MCP Server CodeGraph</span>
+    <span class="chapter-part">Lab - Cấu hình MCP Server Graphify</span>
   </div>
 
   <div class="alert alert-info">
@@ -27,19 +27,19 @@
   </div>
 
   <div class="alert alert-warning">
-    <strong>Về tên gọi "MCP Server CodeGraph":</strong> Đây <strong>không phải tên một package cố định</strong> mà
-    là ví dụ minh hoạ cho một <strong>loại</strong> MCP Server chuyên phân tích call graph/dependency graph giữa các
-    module code. Bài lab tập trung vào <strong>kỹ năng</strong> cấu hình một MCP Server bất kỳ và cách đặt câu hỏi
-    truy vấn quan hệ code hiệu quả — kỹ năng này áp dụng được cho bất kỳ MCP Server CodeGraph cụ thể nào bạn chọn
-    dùng tại thời điểm thực hành.
+    <strong>Về Graphify:</strong> <a href="https://github.com/Graphify-Labs/graphify" target="_blank" rel="noopener">Graphify</a>
+    là công cụ mã nguồn mở biến source code (và cả tài liệu, PDF, hình ảnh) thành một <strong>knowledge graph</strong>
+    có thể truy vấn. Graphify dùng <strong>tree-sitter</strong> để parse AST cục bộ (không gọi LLM), phân giải quan hệ
+    <code>calls</code>, <code>imports</code>, <code>inherits</code>, <code>mixes_in</code> giữa các entity trong code —
+    sau đó expose kết quả qua một <strong>MCP Server chạy local</strong> để Claude Code có thể truy vấn trực tiếp.
   </div>
 
   <h2 class="section-heading">Mục tiêu</h2>
   <ul class="feature-list">
-    <li>Biết cách thêm một MCP Server bất kỳ vào Claude Code — qua lệnh <code>claude mcp add</code> hoặc file <code>.mcp.json</code> ở gốc project.</li>
-    <li>Cấu hình một MCP Server dạng CodeGraph (ví dụ minh hoạ) cho project <code>lab-expense-management</code>.</li>
-    <li>Dùng Claude Code đặt câu hỏi truy vấn call graph/dependency giữa các module <strong>trước khi</strong> yêu cầu sửa một tính năng, để giảm rủi ro sửa sai chỗ hoặc bỏ sót nơi cần cập nhật.</li>
-    <li>Biết cách đọc và diễn giải kết quả phân tích quan hệ code trả về từ MCP Server.</li>
+    <li>Cài đặt Graphify và sinh knowledge graph cho project <code>lab-expense-management</code>.</li>
+    <li>Cấu hình Graphify làm MCP Server local cho Claude Code qua file <code>.mcp.json</code>.</li>
+    <li>Dùng các Tool <code>query_graph</code>, <code>get_neighbors</code>, <code>shortest_path</code> của Graphify để phân tích quan hệ giữa các module <strong>trước khi</strong> yêu cầu sửa một tính năng, giảm rủi ro sửa sai chỗ hoặc bỏ sót nơi cần cập nhật.</li>
+    <li>Biết cách đọc và diễn giải kết quả phân tích quan hệ code trả về từ Graphify.</li>
   </ul>
 
   <h2 class="section-heading">Kiến trúc tổng quan</h2>
@@ -48,8 +48,12 @@
       Dev(("<img src='../../assets/svg-icon/developer.svg' style='width:26px;height:26px;'/><br/><b>Developer</b>"))
       CC["<img src='../../assets/svg-icon/claude-logo.svg' style='width:28px;height:28px;'/><br/><b>Claude Code</b>"]
 
-      subgraph MCPS["MCP Server CodeGraph (ví dụ minh hoạ)"]
-          Graph["🔍 Phân tích<br/>call graph / dependency graph"]
+      subgraph MCPS["MCP Server Graphify (local, stdio)"]
+          Graph["🔍 query_graph / get_neighbors<br/>shortest_path / get_node"]
+      end
+
+      subgraph GraphData["graphify-out/"]
+          JSON["📄 graph.json<br/>(knowledge graph)"]
       end
 
       subgraph Project["lab-expense-management"]
@@ -58,64 +62,73 @@
 
       Dev -->|"Câu hỏi truy vấn quan hệ code"| CC
       CC -->|"Gọi Tool qua MCP"| MCPS
-      MCPS -->|"Đọc / parse source"| Files
-      MCPS -->|"Trả về danh sách file/hàm liên quan"| CC
+      MCPS -->|"Đọc graph đã sinh sẵn"| GraphData
+      GraphData -.->|"graphify install (tree-sitter parse)"| Files
+      MCPS -->|"Trả về node/relationship liên quan"| CC
       CC -->|"Trả lời kèm giải thích"| Dev
   </div>
-  <p class="arch-caption">Claude Code gọi Tool của MCP Server CodeGraph để phân tích quan hệ giữa các file trong project, sau đó diễn giải lại kết quả thô thành câu trả lời dễ hiểu cho developer.</p>
+  <p class="arch-caption">Graphify parse source code bằng tree-sitter để sinh <code>graph.json</code> một lần, sau đó MCP Server đọc file graph này để trả lời các câu truy vấn quan hệ code từ Claude Code — không cần gọi LLM để phân tích code.</p>
 
   <h2 class="section-heading">Yêu cầu trước khi bắt đầu</h2>
   <ul class="feature-list">
     <li>Project <code>D:\lab-expense-management</code> (Section 4) vẫn còn trên máy, đầy đủ code sau Chapter 7 (đã có <code>lib/expense-service.ts</code>).</li>
-    <li>Claude Code CLI đã cài đặt và đăng nhập thành công, nên cập nhật lên bản mới nhất (<code>claude update</code> nếu có) để có đầy đủ lệnh quản lý MCP.</li>
-    <li>Node.js phiên bản 18 trở lên (hầu hết MCP Server chạy qua <code>npx</code>).</li>
+    <li>Claude Code CLI đã cài đặt và đăng nhập thành công, nên cập nhật lên bản mới nhất (<code>claude update</code> nếu có).</li>
+    <li>Python 3.10 trở lên đã cài đặt trên máy (Graphify chạy trên Python).</li>
+    <li><code>uv</code> đã cài đặt (khuyến nghị) — xem <a href="https://docs.astral.sh/uv/getting-started/installation/" target="_blank" rel="noopener">hướng dẫn cài uv</a>. Có thể thay bằng <code>pipx</code> nếu không dùng uv.</li>
     <li>Terminal: PowerShell hoặc Windows Terminal.</li>
   </ul>
 
   <h2 class="section-heading">Các bước thực hành</h2>
 
-  <h3 class="sub-heading">Phần 1: Cách thêm một MCP Server vào Claude Code</h3>
+  <h3 class="sub-heading">Phần 1: Cài đặt Graphify và sinh knowledge graph</h3>
   <ol class="step-list">
     <li>
       <div>
-        <strong>Bước 1: Xem danh sách MCP Server hiện đang kết nối (nếu có)</strong>
+        <strong>Bước 1: Cài Graphify qua uv</strong>
+        <p>Gói trên PyPI có tên <code>graphifyy</code> (2 chữ "y"), nhưng lệnh CLI sau khi cài là <code>graphify</code>.</p>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">
+uv tool install graphifyy
+graphify install --project</code></pre>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 2: Sinh knowledge graph cho project lab-expense-management</strong>
+        <p>Có thể sinh graph bằng slash command <code>/graphify .</code> ngay trong Claude Code, hoặc chạy trực tiếp CLI ngoài terminal. Ở đây dùng CLI để thấy rõ output.</p>
+        <pre class="command-line" data-prompt="PS>" data-output="2, 3, 4"><code class="language-powershell">cd D:\lab-expense-management
+graphify .
+# Output: graphify-out/graph.json, graphify-out/graph.html, graphify-out/GRAPH_REPORT.md
+# Parse local qua tree-sitter, không gọi LLM cho phần phân tích code</code></pre>
+        <p>Mở <code>graphify-out/graph.html</code> bằng trình duyệt để xem trực quan force-directed graph của toàn bộ project, hoặc đọc <code>graphify-out/GRAPH_REPORT.md</code> để xem các "god node" (module được gọi nhiều nhất) và các kết nối bất ngờ.</p>
+      </div>
+    </li>
+  </ol>
+
+  <h3 class="sub-heading">Phần 2: Cấu hình Graphify làm MCP Server cho Claude Code</h3>
+  <ol class="step-list">
+    <li>
+      <div>
+        <strong>Bước 3: Xem danh sách MCP Server hiện đang kết nối (nếu có)</strong>
         <pre class="command-line" data-prompt="PS>"><code class="language-powershell">cd D:\lab-expense-management
 claude mcp list</code></pre>
       </div>
     </li>
     <li>
       <div>
-        <strong>Bước 2: Hai cách thêm một MCP Server bất kỳ</strong>
-        <p>Có hai cách tương đương để khai báo một MCP Server cho Claude Code — dùng lệnh CLI, hoặc sửa trực tiếp file cấu hình. <strong>Cú pháp/flag cụ thể có thể thay đổi theo phiên bản Claude Code</strong> — luôn kiểm tra lại bằng <code>claude mcp add --help</code> hoặc tài liệu Claude Code chính thức trước khi dùng.</p>
-        <pre class="command-line" data-prompt="PS>"><code class="language-powershell"># Cách 1: dùng lệnh CLI (khái quát cú pháp, tham khảo --help để có flag mới nhất)
-claude mcp add --help
-
-# Cách 2: sửa trực tiếp file .mcp.json ở gốc project — thực hiện ở Bước 4</code></pre>
-      </div>
-    </li>
-  </ol>
-
-  <h3 class="sub-heading">Phần 2: Cấu hình MCP Server CodeGraph cho project</h3>
-  <ol class="step-list">
-    <li>
-      <div>
-        <strong>Bước 3: Tìm một MCP Server phân tích code phù hợp</strong>
-        <p>Vào thời điểm thực hành, tìm trên MCP registry hoặc GitHub với từ khoá <em>"mcp server code graph"</em>, <em>"mcp server dependency analysis"</em>, ưu tiên Server hỗ trợ tốt TypeScript/JavaScript (vì project <code>lab-expense-management</code> dùng Next.js + TypeScript). Ghi lại tên package/lệnh khởi chạy của Server đã chọn để dùng ở bước tiếp theo.</p>
-      </div>
-    </li>
-    <li>
-      <div>
-        <strong>Bước 4: Khai báo MCP Server trong file .mcp.json</strong>
-        <p>Tạo (hoặc sửa) file <code>.mcp.json</code> ở gốc thư mục <code>D:\lab-expense-management</code>. Đây là ví dụ cấu trúc minh hoạ — thay <code>&lt;ten-goi-mcp-codegraph&gt;</code> bằng tên package/lệnh khởi chạy thật của MCP Server bạn đã chọn ở Bước 3, và điều chỉnh <code>args</code>/<code>env</code> theo đúng README của Server đó.</p>
+        <strong>Bước 4: Khai báo Graphify trong file .mcp.json</strong>
+        <p>Tạo (hoặc sửa) file <code>.mcp.json</code> ở gốc thư mục <code>D:\lab-expense-management</code>, trỏ MCP Server tới file <code>graph.json</code> vừa sinh ra ở Bước 2. Đây là cấu hình stdio — chạy local, không cần mở port.</p>
         <pre class="file-block"><span class="filename">.mcp.json</span>{
   <span class="hl">"mcpServers"</span>: {
-    <span class="hl">"codegraph"</span>: {
-      <span class="hl">"command"</span>: <span class="str">"npx"</span>,
-      <span class="hl">"args"</span>: [<span class="str">"-y"</span>, <span class="str">"&lt;ten-goi-mcp-codegraph&gt;"</span>, <span class="str">"--project"</span>, <span class="str">"D:\\lab-expense-management"</span>]
+    <span class="hl">"graphify"</span>: {
+      <span class="hl">"command"</span>: <span class="str">"python"</span>,
+      <span class="hl">"args"</span>: [<span class="str">"-m"</span>, <span class="str">"graphify.serve"</span>, <span class="str">"graphify-out/graph.json"</span>]
     }
   }
 }</pre>
-        <p>Nếu Server bạn chọn yêu cầu cấu hình khác (thêm biến môi trường, transport khác stdio...), điều chỉnh theo đúng hướng dẫn của Server đó — cấu trúc <code>mcpServers</code> ở trên chỉ là bộ khung chung.</p>
+        <p>Nếu muốn chia sẻ graph này cho cả team qua HTTP thay vì chỉ chạy local cho một máy, Graphify hỗ trợ transport HTTP kèm API key:</p>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell"># Tham khảo — không bắt buộc cho bài lab này, dùng khi muốn share graph qua mạng nội bộ
+python -m graphify.serve graphify-out/graph.json --transport http `
+  --host 0.0.0.0 --port 8080 --api-key "your-secret-key"</code></pre>
       </div>
     </li>
     <li>
@@ -125,7 +138,7 @@ claude mcp add --help
 claude</code></pre>
         <p>Trong phiên chat, dùng slash command <code>/mcp</code> để xem nhanh trạng thái kết nối, hoặc chạy lệnh sau ngoài terminal:</p>
         <pre class="command-line" data-prompt="PS>" data-output="2"><code class="language-powershell">claude mcp list
-codegraph: npx -y &lt;ten-goi-mcp-codegraph&gt; --project D:\lab-expense-management - ✓ Connected</code></pre>
+graphify: python -m graphify.serve graphify-out/graph.json - ✓ Connected</code></pre>
       </div>
     </li>
   </ol>
@@ -134,59 +147,82 @@ codegraph: npx -y &lt;ten-goi-mcp-codegraph&gt; --project D:\lab-expense-managem
   <ol class="step-list">
     <li>
       <div>
-        <strong>Bước 6: Hỏi tổng quan dependency graph của project</strong>
-        <p>Bắt đầu bằng một câu hỏi tổng quát để hiểu bức tranh chung trước khi đi sâu vào một hàm cụ thể.</p>
-        <pre class="command-line" data-prompt=">"><code class="language-text">Dùng MCP Server CodeGraph để phân tích dependency graph tổng quan của project này. Những module chính nào trong app/ và lib/ đang phụ thuộc vào module nào? Trình bày dưới dạng danh sách dễ đọc.</code></pre>
+        <strong>Bước 6: Hỏi tổng quan knowledge graph của project</strong>
+        <p>Bắt đầu bằng một câu hỏi tổng quát để hiểu bức tranh chung trước khi đi sâu vào một hàm cụ thể. Claude Code sẽ tự chọn gọi Tool <code>query_graph</code> của Graphify.</p>
+        <pre class="command-line" data-prompt=">"><code class="language-text">Dùng MCP Server Graphify (query_graph) để phân tích knowledge graph tổng quan của project này. Những module chính nào trong app/ và lib/ đang phụ thuộc vào module nào? Trình bày dưới dạng danh sách dễ đọc.</code></pre>
       </div>
     </li>
     <li>
       <div>
         <strong>Bước 7: Đặt câu hỏi cụ thể trước khi sửa một hàm dùng chung</strong>
-        <p>Đây là câu hỏi giá trị nhất trong thực tế — xác định phạm vi ảnh hưởng trước khi động vào một hàm đang được nhiều nơi gọi tới, dùng đúng hàm <code>getMonthlySummary()</code> đã tạo ra ở Chapter 7.</p>
-        <pre class="command-line" data-prompt=">"><code class="language-text">Dùng MCP Server CodeGraph để phân tích: nếu tôi sửa hàm getMonthlySummary() trong lib/expense-service.ts, những file và route nào sẽ bị ảnh hưởng? Liệt kê đầy đủ các nơi gọi trực tiếp (direct caller) và các nơi phụ thuộc gián tiếp (ví dụ trang frontend đang gọi route đó).</code></pre>
+        <p>Đây là câu hỏi giá trị nhất trong thực tế — xác định phạm vi ảnh hưởng trước khi động vào một hàm đang được nhiều nơi gọi tới, dùng đúng hàm <code>getExpenseByCategory()</code> Yêu cầu Claude Code dùng <code>get_neighbors</code> và <code>shortest_path</code> để truy vết quan hệ.</p>
+        <pre class="command-line" data-prompt=">"><code class="language-text">
+Dùng Graphify để phân tích: nếu tôi sửa hàm getExpenseByCategory() trong src/lib/services/report.service.ts, những file và route nào sẽ bị ảnh hưởng? Dùng get_neighbors để tìm các node gọi trực tiếp (direct caller), và shortest_path để kiểm tra xem các trang frontend có phụ thuộc gián tiếp vào hàm này qua route API không.
+Tóm tắt kết quả phân tích trên thành danh sách gạch đầu dòng, xếp theo 2 nhóm: "Ảnh hưởng trực tiếp" và "Ảnh hưởng gián tiếp". Với mỗi file, cho biết tôi có nên viết thêm test cho file đó trước khi sửa getExpenseByCategory() hay không, và vì sao.
+</code>
+</pre>
       </div>
     </li>
     <li>
       <div>
-        <strong>Bước 8: Yêu cầu diễn giải lại kết quả cho dễ đọc</strong>
-        <p>Nhiều MCP Server CodeGraph trả về kết quả dạng dữ liệu thô (JSON, cây quan hệ) — yêu cầu Claude Code diễn giải lại thành danh sách dễ hiểu, có phân loại mức độ ảnh hưởng.</p>
-        <pre class="command-line" data-prompt=">"><code class="language-text">Tóm tắt kết quả phân tích trên thành danh sách gạch đầu dòng, xếp theo 2 nhóm: "Ảnh hưởng trực tiếp" và "Ảnh hưởng gián tiếp". Với mỗi file, cho biết tôi có nên viết thêm test cho file đó trước khi sửa getMonthlySummary() hay không, và vì sao.</code></pre>
+        <strong>Bước 8: Tiến hành yêu cầu sửa tính năng dựa trên phân tích đã có</strong>
+        <p>Sau khi đã biết rõ phạm vi ảnh hưởng, giao tác vụ sửa thực tế — ví dụ thêm tham số sort Tăng/Giảm cho hàm.</p>
+        <pre class="command-line" data-prompt=">"><code class="language-text">
+Dựa trên phân tích ảnh hưởng ở trên, sửa hàm getExpenseByCategory() trong src/lib/services/report.service.ts để nhận thêm tham số sort Type: ascending/descending — nếu được truyền, áp dụng loại sort theo user. 
+Add thêm một Nút sort trên trang frontend /expense-report để user chọn Tăng/Giảm, và gọi lại API khi user click nút này (đang sắp xếp tăng thì thành giảm và ngược lại).
+Cập nhật đúng các file bị ảnh hưởng trực tiếp đã xác định ở Bước trước, và chạy lại npm test sau khi sửa xong để xác nhận không phá vỡ hành vi cũ.</code></pre>
       </div>
     </li>
+  </ol>
+
+  <h3 class="sub-heading">Phần 4: Biến quy trình thành quy tắc cố định trong CLAUDE.md</h3>
+  <ol class="step-list">
     <li>
       <div>
-        <strong>Bước 9: Tiến hành yêu cầu sửa tính năng dựa trên phân tích đã có</strong>
-        <p>Sau khi đã biết rõ phạm vi ảnh hưởng, giao tác vụ sửa thực tế — ví dụ thêm tham số lọc theo danh mục cho hàm tổng hợp.</p>
-        <pre class="command-line" data-prompt=">"><code class="language-text">Dựa trên phân tích ảnh hưởng ở trên, sửa hàm getMonthlySummary() trong lib/expense-service.ts để nhận thêm tham số tuỳ chọn categoryId — nếu được truyền, chỉ tổng hợp chi tiêu thuộc category đó. Cập nhật đúng các file bị ảnh hưởng trực tiếp đã xác định ở Bước 7, và chạy lại npm test sau khi sửa xong để xác nhận không phá vỡ hành vi cũ.</code></pre>
+        <strong>Bước 9: Thêm rule vào CLAUDE.md để mọi thay đổi source code đều phải đánh giá ảnh hưởng bằng Graphify</strong>
+        <p>Ở Bước 7 và 8, bạn phải tự nhắc Claude Code dùng Graphify mỗi lần sửa code. Để agent tự động làm điều đó trong mọi phiên làm việc, hãy ghi thành quy tắc trong <code>CLAUDE.md</code>. Quy tắc này yêu cầu agent luôn truy vấn Graphify trước khi sửa/xóa function, từ đó quyết định cần cập nhật UI, class nào và cần chạy lại hoặc bổ sung testcase nào trong plan.</p>
+        <pre class="command-line" data-prompt=">"><code class="language-text">
+Cập nhật file CLAUDE.md giúp tôi để phản ánh quy tắc sử dụng MCP Server Graphify: một code-graph giúp truy vấn quan hệ của các method, các class code, đánh giá ảnh hưởng.
+Yêu cầu AI agent luôn sử dụng Graphify này để đánh giá ảnh hưởng trước khi implement tính năng mới (sửa function, xóa function), từ đó quyết định có cần sửa UI, class, bổ sung testcase liên quan trong plan.
+Rule cần nêu rõ: (1) dùng get_neighbors/shortest_path để tìm direct caller và phụ thuộc gián tiếp; (2) liệt kê testcase hiện có cần chạy lại; (3) đề xuất testcase mới nếu vùng bị ảnh hưởng chưa được cover; (4) chạy lại graphify . để cập nhật graph sau khi sửa code xong.</code></pre>
+        <p>Sau khi Claude Code cập nhật xong, mở file <code>CLAUDE.md</code> để kiểm tra rule đã được ghi đúng. Từ các phiên sau, mỗi khi bạn yêu cầu sửa/xóa function, agent sẽ tự chạy Graphify và đưa kết quả đánh giá ảnh hưởng (kèm danh sách testcase cần chạy lại hoặc bổ sung) vào plan mà không cần nhắc lại.</p>
       </div>
     </li>
   </ol>
 
   <div class="verify-box">
     <h4>✅ Kết quả mong đợi</h4>
-    <p class="body-text">Trước khi sửa <code>getMonthlySummary()</code>, User đã biết chính xác những file/route nào sẽ bị ảnh hưởng nhờ MCP Server CodeGraph, thay vì tự đoán hoặc phải đọc thủ công toàn bộ project. Sau khi sửa, toàn bộ test hiện có (từ Chapter 6, Chapter 7) vẫn pass, xác nhận không bỏ sót nơi cần cập nhật.</p>
+    <p class="body-text">Trước khi sửa <code>getExpenseByCategory()</code>, User đã biết chính xác những file/route nào sẽ bị ảnh hưởng nhờ knowledge graph do Graphify sinh ra (dựa trên phân tích AST cục bộ, không phụ thuộc LLM), thay vì tự đoán hoặc phải đọc thủ công toàn bộ project. Sau khi sửa, toàn bộ test hiện có (từ Chapter 6, Chapter 7) vẫn pass, xác nhận không bỏ sót nơi cần cập nhật.</p>
   </div>
 
   <h2 class="section-heading">Troubleshoot</h2>
   <div class="alert alert-warning">
-    <strong>Lỗi:</strong> MCP Server báo "failed to start" hoặc không kết nối được sau khi cấu hình <code>.mcp.json</code>.<br/>
-    <strong>Nguyên nhân:</strong> Sai tên package trong <code>args</code>, hoặc package yêu cầu cài đặt/cấu hình bổ sung chưa thực hiện đúng.<br/>
-    <strong>Giải pháp:</strong> Chạy thử trực tiếp lệnh trong <code>command</code>/<code>args</code> ngoài terminal (ví dụ <code>npx -y &lt;ten-goi-mcp-codegraph&gt; --project D:\lab-expense-management</code>) để xem lỗi thực tế trước khi để Claude Code gọi qua MCP.
+    <strong>Lỗi:</strong> Permission Denied</code>.<br/>
+    <strong>Nguyên nhân:</strong> Trình Windows Security của máy tính chặn app lạ.<br/>
+    <strong>Giải pháp:</strong> Mở Windows Security → App & browser control → cuộn xuống mục Smart App Control → chọn <strong>Off</strong> (hoặc <strong>Warn</strong> nếu muốn được hỏi trước khi chạy app lạ). Sau đó mở lại terminal và chạy lại lệnh.
   </div>
   <div class="alert alert-warning">
-    <strong>Lỗi:</strong> Claude Code không thấy Tool nào từ MCP Server CodeGraph, hoặc trả lời "không có công cụ phù hợp".<br/>
-    <strong>Nguyên nhân:</strong> Server chưa expose đúng Tool phân tích code, hoặc chưa được cấu hình đúng đường dẫn project.<br/>
-    <strong>Giải pháp:</strong> Đọc lại README của Server đã chọn, xác nhận tham số chỉ định thư mục project (<code>--project</code> hoặc tương đương) đã đúng, khởi động lại Claude Code sau khi sửa.
+    <strong>Lỗi:</strong> MCP Server báo "failed to start" hoặc <code>FileNotFoundError: graph.json</code>.<br/>
+    <strong>Nguyên nhân:</strong> Chưa chạy <code>graphify .</code> (hoặc <code>/graphify .</code>) để sinh file <code>graphify-out/graph.json</code> trước khi khởi động MCP Server, hoặc đường dẫn trong <code>args</code> của <code>.mcp.json</code> không đúng thư mục làm việc hiện tại.<br/>
+    <strong>Giải pháp:</strong> Chạy thử trực tiếp <code>python -m graphify.serve graphify-out/graph.json</code> ngoài terminal tại đúng thư mục <code>D:\lab-expense-management</code> để xem lỗi thực tế trước khi để Claude Code gọi qua MCP.
+  </div>
+  <div class="alert alert-warning">
+    <strong>Lỗi:</strong> <code>graphify: command not found</code> sau khi cài đặt.<br/>
+    <strong>Nguyên nhân:</strong> <code>uv tool install</code> cài binary vào thư mục riêng chưa được thêm vào <code>PATH</code>.<br/>
+    <strong>Giải pháp:</strong> Chạy <code>uv tool update-shell</code> rồi mở lại terminal, hoặc dùng <code>uv tool run graphifyy</code> để gọi trực tiếp không cần thêm PATH.
   </div>
   <div class="alert alert-warning">
     <strong>Lỗi:</strong> Kết quả phân tích thiếu file hoặc không chính xác.<br/>
-    <strong>Nguyên nhân:</strong> Nhiều MCP Server CodeGraph chỉ hỗ trợ một số ngôn ngữ nhất định, hoặc mặc định bỏ qua thư mục như <code>node_modules</code>, <code>.next</code>.<br/>
-    <strong>Giải pháp:</strong> Kiểm tra cấu hình include/exclude pattern của Server, hoặc yêu cầu Claude Code tự đọc thêm file liên quan để đối chiếu lại kết quả trước khi tin tưởng hoàn toàn.
+    <strong>Nguyên nhân:</strong> Graph đã sinh ra (<code>graph.json</code>) là một snapshot tại thời điểm chạy <code>graphify .</code> — nếu code đã thay đổi sau đó (ví dụ sau khi sửa ở Bước 9), graph cũ sẽ không phản ánh đúng quan hệ mới.<br/>
+    <strong>Giải pháp:</strong> Chạy lại <code>graphify update .</code> để sinh graph mới sau mỗi lần thay đổi cấu trúc code đáng kể, trước khi tiếp tục truy vấn.
   </div>
 
   <h2 class="section-heading">Dọn dẹp resource</h2>
-  <div class="alert alert-info">Bài lab này không tạo resource cloud — MCP Server CodeGraph chỉ chạy local qua <code>npx</code> trong phiên làm việc. Nếu không cần dùng tiếp, gỡ kết nối bằng lệnh sau:</div>
-  <pre class="command-line" data-prompt="PS>"><code class="language-powershell">claude mcp remove codegraph</code></pre>
+  <div class="alert alert-info">Bài lab này không tạo resource cloud — Graphify chỉ chạy local, đọc file <code>graph.json</code> trên máy. Nếu không cần dùng tiếp, gỡ kết nối MCP và xoá dữ liệu graph đã sinh:</div>
+  <pre class="command-line" data-prompt="PS>"><code class="language-powershell">claude mcp remove graphify
+Remove-Item -Recurse -Force D:\lab-expense-management\graphify-out</code></pre>
+  <p>Nếu muốn gỡ hẳn Graphify khỏi máy (không dùng cho project khác nữa):</ p>
+  <pre class="command-line" data-prompt="PS>"><code class="language-powershell">uv tool uninstall graphifyy</code></pre>
   <div class="alert alert-warning">
     <strong>Quan trọng:</strong> Không xoá thư mục project <code>D:\lab-expense-management</code> — project này tiếp tục được dùng ở Chapter 6 (MCP Server MySQL) của Section này.
   </div>

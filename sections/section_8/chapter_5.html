@@ -26,19 +26,21 @@
   </div>
 
   <div class="alert alert-warning">
-    <strong>Về tên gọi MCP Server MySQL:</strong> Không có một MCP Server MySQL "chính thức" duy nhất từ Anthropic —
-    có nhiều MCP Server MySQL do cộng đồng phát triển. Bài lab trình bày cấu trúc <code>.mcp.json</code> tổng quát
-    với placeholder <code>&lt;ten-goi-mcp-mysql&gt;</code> — User tự tìm một MCP Server MySQL phù hợp trên MCP
-    registry/GitHub tại thời điểm thực hành (từ khoá gợi ý: "mcp server mysql"), ưu tiên Server có tài liệu rõ ràng
-    về cách cấu hình kết nối (host/port/user/password/database) và có ghi rõ hỗ trợ thao tác nào (chỉ đọc hay cả ghi).
+    <strong>Về MCP Server MySQL trong bài lab:</strong> Không có MCP Server MySQL "chính thức" từ Anthropic. Bài lab dùng
+    <a href="https://github.com/designcomputer/mysql_mcp_server" target="_blank">mysql_mcp_server</a> (package PyPI
+    <code>mysql-mcp-server</code>, giấy phép MIT) — viết bằng Python, chạy trực tiếp qua <code>uvx</code> mà không cần cài đặt thủ công.
+    Server cung cấp 3 Tool: <code>execute_sql</code>, <code>get_schema_info</code>, <code>get_table_sample</code>.
+    <strong>Lưu ý:</strong> Server này <strong>không có chế độ chỉ đọc</strong> — <code>execute_sql</code> chạy được cả INSERT/UPDATE/DELETE.
+    Vì vậy việc giới hạn quyền ở tầng MySQL user (chỉ cấp <code>SELECT</code>) là lớp bảo vệ bắt buộc.
   </div>
 
   <h2 class="section-heading">Mục tiêu</h2>
   <ul class="feature-list">
-    <li>Cấu hình một MCP Server kết nối MySQL cho database <code>expense_db</code> của project <code>lab-expense-management</code>.</li>
-    <li>Áp dụng nguyên tắc least privilege (đã học ở Chapter 3): tạo riêng một user MySQL chỉ có quyền đọc cho MCP Server, không dùng lại user có toàn quyền CRUD của ứng dụng.</li>
+    <li>Cấu hình MCP Server <code>mysql_mcp_server</code> (Python, chạy qua <code>uvx</code>) kết nối MySQL cho database <code>expense_db</code> của project <code>lab-expense-management</code>.</li>
+    <li>Dùng MySQL Workbench để tạo user MySQL riêng chỉ có quyền đọc (least privilege, đã học ở Chapter 3) cho MCP Server, không dùng lại user có toàn quyền CRUD của ứng dụng.</li>
     <li>Yêu cầu Claude Code thêm một khoản chi tiêu mới qua API của ứng dụng như bình thường (ghi dữ liệu).</li>
-    <li>Dùng chính MCP Server MySQL để Claude Code tự chạy câu SQL SELECT kiểm chứng dữ liệu vừa ghi có đúng trong bảng <code>Expense</code> không — không cần User tự mở MySQL Workbench kiểm tra tay.</li>
+    <li>Dùng chính MCP Server MySQL để Claude Code tự chạy câu SQL SELECT kiểm chứng dữ liệu vừa ghi có đúng trong bảng <code>transaction</code> không — sau đó đối chiếu chéo kết quả bằng MySQL Workbench.</li>
+    <li>Ghi rule vào <code>CLAUDE.md</code> để Claude Code luôn dùng MCP Server <code>mysql-expense</code> cho mọi tác vụ query database, thay vì <code>docker exec</code> vào container MySQL.</li>
   </ul>
 
   <h2 class="section-heading">Kiến trúc tổng quan</h2>
@@ -48,17 +50,20 @@
       CC["<img src='../../assets/svg-icon/claude-logo.svg' style='width:28px;height:28px;'/><br/><b>Claude Code</b>"]
       API["⚙️ <b>API</b><br/>POST /api/expenses"]
 
-      subgraph MCPS["MCP Server MySQL"]
-          Query["🗄️ Chạy SELECT<br/>theo quyền được cấp"]
+      subgraph MCPS["MCP Server mysql_mcp_server (uvx)"]
+          Query["🗄️ execute_sql<br/>theo quyền user được cấp"]
       end
 
       DB["<img src='../../assets/svg-icon/mysql-workbench.svg' style='width:28px;height:28px;'/><br/><b>MySQL Container</b><br/>expense-mysql · expense_db"]
+      WB["🛠️ <b>MySQL Workbench</b><br/>Tạo user · Kiểm tra chéo"]
+
+      Dev -->|"Tạo user, chạy SELECT"| WB --> DB
 
       Dev -->|"1 - Yêu cầu thêm khoản chi tiêu"| CC
       CC -->|"Gọi API ghi dữ liệu"| API --> DB
       Dev -->|"2 - Yêu cầu kiểm chứng"| CC
       CC -->|"Gọi Tool SQL qua MCP"| MCPS
-      MCPS -->|"SELECT ... FROM Expense"| DB
+      MCPS -->|"SELECT ... FROM transaction"| DB
       MCPS -->|"Trả kết quả truy vấn"| CC
       CC -->|"Xác nhận dữ liệu đúng"| Dev
   </div>
@@ -69,9 +74,13 @@
     <li>Project <code>D:\lab-expense-management</code> (Section 4) vẫn còn trên máy, có thể chạy <code>npm run dev</code> được.</li>
     <li>Docker Desktop đang chạy, container MySQL <code>expense-mysql</code> khởi động được (<code>docker compose up -d</code>).</li>
     <li>Claude Code CLI đã cài đặt và đăng nhập thành công.</li>
-    <li>Node.js phiên bản 18 trở lên.</li>
+    <li>Node.js phiên bản 18 trở lên (để chạy dev server của ứng dụng).</li>
+    <li><code>uv</code> (Python package manager, cung cấp lệnh <code>uvx</code>) đã cài đặt. Kiểm tra bằng <code>uv --version</code>; nếu chưa có, cài bằng lệnh bên dưới.</li>
+    <li>MySQL Workbench đã cài đặt (tải tại <a href="https://dev.mysql.com/downloads/workbench/" target="_blank">dev.mysql.com/downloads/workbench</a>).</li>
     <li>Terminal: PowerShell hoặc Windows Terminal.</li>
   </ul>
+
+  <pre class="command-line" data-prompt="PS>"><code class="language-powershell">powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"</code></pre>
 
   <h2 class="section-heading">Các bước thực hành</h2>
 
@@ -102,26 +111,35 @@ abc123def456   mysql:8.0   ...   0.0.0.0:3306->3306/tcp   expense-mysql</code></
     <li>
       <div>
         <strong>Bước 3: Tạo user MySQL chỉ có quyền đọc, dùng riêng cho MCP Server</strong>
-        <p>Áp dụng đúng nguyên tắc least privilege đã học ở Chapter 3 — MCP Server dùng để <strong>kiểm chứng</strong> dữ liệu chỉ cần quyền <code>SELECT</code>, không cần dùng lại <code>expense_user</code> (vốn có toàn quyền CRUD của ứng dụng). Mở một terminal mới (giữ 2 terminal ở Bước 1-2 tiếp tục chạy), chạy lệnh sau ở một terminal khác trong <code>D:\lab-expense-management</code>.</p>
-        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">docker exec -it expense-mysql mysql -u root -prootpassword -e "CREATE USER 'expense_readonly'@'%' IDENTIFIED BY 'readonly_pass'; GRANT SELECT ON expense_db.* TO 'expense_readonly'@'%'; FLUSH PRIVILEGES;"</code></pre>
+        <p>Áp dụng đúng nguyên tắc least privilege đã học ở Chapter 3 — MCP Server dùng để <strong>kiểm chứng</strong> dữ liệu chỉ cần quyền <code>SELECT</code>, không cần dùng lại <code>expense_user</code> (vốn có toàn quyền CRUD của ứng dụng). Thực hiện bằng MySQL Workbench (giữ 2 terminal ở Bước 1-2 tiếp tục chạy):</p>
+        <ol>
+          <li>Mở MySQL Workbench, bấm dấu <strong>+</strong> cạnh <em>MySQL Connections</em> để tạo connection mới.</li>
+          <li>Điền: Connection Name <code>expense-root</code>, Hostname <code>127.0.0.1</code>, Port <code>3306</code>, Username <code>root</code>. Bấm <em>Store in Vault...</em> nhập password <code>rootpassword</code>, rồi <em>Test Connection</em> → <em>OK</em>.</li>
+          <li>Mở connection vừa tạo, mở tab SQL mới (<code>Ctrl+T</code>), dán đoạn SQL sau rồi chạy toàn bộ bằng <code>Ctrl+Shift+Enter</code>.</li>
+        </ol>
+        <pre class="command-line" data-prompt="SQL>"><code class="language-sql">CREATE USER 'expense_readonly'@'%' IDENTIFIED BY 'readonly_pass';
+GRANT SELECT ON expense_db.* TO 'expense_readonly'@'%';
+FLUSH PRIVILEGES;</code></pre>
       </div>
     </li>
     <li>
       <div>
         <strong>Bước 4: Xác nhận user mới kết nối và đọc được dữ liệu</strong>
-        <pre class="command-line" data-prompt="PS>" data-output="2"><code class="language-powershell">docker exec -it expense-mysql mysql -u expense_readonly -preadonly_pass expense_db -e "SELECT COUNT(*) FROM Expense;"
-+----------+</code></pre>
+        <p>Trong MySQL Workbench, tạo thêm connection thứ hai: Connection Name <code>expense_readonly</code>, Hostname <code>127.0.0.1</code>, Port <code>3306</code>, Username <code>expense_readonly</code>, password <code>readonly_pass</code>, Default Schema <code>expense_db</code>. Mở connection này và chạy câu SELECT bên dưới — kết quả trả về số dòng của bảng <code>transaction</code>.</p>
+        <pre class="command-line" data-prompt="SQL>"><code class="language-sql">SELECT COUNT(*) FROM transaction;</code></pre>
+        <p>Thử thêm một lệnh ghi để xác nhận quyền bị chặn — Workbench phải báo lỗi <code>INSERT command denied to user 'expense_readonly'</code>.</p>
+        <pre class="command-line" data-prompt="SQL>"><code class="language-sql">DELETE FROM transaction WHERE id = -1;</code></pre>
       </div>
     </li>
     <li>
       <div>
         <strong>Bước 5: Khai báo MCP Server MySQL trong file .mcp.json</strong>
-        <p>Tạo (hoặc sửa) file <code>.mcp.json</code> ở gốc project. Đây là cấu trúc minh hoạ — thay <code>&lt;ten-goi-mcp-mysql&gt;</code> bằng tên package/lệnh khởi chạy thật của MCP Server MySQL bạn đã chọn, và đối chiếu README của Server đó để đặt đúng tên biến môi trường (một số Server dùng <code>DB_HOST</code>/<code>DB_USER</code> thay vì <code>MYSQL_HOST</code>/<code>MYSQL_USER</code>, hoặc dùng một biến <code>DATABASE_URL</code> duy nhất).</p>
+        <p>Tạo (hoặc sửa) file <code>.mcp.json</code> ở gốc project. Server được chạy qua <code>uvx</code> — <code>uv</code> tự tải package <code>mysql-mcp-server</code> từ PyPI vào môi trường tạm, không cần <code>pip install</code>. Thông tin kết nối truyền qua biến môi trường <code>MYSQL_*</code>.</p>
         <pre class="file-block"><span class="filename">.mcp.json</span>{
   <span class="hl">"mcpServers"</span>: {
     <span class="hl">"mysql-expense"</span>: {
-      <span class="hl">"command"</span>: <span class="str">"npx"</span>,
-      <span class="hl">"args"</span>: [<span class="str">"-y"</span>, <span class="str">"&lt;ten-goi-mcp-mysql&gt;"</span>],
+      <span class="hl">"command"</span>: <span class="str">"uvx"</span>,
+      <span class="hl">"args"</span>: [<span class="str">"--from"</span>, <span class="str">"mysql-mcp-server"</span>, <span class="str">"mysql_mcp_server"</span>],
       <span class="hl">"env"</span>: {
         <span class="hl">"MYSQL_HOST"</span>: <span class="str">"127.0.0.1"</span>,
         <span class="hl">"MYSQL_PORT"</span>: <span class="str">"3306"</span>,
@@ -141,7 +159,7 @@ abc123def456   mysql:8.0   ...   0.0.0.0:3306->3306/tcp   expense-mysql</code></
 claude</code></pre>
         <p>Dùng slash command <code>/mcp</code> trong phiên chat để xem trạng thái kết nối, hoặc kiểm tra bằng lệnh ngoài terminal.</p>
         <pre class="command-line" data-prompt="PS>" data-output="2"><code class="language-powershell">claude mcp list
-mysql-expense: npx -y &lt;ten-goi-mcp-mysql&gt; - ✓ Connected</code></pre>
+mysql-expense: uvx --from mysql-mcp-server mysql_mcp_server - ✓ Connected</code></pre>
       </div>
     </li>
   </ol>
@@ -152,40 +170,67 @@ mysql-expense: npx -y &lt;ten-goi-mcp-mysql&gt; - ✓ Connected</code></pre>
       <div>
         <strong>Bước 7: Yêu cầu Claude Code thêm khoản chi tiêu mới qua API</strong>
         <p>Đây là thao tác ghi dữ liệu theo đường bình thường của ứng dụng — không đi qua MCP Server MySQL.</p>
-        <pre class="command-line" data-prompt=">"><code class="language-text">Dev server đang chạy ở http://localhost:3000. Gọi API POST /api/expenses để tạo một khoản chi tiêu mới: title "Mua sách kỹ thuật", amount 250000, category "Học tập" (tạo category này trước qua POST /api/categories nếu chưa có), spentAt là ngày hôm nay. Dùng Invoke-RestMethod để gọi, không sửa trực tiếp vào database. Cho tôi biết response trả về.</code></pre>
+        <pre class="command-line" data-prompt=">"><code class="language-text">
+Dev server đang chạy ở http://localhost:3000. 
+Tham khảo API Spect tại: docs\api-spec\category.yaml và docs\api-spec\transaction.yaml
+Gọi API Post /api/auth/login với user/password lấy từ file .env (cặp thông tin: TEST_LOCAL_EMAIL, TEST_LOCAL_PASSWORD). 
+Sau đó gọi API POST /api/transactions để tạo một khoản chi tiêu mới: note "Mua sách kỹ thuật", amount 250000, category "Học tập" (tạo category này trước qua POST /api/categories nếu chưa có), spentAt là ngày hôm nay. Dùng Invoke-RestMethod để gọi, không sửa trực tiếp vào database. Cho tôi biết response trả về.
+
+</code></pre>
       </div>
     </li>
     <li>
       <div>
         <strong>Bước 8: Yêu cầu Claude Code tự kiểm chứng bằng MCP Server MySQL</strong>
         <p>Đây là bước giá trị chính của bài lab — Claude Code dùng một đường hoàn toàn độc lập (MCP Server MySQL, quyền chỉ đọc) để tự xác nhận thao tác ghi ở bước trên đã đúng.</p>
-        <pre class="command-line" data-prompt=">"><code class="language-text">Dùng MCP Server MySQL vừa cấu hình (mysql-expense), chạy câu SELECT trên bảng Expense để kiểm chứng khoản chi tiêu "Mua sách kỹ thuật" vừa tạo ở bước trên: đúng amount 250000, đúng category "Học tập", đúng ngày hôm nay. Trả về đúng dòng dữ liệu tìm được và xác nhận rõ khớp/không khớp so với yêu cầu ban đầu.</code></pre>
+        <pre class="command-line" data-prompt=">"><code class="language-text">Dùng MCP Server MySQL vừa cấu hình (mysql-expense, Tool execute_sql), chạy câu SELECT trên bảng transaction, lọc type=EXPENSE, userId là id user đang login để kiểm chứng khoản chi tiêu với note "Mua sách kỹ thuật" vừa tạo ở bước trên: đúng amount 250000, đúng category "Học tập", đúng ngày hôm nay. Trả về đúng dòng dữ liệu tìm được và xác nhận rõ khớp/không khớp so với yêu cầu ban đầu.</code></pre>
       </div>
     </li>
     <li>
       <div>
         <strong>Bước 9: Đọc kết quả và xử lý nếu có sai lệch</strong>
         <p>Nếu Claude Code báo có sai lệch (ví dụ lệch category, lệch định dạng ngày do timezone), yêu cầu điều tra nguyên nhân trước khi coi bài lab hoàn thành.</p>
-        <pre class="command-line" data-prompt=">"><code class="language-text">Nếu có sai lệch ở bước kiểm chứng trên, hãy điều tra nguyên nhân (kiểm tra logic API route /api/expenses, đối chiếu categoryId, kiểm tra định dạng spentAt) và đề xuất cách sửa.</code></pre>
+        <pre class="command-line" data-prompt=">"><code class="language-text">Nếu có sai lệch ở bước kiểm chứng trên, hãy điều tra nguyên nhân (kiểm tra logic API route /api/transactions, đối chiếu categoryId, kiểm tra định dạng spentAt) và đề xuất cách sửa.</code></pre>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 10: Yêu cầu Claude Code bổ sung rule "luôn dùng MCP Server mysql-expense để query database"</strong>
+        <p>Nếu không có rule, Claude Code có thể tự chọn cách quen thuộc là <code>docker exec ... mysql -u ... -e "SELECT ..."</code> để truy vấn database — cách này cần truyền password trên command line và đi vòng qua quyền của user khác (thường là <code>root</code> hoặc <code>expense_user</code>), bỏ qua lớp least privilege đã thiết lập ở Bước 3. Hãy ghi rule vào file <code>CLAUDE.md</code> của project để mọi phiên làm việc sau đều tuân thủ.</p>
+        <pre class="command-line" data-prompt=">"><code class="language-text">Hãy bổ sung vào file CLAUDE.md của project một rule mới (tạo file nếu chưa có, giữ nguyên nội dung cũ): mọi tác vụ query/đọc dữ liệu từ database MySQL expense_db (SELECT, SHOW, DESCRIBE, kiểm tra schema, đếm dòng...) BẮT BUỘC phải dùng MCP Server mysql-expense (các Tool execute_sql, get_schema_info, get_table_sample). KHÔNG dùng docker exec hoặc bất kỳ cách nào khác để truyền lệnh vào container expense-mysql, và không tự đăng nhập MySQL bằng user root hay expense_user. Nếu MCP Server mysql-expense không kết nối được, hãy dừng lại và báo lỗi cho tôi thay vì tự chuyển sang docker exec. Sau khi thêm xong, cho tôi xem nội dung rule đã ghi.</code></pre>
+        <p>Nội dung rule Claude Code ghi vào <code>CLAUDE.md</code> sẽ có dạng tương tự (bên dưới chỉ là ví dụ):</p>
+        <pre class="file-block"><span class="filename">CLAUDE.md</span><span class="hl">## Truy vấn database</span>
+- Mọi tác vụ đọc dữ liệu từ database <span class="str">expense_db</span> (SELECT, SHOW, DESCRIBE, kiểm tra schema...) phải dùng MCP Server <span class="str">mysql-expense</span>.
+- KHÔNG dùng <span class="str">docker exec</span> để chạy lệnh mysql trong container <span class="str">expense-mysql</span>.
+- Nếu MCP Server không kết nối được, dừng lại và báo lỗi, không tự chuyển sang cách khác.</pre>
+        <p>Kiểm tra rule có hiệu lực: khởi động lại Claude Code (<code>/exit</code> rồi chạy lại <code>claude</code>) để nạp lại <code>CLAUDE.md</code>, sau đó đặt một câu hỏi cần truy vấn database.</p>
+        <pre class="command-line" data-prompt=">"><code class="language-text">Cho tôi biết trong bảng transaction hiện có tổng cộng bao nhiêu dòng có type=EXPENSE. Nói rõ bạn đã dùng công cụ nào để truy vấn.</code></pre>
+        <p>Claude Code phải gọi Tool <code>execute_sql</code> của <code>mysql-expense</code> và không xuất hiện lệnh <code>docker exec</code> nào trong danh sách Tool đã dùng.</p>
       </div>
     </li>
   </ol>
 
   <div class="verify-box">
     <h4>✅ Kết quả mong đợi</h4>
-    <p class="body-text">Claude Code tự khép kín vòng lặp <strong>ghi dữ liệu qua API → tự truy vấn kiểm chứng qua MCP Server MySQL → xác nhận đúng/sai</strong> mà không cần User tự mở MySQL Workbench hoặc chạy lệnh SQL tay. Dòng dữ liệu mới trong bảng <code>Expense</code> khớp đúng với yêu cầu ban đầu (title, amount, category, spentAt).</p>
+    <p class="body-text">Claude Code tự khép kín vòng lặp <strong>ghi dữ liệu qua API → tự truy vấn kiểm chứng qua MCP Server MySQL → xác nhận đúng/sai</strong> mà không cần User chạy SQL tay. Dòng dữ liệu mới trong bảng <code>transaction</code> khớp đúng với yêu cầu ban đầu (title, amount, category, spentAt).</p>
+    <p class="body-text">Để đối chiếu chéo, mở connection <code>expense_readonly</code> trong MySQL Workbench và chạy câu SELECT sau — kết quả phải trùng với những gì Claude Code báo:</p>
+    <pre class="command-line" data-prompt="SQL>">
+      <code class="language-sql">
+SELECT * FROM expense_db.transaction
+WHERE id='cmub14xvq001zecv717gs537z';
+    </code></pre>
   </div>
 
   <h2 class="section-heading">Troubleshoot</h2>
   <div class="alert alert-warning">
     <strong>Lỗi:</strong> MCP Server MySQL báo <code>Access denied for user 'expense_readonly'</code>.<br/>
     <strong>Nguyên nhân:</strong> Sai user/password trong <code>.mcp.json</code>, hoặc lệnh tạo user ở Bước 3 chưa chạy thành công/chưa <code>FLUSH PRIVILEGES</code>.<br/>
-    <strong>Giải pháp:</strong> Chạy lại lệnh kiểm tra ở Bước 4 (<code>docker exec ... mysql -u expense_readonly ...</code>) để xác nhận credentials đúng trước khi để MCP Server dùng; nếu vẫn lỗi, tạo lại user từ Bước 3.
+    <strong>Giải pháp:</strong> Đăng nhập lại bằng connection <code>expense_readonly</code> trong MySQL Workbench (Bước 4) để xác nhận credentials đúng trước khi để MCP Server dùng; nếu vẫn lỗi, tạo lại user từ Bước 3.
   </div>
   <div class="alert alert-warning">
     <strong>Lỗi:</strong> MCP Server báo <code>Can't connect to MySQL server</code>.<br/>
-    <strong>Nguyên nhân:</strong> Container MySQL chưa chạy (kiểm tra lại <code>docker ps</code>), hoặc một số MCP Server chạy trong môi trường sandbox riêng cần dùng <code>host.docker.internal</code> thay vì <code>127.0.0.1</code> để với tới container trên máy host.<br/>
-    <strong>Giải pháp:</strong> Xác nhận <code>docker ps</code> thấy <code>expense-mysql</code> đang chạy; nếu Server chạy trong container/sandbox riêng, đổi <code>MYSQL_HOST</code> theo đúng hướng dẫn README của Server đó.
+    <strong>Nguyên nhân:</strong> Container MySQL chưa chạy (kiểm tra lại <code>docker ps</code>), hoặc cổng 3306 bị chiếm bởi một MySQL khác trên máy.<br/>
+    <strong>Giải pháp:</strong> Xác nhận <code>docker ps</code> thấy <code>expense-mysql</code> đang chạy và connection Workbench kết nối được vào <code>127.0.0.1:3306</code>; nếu Workbench vẫn kết nối được mà MCP lỗi, thử đổi <code>MYSQL_HOST</code> thành <code>localhost</code>.
   </div>
   <div class="alert alert-warning">
     <strong>Lỗi:</strong> Claude Code không thấy Tool truy vấn SQL nào từ <code>mysql-expense</code>.<br/>
