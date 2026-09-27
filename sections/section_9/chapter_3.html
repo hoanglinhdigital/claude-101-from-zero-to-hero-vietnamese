@@ -39,22 +39,23 @@
       CC["<img src='../../assets/svg-icon/claude-logo.svg' style='width:28px;height:28px;'/><br/><b>Claude Code</b>"]
       Edit["<img src='../../assets/svg-icon/ide.svg' style='width:26px;height:26px;'/><br/>Edit / Write tool<br/>sửa file trong project"]
       Hook["<img src='../../assets/svg-icon/operator.svg' style='width:26px;height:26px;'/><br/><b>PostToolUse Hook</b><br/>matcher: Edit|Write"]
-      Prettier["📐<br/><b>Prettier</b><br/>npx prettier --write ."]
-      Repo["<img src='../../assets/svg-icon/ide.svg' style='width:26px;height:26px;'/><br/><b>lab-expense-management</b><br/>toàn bộ file project"]
+      Script["<img src='../../assets/svg-icon/operator.svg' style='width:26px;height:26px;'/><br/><b>format-changed-file.ps1</b><br/>đọc file_path từ stdin JSON"]
+      Prettier["📐<br/><b>Prettier</b><br/>prettier --write &lt;file_path&gt;"]
+      Repo["<img src='../../assets/svg-icon/ide.svg' style='width:26px;height:26px;'/><br/><b>lab-expense-management</b><br/>chỉ file vừa được sửa"]
 
       Dev -->|"Yêu cầu sửa file"| CC
       CC --> Edit --> Repo
-      Edit -->|"Sau khi tool chạy xong"| Hook
-      Hook --> Prettier --> Repo
+      Edit -->|"Sau khi tool chạy xong, stdin: JSON chứa tool_input.file_path"| Hook
+      Hook --> Script --> Prettier --> Repo
   </div>
-  <p class="arch-caption">Ngay sau khi Claude Code dùng tool Edit/Write để sửa file, Hook PostToolUse tự động chạy Prettier để định dạng lại code trong project, không cần User tự nhắc.</p>
+  <p class="arch-caption">Ngay sau khi Claude Code dùng tool Edit/Write để sửa file, Hook PostToolUse gọi script PowerShell đọc đúng đường dẫn file vừa sửa từ JSON stdin, rồi chỉ chạy Prettier trên file đó — không đụng đến các file khác trong project.</p>
 
   <h2 class="section-heading">Yêu cầu trước khi bắt đầu</h2>
   <ul class="feature-list">
-    <li>Đã hoàn thành bài Lab ở Chapter 4, Section 4 — project <code>D:\lab-expense-management</code> đã tồn tại.</li>
+    <li>Project <code>D:\lab-expense-management</code> vẫn hoạt động bình thường</li>
     <li>Claude Code CLI đã cài đặt và đăng nhập thành công.</li>
     <li>Node.js phiên bản 18 trở lên đã cài đặt (<code>node -v</code> chạy được).</li>
-    <li>Terminal: PowerShell hoặc Windows Terminal.</li>
+    <li>Terminal: PowerShell/Windows Terminal/Gitbash.</li>
   </ul>
 
   <h2 class="section-heading">Các bước thực hành</h2>
@@ -70,22 +71,20 @@ npm install --save-dev prettier</code></pre>
     <li>
       <div>
         <strong>Bước 2: Tạo file cấu hình Prettier cơ bản</strong>
-        <p>Tạo file <code>.prettierrc</code> ở gốc project với vài quy tắc format cơ bản.</p>
-        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">@'
+        <p>Tạo file <code>.prettierrc</code> ở gốc project sau đó dán nội dung này vào:</p>
+        <pre class="command-line" data-prompt="PS>"><code class="language-json">
 {
   "semi": true,
   "singleQuote": true,
   "trailingComma": "es5"
-}
-'@ | Set-Content -Path .prettierrc -Encoding utf8</code></pre>
+}</code></pre>
       </div>
     </li>
     <li>
       <div>
         <strong>Bước 3: Tạo thư mục .claude và file settings.json khai báo Hook PostToolUse</strong>
-        <p>Hook cần được khai báo trong <code>settings.json</code> ở phạm vi project (<code>.claude/settings.json</code>) — chia sẻ được cho cả team qua Git nếu muốn.</p>
-        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">mkdir .claude -Force
-@'
+        <p>Hook cần được khai báo trong <code>settings.json</code> ở phạm vi project (<code>.claude/settings.json</code>) — chia sẻ được cho cả team qua Git nếu muốn. Command gọi đến script <code>format-changed-file.ps1</code> sẽ tạo ở Bước 4, thay vì gọi thẳng <code>prettier --write .</code>.</p>
+        <pre class="command-line"><code class="language-json">
 {
   "hooks": {
     "PostToolUse": [
@@ -94,38 +93,52 @@ npm install --save-dev prettier</code></pre>
         "hooks": [
           {
             "type": "command",
-            "command": "npx prettier --write ."
+            "command": "powershell -NoProfile -ExecutionPolicy Bypass -File .claude/hooks/format-changed-file.ps1"
           }
         ]
       }
     ]
   }
 }
-'@ | Set-Content -Path .claude\settings.json -Encoding utf8</code></pre>
-        <p>Nội dung file tương đương như sau:</p>
-        <pre class="file-block"><span class="filename">.claude/settings.json</span>{
-  <span class="hl">"hooks"</span>: {
-    <span class="hl">"PostToolUse"</span>: [
-      {
-        <span class="hl">"matcher"</span>: <span class="str">"Edit|Write"</span>,
-        <span class="hl">"hooks"</span>: [
-          {
-            <span class="hl">"type"</span>: <span class="str">"command"</span>,
-            <span class="hl">"command"</span>: <span class="str">"npx prettier --write ."</span>
-          }
-        ]
-      }
-    ]
-  }
-}</pre>
+</code></pre>
+
       </div>
     </li>
     <li>
       <div>
-        <strong>Bước 4: Đánh đổi khi chọn cách format toàn bộ project</strong>
-        <p>Lệnh <code>npx prettier --write .</code> format lại <strong>toàn bộ project</strong> mỗi lần Hook chạy, thay vì chỉ đúng 1 file vừa được sửa — đơn giản và chắc chắn chạy được, không cần đọc/phân tích JSON đầu vào. Đánh đổi là Hook sẽ chậm hơn một chút với project lớn, và có thể format cả những file User chưa muốn động vào.</p>
+        <strong>Bước 4: Viết script chỉ format đúng file vừa được sửa</strong>
+        <p>Lệnh <code>npx prettier --write .</code> đơn giản nhưng format lại <strong>toàn bộ project</strong> mỗi lần Hook chạy, kể cả những file không liên quan — chậm hơn với project lớn và có thể động vào file User chưa muốn sửa. Claude Code truyền một JSON qua <strong>stdin</strong> cho mỗi lệnh Hook, trong đó field <code>tool_input.file_path</code> chứa đúng đường dẫn file vừa được Edit/Write. Script dưới đây đọc JSON đó và chỉ chạy Prettier trên đúng file này.</p>
+        <p>Tạo file: .claude/hooks/format-changed-file.ps1 và dán nội dung sau vào:</p>
+        <pre class="command-line" ><code class="language-powershell">
+# Đọc toàn bộ JSON mà Claude Code truyền vào qua stdin
+$stdinJson = [Console]::In.ReadToEnd()
+
+try {
+    $hookData = $stdinJson | ConvertFrom-Json
+} catch {
+    # JSON không hợp lệ -> bỏ qua, không chặn Claude Code
+    exit 0
+}
+
+# Đường dẫn file vừa được Edit/Write nằm ở field tool_input.file_path
+$filePath = $hookData.tool_input.file_path
+if ([string]::IsNullOrWhiteSpace($filePath)) {
+    exit 0
+}
+
+# Chỉ format các phần mở rộng mà Prettier hỗ trợ trong project này
+$supportedExt = @('.ts', '.tsx', '.js', '.jsx', '.json', '.css', '.md')
+$ext = [System.IO.Path]::GetExtension($filePath)
+if ($supportedExt -notcontains $ext) {
+    exit 0
+}
+
+if (Test-Path -LiteralPath $filePath) {
+    npx prettier --write "$filePath"
+}
+</code></pre>
         <div class="alert alert-warning">
-          <strong>Phương án chính xác hơn (tuỳ chọn, không bắt buộc trong bài lab):</strong> Có thể viết một script PowerShell nhỏ đọc JSON từ stdin để lấy đúng đường dẫn file vừa được Claude Code sửa, rồi chỉ chạy <code>prettier --write &lt;đường dẫn đó&gt;</code>. Tên field JSON chính xác (đường dẫn file, tên tool...) có thể khác nhau theo phiên bản Claude Code — tham khảo tài liệu chính thức tại <code>docs.claude.com</code> trước khi triển khai theo hướng này cho công việc thật.
+          <strong>Lưu ý:</strong> Tên field JSON chính xác (<code>tool_input.file_path</code>, tên tool...) có thể thay đổi theo phiên bản Claude Code — tham khảo tài liệu chính thức tại <code>docs.claude.com</code> để xác nhận schema JSON của Hook trước khi dùng cho công việc thật. Nếu muốn quay lại cách format toàn bộ project (đơn giản hơn nhưng chậm hơn), chỉ cần đổi <code>command</code> ở Bước 3 lại thành <code>npx prettier --write .</code>.
         </div>
       </div>
     </li>
@@ -141,7 +154,7 @@ claude</code></pre>
       <div>
         <strong>Bước 6: Yêu cầu Claude Code sửa một file cụ thể để kiểm tra Hook</strong>
         <p>Cố ý yêu cầu Claude Code thêm một đoạn code viết chưa đúng chuẩn format (thiếu dấu chấm phẩy, dấu cách không chuẩn) để dễ quan sát Prettier đã chạy lại sau đó.</p>
-        <pre class="command-line" data-prompt=">"><code class="language-text">Thêm vào cuối file app/page.tsx đúng nguyên văn đoạn code sau, không tự chỉnh sửa format hay style:
+        <pre class="command-line" data-prompt=">"><code class="language-text">Thêm vào cuối file src/app/(main)/page.tsx đúng nguyên văn đoạn code sau, không tự chỉnh sửa format hay style:
 const testHookFormat = {a:1,b:2, c:3}
 Chỉ cần thêm nguyên văn như trên, không cần chuẩn hoá theo coding convention.</code></pre>
       </div>
@@ -149,7 +162,7 @@ Chỉ cần thêm nguyên văn như trên, không cần chuẩn hoá theo coding
     <li>
       <div>
         <strong>Bước 7: Quan sát log terminal khi Hook chạy</strong>
-        <p>Ngay sau khi Claude Code ghi xong file, quan sát terminal — Claude Code thường hiển thị thông báo đang chạy Hook đã khai báo (tên command <code>npx prettier --write .</code>) trước khi trả lời hoàn tất.</p>
+        <p>Ngay sau khi Claude Code ghi xong file, quan sát terminal — Claude Code thường hiển thị thông báo đang chạy Hook đã khai báo (script <code>.claude/hooks/format-changed-file.ps1</code>) trước khi trả lời hoàn tất.</p>
       </div>
     </li>
     <li>

@@ -27,8 +27,8 @@
 
   <h2 class="section-heading">Mục tiêu</h2>
   <ul class="feature-list">
-    <li>Dùng <code>/speckit.plan</code> lập kế hoạch kỹ thuật: mô hình dữ liệu mê cung/khối lệnh, engine thực thi, cơ chế kéo thả, API route và schema Prisma.</li>
-    <li>Dùng <code>/speckit.tasks</code> chia kế hoạch kỹ thuật thành các task nhỏ, thực hiện độc lập được từng phần.</li>
+    <li>Dùng <code>/speckit-plan</code> lập kế hoạch kỹ thuật: mô hình dữ liệu mê cung/khối lệnh, engine thực thi, cơ chế kéo thả, API route và schema Prisma.</li>
+    <li>Dùng <code>/speckit-tasks</code> chia kế hoạch kỹ thuật thành các task nhỏ, thực hiện độc lập được từng phần.</li>
     <li>Xem lại file <code>plan.md</code> và <code>tasks.md</code> được sinh ra, đối chiếu với <code>spec.md</code> ở Chapter 4.</li>
   </ul>
 
@@ -42,12 +42,12 @@
       F1["📝 spec.md<br/>(Chapter 4)"]
 
       subgraph Step1["Bước 1"]
-          Cmd1["/speckit.plan<br/>+ định hướng kỹ thuật"]
+          Cmd1["/speckit-plan<br/>+ định hướng kỹ thuật"]
           F2["🗺️ plan.md<br/>Schema Prisma, engine,<br/>API route, UI kéo thả"]
       end
 
       subgraph Step2["Bước 2"]
-          Cmd2["/speckit.tasks"]
+          Cmd2["/speckit-tasks"]
           F3["📋 tasks.md<br/>Danh sách task nhỏ"]
       end
 
@@ -59,7 +59,7 @@
       F2 -.->|"Ngữ cảnh"| CC
       Cmd2 --> CC --> F3
   </div>
-  <p class="arch-caption"><code>/speckit.plan</code> đọc lại <code>spec.md</code> và <code>constitution.md</code> để lập kế hoạch kỹ thuật đúng yêu cầu và tuân theo nguyên tắc chung; <code>/speckit.tasks</code> đọc lại <code>plan.md</code> để chia thành các task cụ thể.</p>
+  <p class="arch-caption"><code>/speckit-plan</code> đọc lại <code>spec.md</code> và <code>constitution.md</code> để lập kế hoạch kỹ thuật đúng yêu cầu và tuân theo nguyên tắc chung; <code>/speckit-tasks</code> đọc lại <code>plan.md</code> để chia thành các task cụ thể.</p>
 
   <h2 class="section-heading">Yêu cầu trước khi bắt đầu</h2>
   <ul class="feature-list">
@@ -70,7 +70,7 @@
 
   <h2 class="section-heading">Các bước thực hành</h2>
 
-  <h3 class="sub-heading">Phần 1: Lập kế hoạch kỹ thuật với /speckit.plan</h3>
+  <h3 class="sub-heading">Phần 1: Lập kế hoạch kỹ thuật với /speckit-plan</h3>
   <ol class="step-list">
     <li>
       <div>
@@ -81,12 +81,12 @@ claude</code></pre>
     </li>
     <li>
       <div>
-        <strong>Bước 2: Chạy /speckit.plan với định hướng kỹ thuật cụ thể</strong>
+        <strong>Bước 2: Chạy /speckit-plan với định hướng kỹ thuật cụ thể</strong>
         <p>Đưa lại các quyết định kỹ thuật đã phân tích ở Chapter 4 (Phần 2) vào prompt, để Claude Code lập kế hoạch bám sát đúng hướng thay vì tự chọn giải pháp khác.</p>
-        <pre class="command-line" data-prompt=">"><code class="language-text">/speckit.plan Lập kế hoạch kỹ thuật để triển khai tính năng trong spec.md. Định hướng cụ thể:
+        <pre class="command-line" data-prompt=">"><code class="language-text">/speckit-plan Lập kế hoạch kỹ thuật để triển khai tính năng trong specs\001-maze-block-runner\spec.md. Định hướng cụ thể:
 1. Mô hình dữ liệu Prisma: model Level (id, tên, dữ liệu mê cung dạng JSON gồm lưới ô, điểm xuất phát, điểm đích, số khối lệnh tối thiểu để đạt 3 sao), model Player (id, nickname, tạo tự động khi lần đầu nhập biệt danh, không cần mật khẩu), model Progress (playerId, levelId, số sao đạt được, số khối lệnh đã dùng, thời điểm hoàn thành, unique theo playerId+levelId — lưu lần chơi tốt nhất).
 2. Engine thực thi khối lệnh: hàm thuần trong lib/maze-engine.ts, nhận vào dữ liệu mê cung (từ Level) và mảng khối lệnh (bao gồm khối Lặp lại chứa khối con), trả về danh sách từng bước di chuyển của nhân vật và kết quả cuối (đến đích/va tường/chưa hoàn thành) — không phụ thuộc DOM hay React, để chạy được cả ở client (xem trước khi lưu) lẫn server (chấm điểm chính thức, tránh gian lận từ client).
-3. Giao diện kéo thả: dùng HTML5 Drag and Drop API (draggable, ondragstart, ondrop) thuần, không thêm thư viện drag-and-drop ngoài; component palette (danh sách khối lệnh mẫu) và workspace (khung ghép lệnh) là React component trong app/.
+3. Giao diện kéo thả: dùng thư viện drag/drop có sẵn (hỗ trợ HTML5) tránh việc implement từ đầu; component palette (danh sách khối lệnh mẫu) và workspace (khung ghép lệnh) là React component trong app/.
 4. API route mới: POST /api/progress nhận playerId, levelId, chuỗi khối lệnh đã ghép — server tự chạy lại lib/maze-engine.ts để xác thực kết quả (không tin số sao gửi từ client), sau đó lưu/cập nhật Progress nếu tốt hơn lần trước.
 5. API route GET /api/levels trả danh sách màn chơi kèm trạng thái đã hoàn thành (số sao) nếu có playerId; GET /api/players/[nickname] tạo Player mới nếu nickname chưa tồn tại.
 6. Đảm bảo tuân theo constitution.md: validate input ở mọi route, tách logic chấm điểm khỏi UI, không thêm ORM/thư viện kéo thả khác ngoài đã liệt kê.</code></pre>
@@ -101,12 +101,12 @@ claude</code></pre>
     </li>
   </ol>
 
-  <h3 class="sub-heading">Phần 2: Chia nhỏ kế hoạch với /speckit.tasks</h3>
+  <h3 class="sub-heading">Phần 2: Chia nhỏ kế hoạch với /speckit-tasks</h3>
   <ol class="step-list">
     <li>
       <div>
-        <strong>Bước 4: Chạy /speckit.tasks để chia plan.md thành các task cụ thể</strong>
-        <pre class="command-line" data-prompt=">"><code class="language-text">/speckit.tasks Chia kế hoạch trong plan.md thành các task nhỏ, mỗi task chỉ nên tập trung vào một phần cụ thể (vd một model Prisma, một hàm trong engine, một API route, hoặc một phần giao diện kéo thả), có thể thực hiện và kiểm tra độc lập theo đúng thứ tự phụ thuộc. Ưu tiên viết unit test cho lib/maze-engine.ts thành task riêng vì đây là logic chấm điểm quan trọng nhất.</code></pre>
+        <strong>Bước 4: Chạy /speckit-tasks để chia plan.md thành các task cụ thể</strong>
+        <pre class="command-line" data-prompt=">"><code class="language-text">/speckit-tasks Chia kế hoạch trong plan.md thành các task nhỏ, mỗi task chỉ nên tập trung vào một phần cụ thể (vd một model Prisma, một hàm trong engine, một API route, hoặc một phần giao diện kéo thả), có thể thực hiện và kiểm tra độc lập theo đúng thứ tự phụ thuộc. Ưu tiên viết unit test cho lib/maze-engine.ts thành task riêng vì đây là logic chấm điểm quan trọng nhất.</code></pre>
       </div>
     </li>
     <li>
@@ -126,14 +126,14 @@ claude</code></pre>
 
   <div class="verify-box">
     <h4>✅ Kết quả mong đợi</h4>
-    <p class="body-text"><code>specs/{feature-id}/plan.md</code> nêu rõ 3 model Prisma (Level, Player, Progress), thiết kế <code>lib/maze-engine.ts</code>, API route mới, và cách tổ chức component kéo thả — tuân theo <code>constitution.md</code>. <code>specs/{feature-id}/tasks.md</code> chứa danh sách task nhỏ, đúng thứ tự phụ thuộc, sẵn sàng cho <code>/speckit.implement</code> ở Chapter 6.</p>
+    <p class="body-text"><code>specs/{feature-id}/plan.md</code> nêu rõ 3 model Prisma (Level, Player, Progress), thiết kế <code>lib/maze-engine.ts</code>, API route mới, và cách tổ chức component kéo thả — tuân theo <code>constitution.md</code>. <code>specs/{feature-id}/tasks.md</code> chứa danh sách task nhỏ, đúng thứ tự phụ thuộc, sẵn sàng cho <code>/speckit-implement</code> ở Chapter 6.</p>
   </div>
 
   <h2 class="section-heading">Troubleshoot</h2>
   <div class="alert alert-warning">
     <strong>Lỗi:</strong> <code>plan.md</code> đề xuất chấm điểm/xác thực kết quả hoàn toàn ở phía client, không có bước server tự chạy lại engine để xác thực.<br/>
     <strong>Nguyên nhân:</strong> Prompt ở Bước 2 tuy đã nêu nhưng Claude Code có thể đơn giản hoá bỏ qua bước xác thực server.<br/>
-    <strong>Giải pháp:</strong> Yêu cầu Claude Code chạy lại <code>/speckit.plan</code>, nhấn mạnh rõ ràng buộc "API route phải tự chạy lại maze-engine ở server để xác thực, không tin kết quả gửi từ client".
+    <strong>Giải pháp:</strong> Yêu cầu Claude Code chạy lại <code>/speckit-plan</code>, nhấn mạnh rõ ràng buộc "API route phải tự chạy lại maze-engine ở server để xác thực, không tin kết quả gửi từ client".
   </div>
   <div class="alert alert-warning">
     <strong>Lỗi:</strong> <code>tasks.md</code> gộp việc tạo engine và viết unit test chung một task.<br/>

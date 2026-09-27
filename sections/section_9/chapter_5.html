@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lab - Cấu hình Hook chặn hành động nguy hiểm – Claude 101</title>
+  <link rel="stylesheet" href="../../styles.css" />
+  <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+  <script src="../../mermaid-config.js"></script>
+  <link rel="stylesheet" href="../../prism.css" />
+  <script src="../../prism.js"></script>
+  <script src="../../script.js"></script>
+</head>
+<body class="chapter-body">
+
+  <div class="chapter-breadcrumb">
+    <span class="section-part">9. Claude Code Hooks</span>
+    <span class="sep">/</span>
+    <span class="chapter-part">Lab - Cấu hình Hook chặn hành động nguy hiểm</span>
+  </div>
+
+  <div class="alert alert-info">
+    <strong>Tái sử dụng project:</strong> Bài lab này tiếp tục dùng project <code>D:\lab-expense-management</code>
+    đã dùng ở các bài Lab trước (Chapter 3 &amp; 4). Có thể giữ nguyên Hook <code>PostToolUse</code> và
+    <code>Stop</code> đã cấu hình — bài lab này chỉ thêm một Hook mới cho event <code>PreToolUse</code>.
+  </div>
+
+  <h2 class="section-heading">Mục tiêu</h2>
+  <ul class="feature-list">
+    <li>Cấu hình một Hook <code>PreToolUse</code> khớp với tool <code>Bash</code>, kiểm tra nội dung lệnh <strong>trước khi</strong> Claude Code thực thi thật.</li>
+    <li>Hook tự động <strong>chặn</strong> (block) các lệnh nguy hiểm: xoá file/thư mục (dù nằm trong hay ngoài project), <code>git push</code> và <code>git reset</code>.</li>
+    <li>Kiểm chứng bằng cách yêu cầu Claude Code thực hiện lần lượt từng hành động nguy hiểm, xác nhận lệnh bị chặn kèm lý do, đồng thời xác nhận lệnh Bash an toàn khác vẫn chạy bình thường.</li>
+  </ul>
+
+  <h2 class="section-heading">Mô hình kiến trúc</h2>
+  <div class="mermaid">
+  flowchart LR
+      Dev(("<img src='../../assets/svg-icon/developer.svg' style='width:26px;height:26px;'/><br/><b>User</b>"))
+      Model["<img src='../../assets/svg-icon/claude-logo.svg' style='width:28px;height:28px;'/><br/>Claude Code<br/>quyết định gọi tool Bash"]
+      Hook["<img src='../../assets/svg-icon/operator.svg' style='width:26px;height:26px;'/><br/><b>PreToolUse Hook</b><br/>guard-dangerous-commands.ps1"]
+      Decision{{"Lệnh có khớp pattern nguy hiểm?<br/>(xoá file / git push / git reset)"}}
+      Block["🛡️<br/><b>Block</b><br/>exit code 2 + lý do trả về Model"]
+      Allow["<img src='../../assets/svg-icon/task.svg' style='width:26px;height:26px;'/><br/>Bash thực thi lệnh thật"]
+      FS["📁<br/>File system<br/>(trong &amp; ngoài project)"]
+      Remote["<img src='../../assets/svg-icon/github.svg' style='width:26px;height:26px;'/><br/>Remote Git repository"]
+
+      Dev --> Model --> Hook --> Decision
+      Decision -->|"Có"| Block --> Model
+      Decision -->|"Không"| Allow
+      Allow --> FS
+      Allow --> Remote
+  </div>
+  <p class="arch-caption">Hook <code>PreToolUse</code> chèn một bước kiểm tra ngay trước khi tool <code>Bash</code> thực thi. Nếu nội dung lệnh khớp một trong các pattern nguy hiểm đã định nghĩa, script trả về exit code <code>2</code> — Claude Code huỷ lệnh, không cho chạy thật, và trả lý do chặn lại cho Model biết.</p>
+
+  <h2 class="section-heading">Yêu cầu trước khi bắt đầu</h2>
+  <ul class="feature-list">
+    <li>Claude Code CLI đã cài đặt và đăng nhập thành công.</li>
+    <li>PowerShell có thể chạy được file <code>.ps1</code> — bài lab dùng cờ <code>-ExecutionPolicy Bypass</code> ngay trong command của Hook nên không cần đổi execution policy chung của máy.</li>
+    <li>Project <code>D:\lab-expense-management</code> đã có sẵn (tái sử dụng từ các bài Lab trước).</li>
+  </ul>
+
+  <h2 class="section-heading">Các bước thực hành</h2>
+  <ol class="step-list">
+    <li>
+      <div>
+        <strong>Bước 1: Tạo thư mục chứa script Hook (nếu chưa có)</strong>
+        <p>Nếu đã làm bài Lab Chapter 4, thư mục <code>.claude\hooks</code> đã tồn tại — lệnh dưới có thể chạy lại an toàn nhờ <code>-Force</code>.</p>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">cd D:\lab-expense-management
+mkdir .claude\hooks -Force</code></pre>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 2: Tạo file script guard-dangerous-commands.ps1</strong>
+        <p>Script đọc nội dung JSON mà Claude Code truyền qua <strong>stdin</strong>, lấy ra field <code>tool_input.command</code> (chuỗi lệnh Bash sắp chạy), rồi đối chiếu với danh sách pattern nguy hiểm. Nếu khớp, script ghi lý do ra <code>stderr</code> và thoát với <code>exit 2</code> để báo cho Claude Code huỷ lệnh.</p>
+
+        <p>Nội dung file như sau:</p>
+        <pre class="file-block"><span class="filename">.claude/hooks/guard-dangerous-commands.ps1</span>
+          <span class="cmt">
+# Doc JSON input tu stdin ma Claude Code truyen vao Hook</span>
+$rawInput = [Console]::In.ReadToEnd()
+$data = $rawInput | ConvertFrom-Json
+$command = $data.tool_input.command
+
+if ([string]::IsNullOrWhiteSpace($command)) {
+    exit 0
+}
+
+<span class="cmt"># Danh sach pattern nguy hiem can chan, khong phan biet lenh nam trong hay ngoai project</span>
+$dangerousRules = @(
+    @{ Pattern = <span class="str">"Remove-Item|(^|\s)rm(\s|$)|(^|\s)del(\s|$)|rmdir|rd\s+/s"</span>; Reason = <span class="str">"Lenh xoa file/thu muc bi chan boi Hook bao ve (ap dung ca file trong lan ngoai project)."</span> },
+    @{ Pattern = <span class="str">"git\s+push"</span>; Reason = <span class="str">"Lenh git push bi chan boi Hook bao ve - can nguoi review truoc khi day code len remote repository."</span> },
+    @{ Pattern = <span class="str">"git\s+reset"</span>; Reason = <span class="str">"Lenh git reset bi chan boi Hook bao ve - co the lam mat commit hoac lich su thay doi."</span> }
+)
+
+foreach ($rule in $dangerousRules) {
+    if ($command -match $rule.Pattern) {
+        [Console]::Error.WriteLine(<span class="str">"[BLOCKED BY HOOK] $($rule.Reason)"</span>)
+        [Console]::Error.WriteLine(<span class="str">"Lenh bi chan: $command"</span>)
+        exit 2
+    }
+}
+
+<span class="cmt"># Khong khop pattern nguy hiem nao -> cho phep chay binh thuong</span>
+exit 0</pre>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 3: Khai báo Hook PreToolUse trong .claude/settings.json</strong>
+        <p>Cập nhật file <code>settings.json</code>, thêm event <code>PreToolUse</code> với <code>"matcher": "Bash"</code> — chỉ áp dụng cho tool <code>Bash</code>, gọi script vừa tạo. Giữ lại các Hook <code>PostToolUse</code> và <code>Stop</code> đã cấu hình ở bài Lab trước.</p>
+        
+        <p>Nội dung file như sau (đã thêm Hook PreToolUse mới, giữ nguyên PostToolUse &amp; Stop):</p>
+<pre class="command-line" ><code class="language-json">
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          { "type": "command", "command": "powershell -NoProfile -ExecutionPolicy Bypass -File .claude/hooks/guard-dangerous-commands.ps1" }
+        ]
+      }
+    ]
+  }
+}
+</code></pre>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 4: Khởi động lại Claude Code để áp dụng cấu hình mới</strong>
+        <p>Thoát phiên hiện tại (nếu đang mở) và mở lại trong đúng thư mục project.</p>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">cd D:\lab-expense-management
+claude</code></pre>
+      </div>
+    </li>
+    <li>
+      <div>
+      <div class="alert alert-warning">
+        <strong>Cảnh báo:</strong> Trước khi thực hiện các lệnh bên dưới, hãy đảm bảo backup source code bằng lệnh git add, git commit, git push origin<br/>
+        Nếu không, các lệnh git reset hoặc xoá file có thể làm mất dữ liệu quan trọng.
+      </div>
+        <strong>Bước 5: Kiểm tra chặn — xoá file trong project</strong>
+        <p>Yêu cầu Claude Code xoá một file bất kỳ nằm trong chính project hiện tại.</p>
+        <pre class="command-line" data-prompt=">"><code class="language-text">Hãy chạy lệnh Bash để xoá file README.md trong project này.</code></pre>
+        <p>Claude Code sẽ cố chạy lệnh (vd <code>rm README.md</code> hoặc <code>Remove-Item README.md</code>), nhưng Hook <code>PreToolUse</code> chặn lại trước khi lệnh thực thi. Claude Code sẽ báo lại rằng hành động bị từ chối kèm lý do từ Hook, và file <strong>không</strong> bị xoá.</p>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 6: Kiểm tra chặn — xoá file ngoài project</strong>
+        <p>Yêu cầu Claude Code xoá một file nằm ngoài thư mục project, ví dụ trong <code>C:\Temp</code>, để xác nhận Hook chặn cả trường hợp này chứ không chỉ giới hạn trong project.</p>
+        <pre class="command-line" data-prompt=">"><code class="language-text">Hãy chạy lệnh Bash để xoá file C:\Temp\test-lab.txt (không cần quan tâm file đó có tồn tại hay không).</code></pre>
+        <p>Kết quả tương tự Bước 5 — lệnh bị chặn ngay trước khi thực thi, bất kể đường dẫn đích nằm trong hay ngoài project.</p>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 7: Kiểm tra chặn — git push</strong>
+        <p>Yêu cầu Claude Code đẩy code lên remote repository.</p>
+        <pre class="command-line" data-prompt=">"><code class="language-text">Hãy chạy git push để đẩy commit hiện tại lên remote.</code></pre>
+        <p>Hook chặn lệnh <code>git push</code> trước khi thực thi, báo lý do "cần người review trước khi đẩy code lên remote".</p>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 8: Kiểm tra chặn — git reset</strong>
+        <p>Yêu cầu Claude Code hoàn tác các thay đổi bằng <code>git reset</code>.</p>
+        <pre class="command-line" data-prompt=">"><code class="language-text">Hãy chạy git reset --hard HEAD~1 để hoàn tác commit gần nhất.</code></pre>
+        <p>Hook chặn lệnh <code>git reset</code> trước khi thực thi, tránh nguy cơ mất commit hoặc lịch sử thay đổi ngoài ý muốn.</p>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 9: Xác nhận lệnh Bash an toàn vẫn chạy bình thường</strong>
+        <p>Yêu cầu một lệnh Bash không nằm trong danh sách nguy hiểm, để chắc chắn Hook không chặn nhầm các thao tác bình thường.</p>
+        <pre class="command-line" data-prompt=">"><code class="language-text">Hãy chạy git status và git log --oneline -5 để xem tình trạng repository hiện tại.</code></pre>
+        <p>Cả hai lệnh chạy và trả kết quả bình thường — Hook chỉ chặn đúng các pattern đã định nghĩa (xoá file, <code>git push</code>, <code>git reset</code>), không ảnh hưởng đến các lệnh Bash khác.</p>
+      </div>
+    </li>
+  </ol>
+
+  <div class="verify-box">
+    <h4>✅ Kết quả mong đợi</h4>
+    <p class="body-text">Các lệnh xoá file (trong lẫn ngoài project), <code>git push</code> và <code>git reset</code> đều bị Hook <code>PreToolUse</code> chặn lại trước khi thực thi thật, kèm thông báo lý do rõ ràng. Trong khi đó, các lệnh Bash an toàn khác (vd <code>git status</code>, <code>git log</code>) vẫn chạy và trả kết quả bình thường.</p>
+  </div>
+
+  <h2 class="section-heading">Troubleshoot</h2>
+  <div class="alert alert-warning">
+    <strong>Lỗi:</strong> Lệnh nguy hiểm vẫn chạy được, không bị chặn.<br/>
+    <strong>Nguyên nhân:</strong> Claude Code có thể đã dùng một tool khác ngoài <code>Bash</code> để thực hiện hành động tương đương (vd gọi trực tiếp qua một tool file-system riêng), trong khi Hook hiện chỉ khai báo <code>"matcher": "Bash"</code>.<br/>
+    <strong>Giải pháp:</strong> Kiểm tra Claude Code thực sự đã gọi tool nào bằng transcript của phiên làm việc; nếu cần chặn cả các tool khác, mở rộng <code>"matcher"</code> (vd <code>"Bash|Edit|Write"</code>) và bổ sung logic kiểm tra tương ứng trong script cho từng loại <code>tool_input</code>.
+  </div>
+  <div class="alert alert-warning">
+    <strong>Lỗi:</strong> PowerShell báo lỗi <code>ConvertFrom-Json</code> hoặc script luôn thoát với lỗi khi Hook chạy.<br/>
+    <strong>Nguyên nhân:</strong> Nội dung JSON truyền qua stdin không đúng định dạng mong đợi, hoặc field <code>tool_input.command</code> không tồn tại với phiên bản Claude Code đang dùng.<br/>
+    <strong>Giải pháp:</strong> Test thử script bằng cách tự tạo một file JSON mẫu và pipe vào: <code>Get-Content sample.json | powershell -File .claude\hooks\guard-dangerous-commands.ps1</code>; đối chiếu tên field thực tế trong JSON stdin với tài liệu chính thức tại <code>docs.claude.com</code>.
+  </div>
+  <div class="alert alert-warning">
+    <strong>Lỗi:</strong> Hook chặn luôn cả những lệnh an toàn có chứa từ khoá tương tự (vd tên biến chứa chữ "del" hoặc "reset").<br/>
+    <strong>Nguyên nhân:</strong> Regex pattern trong script đang khớp quá rộng (false positive).<br/>
+    <strong>Giải pháp:</strong> Tinh chỉnh lại regex trong <code>$dangerousRules</code> cho chặt chẽ hơn (vd thêm ranh giới từ, loại trừ ngữ cảnh cụ thể) và test lại với nhiều câu lệnh mẫu trước khi áp dụng cho công việc thật.
+  </div>
+  <div class="alert alert-info">
+    <strong>Lưu ý:</strong> Field chính xác trong JSON stdin (tên tool, cấu trúc <code>tool_input</code>) và exit code đặc biệt để chặn hành động ở <code>PreToolUse</code> có thể khác nhau giữa các phiên bản Claude Code. Trước khi áp dụng Hook bảo vệ này cho công việc thật, hãy kiểm tra lại tài liệu chính thức tại <code>docs.claude.com</code> để dùng đúng quy ước hiện hành.
+  </div>
+  <div class="alert alert-info">
+    <strong>Lưu ý:</strong> Hook này chỉ là một lớp bảo vệ bổ sung ở tầng ứng dụng, <strong>không thay thế</strong> cho các biện pháp bảo mật khác (backup định kỳ, branch protection trên remote repository, quyền hạn hệ điều hành...). Không nên xem đây là cơ chế bảo vệ duy nhất cho dữ liệu quan trọng.
+  </div>
+
+  <h2 class="section-heading">Dọn dẹp resource</h2>
+  <div class="alert alert-info">
+    Bài lab này không tạo resource trên Cloud, chỉ thêm file cấu hình và script cục bộ. Không bắt buộc phải xoá gì —
+    chỉ cần gỡ Hook nếu không muốn tiếp tục chặn các lệnh này khi dùng Claude Code trên project.
+  </div>
+  <p class="note-text">Nếu muốn tạm ngưng Hook PreToolUse mà không xoá project, xoá phần <code>"PreToolUse"</code> trong <code>.claude/settings.json</code> (giữ lại <code>"Stop"</code> nếu vẫn muốn dùng):</p>
+  <pre class="command-line"><code class="language-json">
+{
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          { "type": "command", "command": "powershell -NoProfile -ExecutionPolicy Bypass -File .claude/hooks/notify-stop.ps1" }
+        ]
+      }
+    ]
+  }
+}  
+  </code>
+  </pre>
+  <p class="note-text">Xoá file script guard nếu không muốn giữ lại (tuỳ chọn):</p>
+  <pre class="command-line" data-prompt="PS>"><code class="language-powershell">Remove-Item "D:\lab-expense-management\.claude\hooks\guard-dangerous-commands.ps1" -Confirm:$false</code></pre>
+  <div class="alert alert-warning">
+    <strong>Quan trọng:</strong> Không xoá thư mục <code>D:\lab-expense-management</code> — project này còn được dùng lại ở các Section khác. Chỉ dọn phần cấu hình Hook nếu không muốn giữ.
+  </div>
+
+  <script>mermaid.initialize({ startOnLoad: true, theme: 'default' });</script>
+</body>
+</html>

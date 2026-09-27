@@ -24,7 +24,7 @@
     <strong>Hook</strong> là cơ chế cho phép "chèn" một shell command tuỳ chỉnh vào những thời điểm cố định trong
     vòng đời làm việc của Claude Code — ví dụ ngay trước khi một tool được gọi, ngay sau khi tool chạy xong, hoặc khi
     một phiên làm việc kết thúc. Điểm khác biệt quan trọng nhất so với Skill và Sub-agent (đã học ở Section 3): Hook
-    <strong>chạy độc lập với model</strong> — không cần Claude Code "quyết định" có nên chạy hay không, chỉ cần điều
+    <strong>chạy độc lập với model</strong> — không cần Claude Code "quyết định" <b>có nên chạy hay không</b>, chỉ cần điều
     kiện khai báo trước (event + matcher) khớp là Hook tự động thực thi, giống một quy tắc cố định luôn được áp dụng.
   </p>
 
@@ -54,14 +54,17 @@
           HookRun["<img src='../../assets/svg-icon/operator.svg' style='width:26px;height:26px;'/><br/><b>Hook command</b><br/>chạy trong process riêng"]
       end
 
-      Prompt --> Model
-      Model -->|"Có Skill/Sub-agent khớp?"| Decide
-      Decide -->|"Có"| SkillRun --> Model
-      Model -->|"Gọi tool"| ToolCall --> Matcher
-      Matcher -->|"Khớp"| HookRun -.->|"Không cần model biết"| Model
-      Matcher -->|"Không khớp"| Model
+      Prompt -->|"1"| Model
+      Model -->|"2. Có Skill/Sub-agent khớp?"| Decide
+      Decide -->|"2.1 Có"| SkillRun
+      SkillRun -->|"2.2"| Model
+      Model -->|"3. Gọi tool"| ToolCall
+      ToolCall -->|"3.1"| Matcher
+      Matcher -->|"3.2 Khớp"| HookRun
+      HookRun -.->|"3.3 Không cần model biết"| Model
+      Matcher -->|"3.4 Không khớp"| Model
   </div>
-  <p class="arch-caption">Skill/Sub-agent chỉ được gọi khi <b>model tự nhận diện</b> yêu cầu khớp mô tả; Hook thì ngược lại — luôn chạy trong một process riêng biệt mỗi khi điều kiện (event + matcher) khớp, bất kể model có "muốn" hay không.</p>
+  <p class="arch-caption">Skill/Sub-agent chỉ được gọi khi <b>model tự nhận diện</b> yêu cầu khớp mô tả (bước 2 → 2.1 → 2.2); Hook thì ngược lại — luôn chạy trong một process riêng biệt mỗi khi điều kiện (event + matcher) khớp, bất kể model có "muốn" hay không (bước 3 → 3.1 → 3.2/3.4).</p>
 
   <h3 class="sub-heading">So sánh Hook với Skill và Sub-agent</h3>
   <table class="compare-table">
@@ -79,7 +82,7 @@
         <td>Chạy ở đâu?</td>
         <td>Trong cùng context của Agent đang chạy — nội dung SKILL.md được nạp thêm vào ngữ cảnh</td>
         <td>Trong context riêng của Sub-agent — tách biệt với context Agent chính</td>
-        <td>Trong một process hệ điều hành riêng biệt (shell command) — độc lập hoàn toàn với context của model</td>
+        <td>Trong một process cấp độ OS riêng biệt (shell command) — độc lập hoàn toàn với context của model</td>
       </tr>
       <tr>
         <td>Dùng khi nào?</td>
@@ -102,11 +105,12 @@
       Block["🚫<br/><b>Chặn thực thi</b><br/>trả lỗi lại cho model"]
       Allow["✅<br/><b>Cho phép chạy</b><br/>Bash command tiếp tục"]
 
-      Model --> Pre --> Danger
-      Danger -->|"Có"| Block
-      Danger -->|"Không"| Allow
+      Model -->|"1"| Pre
+      Pre -->|"2"| Danger
+      Danger -->|"2.1 Có"| Block
+      Danger -->|"2.2 Không"| Allow
   </div>
-  <p class="arch-caption">PreToolUse hook đóng vai trò một "trạm kiểm soát" độc lập, chạy trước khi command thực sự được thực thi — hoàn toàn không phụ thuộc việc model có tự nhận ra rủi ro hay không.</p>
+  <p class="arch-caption">PreToolUse hook đóng vai trò một "trạm kiểm soát" độc lập, chạy trước khi command thực sự được thực thi (bước 1 → 2) — hoàn toàn không phụ thuộc việc model có tự nhận ra rủi ro hay không (bước 2.1/2.2).</p>
   <div class="usecase-grid">
     <div class="usecase-card">
       <h4>Tự động format code (PostToolUse)</h4>
@@ -122,13 +126,6 @@
     </div>
   </div>
 
-  <h2 class="section-heading">Thông tin bổ sung</h2>
-  <p class="body-text">
-    Chương này chỉ giới thiệu khái niệm, điểm khác biệt cốt lõi và các use case phổ biến của Hook. Danh sách chi tiết
-    các loại event (<code>PreToolUse</code>, <code>PostToolUse</code>, <code>UserPromptSubmit</code>, <code>Stop</code>,
-    <code>SessionStart</code>...) và cách khai báo cụ thể trong <code>settings.json</code> được trình bày ở
-    chương tiếp theo.
-  </p>
   <h3 class="sub-heading">Lưu ý an toàn khi sử dụng Hook</h3>
   <div class="alert alert-danger">
     <strong>Hook chạy với đúng quyền của người dùng hiện tại trên máy</strong> — không có sandbox riêng biệt như một

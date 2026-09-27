@@ -33,7 +33,7 @@
     <li>Cài đặt Python 3.11+, <code>uv</code> và <code>specify</code> CLI (nếu máy chưa có).</li>
     <li>Khởi tạo project Next.js + TypeScript + Prisma hoàn toàn mới cho CodeKids Blocks.</li>
     <li>Chạy <code>specify init</code> để thêm bộ khung Spec-Kit vào project vừa tạo.</li>
-    <li>Xác nhận cấu trúc <code>.specify/</code> và slash command <code>/speckit.*</code> dùng được trong Claude Code.</li>
+    <li>Xác nhận cấu trúc <code>.specify/</code> và slash command <code>/speckit-*</code> dùng được trong Claude Code.</li>
   </ul>
 
   <h2 class="section-heading">Mô hình kiến trúc</h2>
@@ -61,7 +61,7 @@
       CLI -->|"Sinh vào project"| SpecifyDir
       Scaffold --- SpecifyDir
       Dev -->|"4. Mở Claude Code"| CC
-      SpecifyDir -->|"Nhận diện /speckit.*"| CC
+      SpecifyDir -->|"Nhận diện /speckit-*"| CC
   </div>
   <p class="arch-caption">Khác với các bài lab trước dùng lại <code>lab-expense-management</code>, CodeKids Blocks là project Next.js + Prisma hoàn toàn mới, chạy MySQL cục bộ qua Docker khi phát triển — Chapter 7 sẽ thay database này bằng TiDB Serverless khi triển khai lên Vercel.</p>
 
@@ -99,8 +99,8 @@ uv 0.5.11</code></pre>
     </li>
     <li>
       <div>
-        <strong>Bước 3: Cài đặt specify CLI từ repository Spec-Kit</strong>
-        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">uv tool install specify-cli --from git+https://github.com/github/spec-kit.git</code></pre>
+        <strong>Bước 3: Cài đặt specify CLI (đã publish trên PyPI)</strong>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">uv tool install specify-cli</code></pre>
         <pre class="command-line" data-prompt="PS>"><code class="language-powershell">specify --help</code></pre>
       </div>
     </li>
@@ -112,17 +112,23 @@ uv 0.5.11</code></pre>
       <div>
         <strong>Bước 4: Tạo project Next.js mới</strong>
         <p>Chạy tại thư mục cha nơi bạn muốn chứa project (vd <code>D:\</code>).</p>
-        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">cd D:\
-npx create-next-app@latest lab-codekids-blocks --typescript --app --eslint --tailwind=false --src-dir=false --import-alias "@/*"</code></pre>
-        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">cd D:\lab-codekids-blocks</code></pre>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">
+npx create-next-app@latest lab-codekids-blocks --typescript --app --eslint --tailwind=true --src-dir=false --import-alias "@/*"
+</code></pre>
+        <p>Mở thư mục ứng dụng bằng VS Code sau đó chạy lệnh 'npm install' để kiểm tra project hoạt động thành công.</p>
       </div>
     </li>
     <li>
       <div>
         <strong>Bước 5: Cài Prisma và khởi tạo schema</strong>
-        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">npm install prisma @prisma/client
-npx prisma init --datasource-provider mysql</code></pre>
-        <p>Lệnh trên tạo thư mục <code>prisma/</code> với file <code>schema.prisma</code> (provider <code>mysql</code> — tương thích cả MySQL cục bộ lẫn TiDB Serverless dùng ở Chapter 7) và file <code>.env</code> chứa biến <code>DATABASE_URL</code>.</p>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">
+npm install prisma @prisma/client
+npx prisma init</code></pre>
+        <p>Từ Prisma v7 trở lên, lệnh <code>prisma init</code> không còn nhận flag <code>--datasource-provider</code> — chạy <code>npx prisma init</code> không kèm flag sẽ tạo sẵn thư mục <code>prisma/</code> với file <code>schema.prisma</code> (mặc định provider <code>prisma+postgres</code>), file <code>prisma.config.ts</code>, và file <code>.env</code> chứa biến <code>DATABASE_URL</code>. Mở <code>prisma/schema.prisma</code> và sửa lại provider thành <code>mysql</code> để tương thích cả MySQL cục bộ lẫn TiDB Serverless dùng ở Chapter 7:</p>
+        <pre class="command-line"><code class="language-prisma">datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}</code></pre>
       </div>
     </li>
     <li>
@@ -163,11 +169,12 @@ volumes:
     <li>
       <div>
         <strong>Bước 8: Chạy specify init để khởi tạo Spec-Kit vào project hiện tại</strong>
-        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">specify init --here --ai claude</code></pre>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">specify init --here --integration claude</code></pre>
         <div class="alert alert-warning">
-          <strong>Lưu ý:</strong> Tên flag chính xác (<code>--here</code>, <code>--ai</code>...) có thể thay đổi theo
-          phiên bản Spec-Kit mới nhất. Nếu lệnh trên báo lỗi flag không hợp lệ, chạy <code>specify init --help</code>
-          để xem đúng tên tuỳ chọn hiện hành.
+          <strong>Lưu ý:</strong> Tên flag chính xác (<code>--here</code>, <code>--integration</code>...) có thể thay
+          đổi theo phiên bản Spec-Kit mới nhất — bản thân flag chọn agent từng có tên <code>--ai</code> ở phiên bản
+          cũ hơn, nay đã đổi thành <code>--integration</code>. Nếu lệnh trên báo lỗi flag không hợp lệ, chạy
+          <code>specify init --help</code> để xem đúng tên tuỳ chọn hiện hành.
         </div>
       </div>
     </li>
@@ -179,31 +186,45 @@ volumes:
     </li>
     <li>
       <div>
-        <strong>Bước 10: Kiểm tra cấu trúc .specify/ vừa được tạo</strong>
-        <pre class="command-line" data-prompt="PS>" data-output="2, 3, 4, 5, 6"><code class="language-powershell">dir
+        <strong>Bước 10: Kiểm tra cấu trúc .specify/ và .claude/skills/ vừa được tạo</strong>
+        <pre class="command-line" data-prompt="PS>" data-output="2, 3, 4, 5, 6, 7"><code class="language-powershell">dir
+.claude
 .specify
 app
 prisma
 docker-compose.yml
 package.json</code></pre>
+        <pre class="command-line" data-prompt="PS>" data-output="2, 3, 4, 5, 6, 7"><code class="language-powershell">dir .claude\skills
+speckit-constitution
+speckit-specify
+speckit-plan
+speckit-tasks
+speckit-implement
+speckit-converge</code></pre>
+        <p>Với Claude Code, Spec-Kit cài mỗi slash command là một <strong>Agent Skill</strong> riêng (thư mục con chứa <code>SKILL.md</code>) trong <code>.claude/skills/</code>, thay vì một file lệnh đơn — cách gọi lệnh trong chat vẫn không đổi.</p>
       </div>
     </li>
     <li>
       <div>
-        <strong>Bước 11: Mở Claude Code và xác nhận slash command /speckit.* xuất hiện</strong>
+        <strong>Bước 11: Mở Claude Code và xác nhận slash command /speckit-* xuất hiện</strong>
         <pre class="command-line" data-prompt="PS>"><code class="language-powershell">claude</code></pre>
-        <pre class="command-line" data-prompt=">"><code class="language-text">/speckit.</code></pre>
-        <p>Danh sách gợi ý hiện ra nên có đủ <code>/speckit.constitution</code>, <code>/speckit.specify</code>, <code>/speckit.plan</code>, <code>/speckit.tasks</code>, <code>/speckit.implement</code>.</p>
+        <pre class="command-line" data-prompt=">"><code class="language-text">/speckit-</code></pre>
+        <p>Danh sách gợi ý hiện ra nên có đủ <code>/speckit-constitution</code>, <code>/speckit-specify</code>, <code>/speckit-plan</code>, <code>/speckit-tasks</code>, <code>/speckit-implement</code>, <code>/speckit-converge</code>.</p>
       </div>
     </li>
   </ol>
 
   <div class="verify-box">
     <h4>✅ Kết quả mong đợi</h4>
-    <p class="body-text">Project <code>D:\lab-codekids-blocks</code> là một app Next.js + Prisma chạy được (<code>npm run dev</code> mở <code>localhost:3000</code> ra trang mặc định), có MySQL chạy trong Docker, và có thêm thư mục <code>.specify/</code>. Trong Claude Code, gõ <code>/speckit.</code> hiện ra đủ 5 slash command chính, sẵn sàng cho bài lab phân tích yêu cầu tiếp theo.</p>
+    <p class="body-text">Project <code>D:\lab-codekids-blocks</code> là một app Next.js + Prisma chạy được (<code>npm run dev</code> mở <code>localhost:3000</code> ra trang mặc định), có MySQL chạy trong Docker, và có thêm thư mục <code>.specify/</code> cùng <code>.claude/skills/</code>. Trong Claude Code, gõ <code>/speckit-</code> hiện ra đủ 6 slash command chính, sẵn sàng cho bài lab phân tích yêu cầu tiếp theo.</p>
   </div>
 
   <h2 class="section-heading">Troubleshoot</h2>
+  <div class="alert alert-warning">
+    <strong>Lỗi:</strong> <code>npx prisma init --datasource-provider mysql</code> báo <code>[CLI.INVALID_ARGUMENTS] No flag registered for --datasource-provider</code>.<br/>
+    <strong>Nguyên nhân:</strong> Từ Prisma v7 trở lên, flag <code>--datasource-provider</code> đã bị loại bỏ khỏi lệnh <code>prisma init</code> — mặc định project được khởi tạo với Prisma Postgres và cấu hình qua <code>prisma.config.ts</code>.<br/>
+    <strong>Giải pháp:</strong> Chạy <code>npx prisma init</code> không kèm flag, sau đó mở <code>prisma/schema.prisma</code> và sửa thủ công dòng <code>provider</code> trong khối <code>datasource db</code> thành <code>"mysql"</code>, rồi cập nhật <code>DATABASE_URL</code> trong <code>.env</code> theo đúng thông tin kết nối MySQL của bạn.
+  </div>
   <div class="alert alert-warning">
     <strong>Lỗi:</strong> Terminal báo <code>uv</code> hoặc <code>specify</code> không phải lệnh nhận diện được (not recognized).<br/>
     <strong>Nguyên nhân:</strong> PATH chưa được nạp lại sau khi cài — terminal đang mở là session cũ.<br/>
@@ -215,7 +236,7 @@ package.json</code></pre>
     <strong>Giải pháp:</strong> Dừng container cũ (<code>docker compose down</code> ở project cũ) hoặc đổi cổng mapping trong <code>docker-compose.yml</code> của CodeKids Blocks sang cổng khác (vd <code>3307:3306</code>) và cập nhật lại <code>DATABASE_URL</code> tương ứng.
   </div>
   <div class="alert alert-warning">
-    <strong>Lỗi:</strong> Trong Claude Code, gõ <code>/speckit.</code> không thấy gợi ý slash command nào.<br/>
+    <strong>Lỗi:</strong> Trong Claude Code, gõ <code>/speckit-</code> không thấy gợi ý slash command nào.<br/>
     <strong>Nguyên nhân:</strong> Claude Code đang chạy phiên mở từ trước khi <code>specify init</code> hoàn tất.<br/>
     <strong>Giải pháp:</strong> Thoát phiên Claude Code hiện tại (<code>/exit</code>) và chạy lại <code>claude</code> trong đúng thư mục project.
   </div>

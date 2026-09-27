@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tổng kết Spec-Driven Development – Claude 101</title>
+  <link rel="stylesheet" href="../../styles.css" />
+  <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+  <script src="../../mermaid-config.js"></script>
+  <link rel="stylesheet" href="../../prism.css" />
+  <script src="../../prism.js"></script>
+  <script src="../../script.js"></script>
+</head>
+<body class="chapter-body">
+
+  <div class="chapter-breadcrumb">
+    <span class="section-part">10. Phát triển phần mềm với Spec-Kit Framework</span>
+    <span class="sep">/</span>
+    <span class="chapter-part">Tổng kết Spec-Driven Development</span>
+  </div>
+
+  <h2 class="section-heading">Giới thiệu</h2>
+  <p class="body-text">
+    Xuyên suốt Section 10, chúng ta đã đi từ khái niệm <strong>Spec-Driven Development (SDD)</strong> đến việc thực hành
+    trọn vẹn một chu trình với <strong>Spec-Kit</strong> — framework mã nguồn mở của GitHub — trên project mẫu
+    <strong>CodeKids Blocks</strong>: khởi tạo project, viết constitution, đặc tả tính năng, lập plan/tasks, implement,
+    đối chiếu kết quả, và cuối cùng triển khai lên Cloud (Vercel & TiDB Serverless). Chương này tổng kết lại toàn bộ
+    quy trình đã làm, đồng thời nhìn lại thẳng thắn ưu và nhược điểm của SDD để biết khi nào nên áp dụng và khi nào
+    không cần thiết.
+  </p>
+
+  <h2 class="section-heading">Những gì đã học và làm được</h2>
+  <div class="capability-grid">
+    <div class="capability-card">
+      <div class="icon">📜</div>
+      <h4>SDD là gì (Chapter 1)</h4>
+      <p>Hiểu triết lý: spec là nguồn chân lý, code là kết quả sinh ra từ spec — không phải ngược lại. So sánh với vibe coding.</p>
+    </div>
+    <div class="capability-card">
+      <div class="icon">🧰</div>
+      <h4>Spec-Kit Framework (Chapter 2)</h4>
+      <p>Nắm 6 giai đoạn: Constitution → Specification  → Planning → Task Breakdown → Implementation → Convergence, cùng cấu trúc file/thư mục do <code>specify</code> sinh ra.</p>
+    </div>
+    <div class="capability-card">
+      <div class="icon">⚙️</div>
+      <h4>Khởi tạo project (Chapter 3)</h4>
+      <p>Chạy <code>specify init</code> để khởi tạo project CodeKids Blocks, cài slash command <code>/speckit-*</code> cho Claude Code.</p>
+    </div>
+    <div class="capability-card">
+      <div class="icon">📐</div>
+      <h4>Constitution & Specify (Chapter 4)</h4>
+      <p>Viết nguyên tắc dự án (constitution) và đặc tả yêu cầu (spec) cho tính năng kéo thả vượt mê cung.</p>
+    </div>
+    <div class="capability-card">
+      <div class="icon">🗺️</div>
+      <h4>Plan & Tasks (Chapter 5)</h4>
+      <p>Sinh kế hoạch kỹ thuật từ spec, chia nhỏ thành các task cụ thể có thể giao cho AI agent thực thi.</p>
+    </div>
+    <div class="capability-card">
+      <div class="icon">🔍</div>
+      <h4>Implement & đối chiếu (Chapter 6)</h4>
+      <p>Thực thi task, đối chiếu (convergence) kết quả với spec ban đầu, phát hiện và sửa bug lệch yêu cầu.</p>
+    </div>
+    <div class="capability-card">
+      <div class="icon">☁️</div>
+      <h4>Triển khai Cloud (Chapter 7)</h4>
+      <p>Đưa CodeKids Blocks lên Vercel & TiDB Serverless — khép kín vòng đời từ spec đến sản phẩm chạy thực tế.</p>
+    </div>
+  </div>
+
+  <h2 class="section-heading">Mô hình kiến trúc: Nhìn lại toàn bộ chu trình SDD</h2>
+  <div class="mermaid">
+  flowchart LR
+      C["📐<br/><b>Constitution</b><br/>Nguyên tắc dự án"]
+      S["📜<br/><b>Specify</b><br/>Đặc tả yêu cầu (spec.md)"]
+      CL["❓<br/><b>Clarify</b><br/>Làm rõ điểm mơ hồ"]
+      P["🗺️<br/><b>Plan</b><br/>Kế hoạch kỹ thuật (plan.md)"]
+      T["📋<br/><b>Tasks</b><br/>Chia nhỏ task (tasks.md)"]
+      I["<img src='../../assets/svg-icon/claude-logo.svg' style='width:26px;height:26px;'/><br/><b>Implement</b><br/>AI agent sinh code"]
+      V["🧩<br/><b>Convergence</b><br/>Đối chiếu code với spec"]
+      D["☁️<br/><b>Deploy</b><br/>Triển khai lên Cloud"]
+
+      C --> S --> CL --> P --> T --> I --> V --> D
+      V -.->|"Lệch yêu cầu → quay lại sửa"| I
+      D -.->|"Yêu cầu mới → cập nhật spec trước"| S
+  </div>
+  <p class="arch-caption">Toàn bộ chu trình khép kín: mọi thay đổi đều bắt đầu từ spec, lan toả xuống plan → task → code, và luôn đối chiếu ngược lại spec trước khi coi là hoàn thành.</p>
+
+  <h2 class="section-heading">Ưu và nhược điểm của Spec-Driven Development</h2>
+  <div class="compare-grid">
+    <div class="compare-card green">
+      <h4>✅ Ưu điểm</h4>
+      <ul>
+        <li>Giữ ngữ cảnh nhất quán xuyên suốt tính năng lớn — AI agent không "quên" yêu cầu giữa các lần prompt.</li>
+        <li>Có thể trace ngược từ code → task → plan → spec, dễ kiểm tra đúng/sai khi có tranh cãi về yêu cầu.</li>
+        <li>Giảm rủi ro drift (code lệch dần khỏi ý định ban đầu) nhờ bước đối chiếu (convergence) bắt buộc.</li>
+        <li>Phù hợp làm việc nhóm — nhiều người/nhiều AI agent cùng tham chiếu một spec duy nhất, tránh hiểu sai lệch nhau.</li>
+        <li>Spec luôn được cập nhật trước khi code, nên tài liệu không bao giờ "lỗi thời" như cách làm truyền thống.</li>
+      </ul>
+    </div>
+    <div class="compare-card red">
+      <h4>❌ Nhược điểm</h4>
+      <ul>
+        <li class="cross">Tốn thời gian khởi động (constitution, specify,  plan, task breakdown) trước khi có dòng code đầu tiên.</li>
+        <li class="cross">Quy trình nhiều bước, nhiều file (<code>spec.md</code>, <code>plan.md</code>, <code>tasks.md</code>) — dễ gây "quá tải" cho thay đổi nhỏ.</li>
+        <li class="cross">Cần kỷ luật duy trì: nếu không cập nhật spec khi yêu cầu đổi, SDD mất hết lợi ích so với vibe coding.</li>
+        <li class="cross">Đòi hỏi người dùng biết viết đặc tả rõ ràng — nếu spec mơ hồ, plan/task/code sinh ra vẫn sai dù đúng quy trình.</li>
+        <li class="cross">Không phù hợp khi cần phản hồi tức thời, thử nghiệm nhanh ý tưởng (rapid prototyping).</li>
+      </ul>
+    </div>
+  </div>
+
+  <h2 class="section-heading">Khi nào nên và không nên dùng SDD</h2>
+  <table class="compare-table">
+    <thead>
+      <tr><th>Tình huống</th><th>Nên dùng SDD?</th><th>Vì sao</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Tính năng lớn, nhiều bước, nhiều file liên quan</td>
+        <td class="yes">Nên dùng</td>
+        <td>Cần giữ ngữ cảnh nhất quán, tránh AI agent "lạc hướng" giữa chừng</td>
+      </tr>
+      <tr>
+        <td>Làm việc nhóm, nhiều người/AI agent cùng tham gia một tính năng</td>
+        <td class="yes">Nên dùng</td>
+        <td>Spec là điểm tham chiếu chung, tránh mỗi người hiểu yêu cầu một kiểu</td>
+      </tr>
+      <tr>
+        <td>Dự án cần audit/trace lại quyết định kỹ thuật (enterprise, compliance)</td>
+        <td class="yes">Nên dùng</td>
+        <td>Có thể trace ngược từ code về đúng dòng yêu cầu sinh ra nó</td>
+      </tr>
+      <tr>
+        <td>Refactor lớn cần đảm bảo không phá vỡ hành vi hiện có</td>
+        <td class="yes">Nên dùng</td>
+        <td>Spec đóng vai trò checklist đối chiếu (convergence) sau khi refactor</td>
+      </tr>
+      <tr>
+        <td>Sửa lỗi nhỏ, 1-2 dòng code, không ảnh hưởng kiến trúc</td>
+        <td class="no">Không cần</td>
+        <td>Chi phí viết spec/plan/task lớn hơn nhiều so với giá trị mang lại</td>
+      </tr>
+      <tr>
+        <td>Thử nghiệm ý tưởng nhanh, prototype cá nhân, chưa rõ yêu cầu</td>
+        <td class="no">Không cần</td>
+        <td>Yêu cầu còn thay đổi liên tục — viết spec trước sẽ lỗi thời ngay khi vừa xong</td>
+      </tr>
+      <tr>
+        <td>Dự án một người, quy mô nhỏ, không cần bàn giao cho ai khác</td>
+        <td class="no">Không cần</td>
+        <td>Quy trình Explore → Plan → Code → Verify ở Section 4 đã đủ dùng</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h2 class="section-heading">Use Cases</h2>
+  <div class="usecase-grid">
+    <div class="usecase-card">
+      <h4>Phát triển tính năng mới ở quy mô đội nhóm</h4>
+      <p>Nhiều developer cùng làm một tính năng lớn, cần một spec chung để tránh hiểu sai yêu cầu giữa các thành viên và giữa các lần làm việc với AI agent.</p>
+    </div>
+    <div class="usecase-card">
+      <h4>Dự án cần bàn giao, kế thừa lâu dài</h4>
+      <p>Spec, plan, task được lưu lại thành file trong repository — người kế nhiệm đọc lại vẫn hiểu được lý do đằng sau mỗi quyết định kỹ thuật.</p>
+    </div>
+    <div class="usecase-card">
+      <h4>Refactor/migration có rủi ro cao</h4>
+      <p>Cần chứng minh hệ thống sau khi thay đổi lớn vẫn đáp ứng đúng yêu cầu ban đầu — spec là căn cứ đối chiếu khách quan.</p>
+    </div>
+  </div>
+
+  <h2 class="section-heading">Thông tin bổ sung</h2>
+  <p class="body-text">
+    SDD không phải là quy trình bắt buộc cho mọi công việc — nó là một công cụ bổ sung khi bài toán đủ lớn để cần kiểm
+    soát chặt chẽ. Hãy xem đây là một lựa chọn trong "hộp công cụ", đặt cạnh quy trình prompt trực tiếp,
+    Skill và Sub-agent hay Hook  — mỗi công cụ phù hợp với một loại vấn đề khác nhau. 
+  </p>
+  <div class="alert alert-success">
+    <strong>Ghi nhớ:</strong> Quy tắc vàng của SDD — <em>khi yêu cầu thay đổi, luôn cập nhật spec trước, để mọi thứ
+    lan toả xuống plan → task → code</em>. Bỏ qua bước này sẽ khiến SDD quay lại đúng vấn đề mà nó vốn dùng để giải quyết.
+  </div>
+
+  <script>mermaid.initialize({ startOnLoad: true, theme: 'default' });</script>
+</body>
+</html>

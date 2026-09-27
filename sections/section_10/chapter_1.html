@@ -21,7 +21,7 @@
 
   <h2 class="section-heading">Giới thiệu</h2>
   <p class="body-text">
-    <strong>Spec-Driven Development (SDD)</strong> là phương pháp phát triển phần mềm trong đó bản <strong>đặc tả
+    <strong>Spec-Driven Development (SDD)</strong> là phương pháp phát triển phần mềm hiện đại trong đó bản <strong>đặc tả
     (specification)</strong> không còn là tài liệu viết một lần rồi bỏ quên, mà trở thành <strong>artifact thực thi
     được (executable artifact)</strong> — nguồn chân lý (source of truth) mà cả AI agent (như Claude Code) và con
     người cùng đọc trực tiếp để sinh ra kế hoạch kỹ thuật, task, và cuối cùng là code. Cách làm truyền thống thường
@@ -68,6 +68,41 @@
   </div>
   <p class="arch-caption">Cách làm truyền thống: spec chỉ là điểm khởi đầu, dần lỗi thời vì code thay đổi mà không quay lại cập nhật. SDD: spec luôn ở vị trí trung tâm, mọi thay đổi đều bắt đầu từ việc cập nhật spec rồi lan toả xuống plan → task → code, khép vòng bằng bước đối chiếu (convergence).</p>
 
+  <h2 class="section-heading">So sánh Vibe Coding và Spec-Driven Development</h2>
+  <p class="body-text">
+    <strong>Vibe coding</strong> — thuật ngữ chỉ cách làm việc với AI coding agent bằng các prompt ngôn ngữ tự nhiên rời rạc,
+    dựa vào "cảm giác" của từng lần trao đổi thay vì một tài liệu đặc tả được kiểm soát — là điểm khởi đầu tự nhiên khi
+    ai đó mới dùng Claude Code. SDD không phủ nhận vibe coding, mà bổ sung một lớp kỷ luật khi bài toán đủ lớn để cần
+    kiểm soát ngữ cảnh và tính đúng đắn xuyên suốt nhiều bước.
+  </p>
+  <table class="pricing-table">
+    <thead>
+      <tr><th>Khía cạnh</th><th>Vibe Coding</th><th>Spec-Driven Development (SDD)</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Điểm khởi đầu</td>
+        <td>Prompt ngôn ngữ tự nhiên, ad-hoc, không lưu vết</td>
+        <td>Bản spec dạng markdown chi tiết, có version control</td>
+      </tr>
+      <tr>
+        <td>Vai trò của AI</td>
+        <td>Generator chính, phải tự đoán ý định người dùng</td>
+        <td>Executor tuân theo một "hợp đồng hành vi" (behavioral contract) rõ ràng</td>
+      </tr>
+      <tr>
+        <td>Chất lượng code</td>
+        <td>Dễ bị drift, phát sinh bug và nợ kỹ thuật (tech debt)</td>
+        <td>Nhất quán, có thể trace ngược, bám sát đúng ý định ban đầu</td>
+      </tr>
+      <tr>
+        <td>Phù hợp nhất cho</td>
+        <td>Prototype cá nhân, thử nghiệm nhanh</td>
+        <td>Tính năng phức tạp ở quy mô enterprise, cần mở rộng</td>
+      </tr>
+    </tbody>
+  </table>
+
   <h2 class="section-heading">Use Cases</h2>
   <div class="usecase-grid">
     <div class="usecase-card">
@@ -94,7 +129,7 @@
   <div class="alert alert-info">
     <strong>Lưu ý:</strong> Chương tiếp theo sẽ giới thiệu <strong>Spec-Kit</strong> — công cụ mã nguồn mở cụ thể của
     GitHub giúp áp dụng triết lý SDD vào thực tế thông qua CLI <code>specify</code> và các slash command
-    <code>/speckit.*</code> trong Claude Code.
+    <code>/speckit-*</code> trong Claude Code.
   </div>
 
   <script>mermaid.initialize({ startOnLoad: true, theme: 'default' });</script>

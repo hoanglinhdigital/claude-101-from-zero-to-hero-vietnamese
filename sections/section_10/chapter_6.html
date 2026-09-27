@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Lab - Implement & đối chiếu kết quả – Claude 101</title>
+  <title>Lab - Implement, đối chiếu & sửa bug – Claude 101</title>
   <link rel="stylesheet" href="../../styles.css" />
   <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
   <script src="../../mermaid-config.js"></script>
@@ -16,22 +16,24 @@
   <div class="chapter-breadcrumb">
     <span class="section-part">10. Phát triển phần mềm với Spec-Kit Framework</span>
     <span class="sep">/</span>
-    <span class="chapter-part">Lab - Implement & đối chiếu kết quả</span>
+    <span class="chapter-part">Lab - Implement, đối chiếu & sửa bug</span>
   </div>
 
   <div class="alert alert-info">
     Bài lab này <strong>tiếp tục dùng project <code>D:\lab-codekids-blocks</code></strong> và <code>tasks.md</code>
     của tính năng <strong>"kéo thả khối lệnh vượt mê cung"</strong> đã tạo ở Chapter 5. Đây là bài lab khép lại vòng
-    SDD bằng giai đoạn <strong>Implementation</strong> và <strong>Convergence</strong> — Chapter 7 tiếp theo sẽ
-    triển khai sản phẩm hoàn chỉnh này lên Vercel và TiDB.
+    SDD bằng giai đoạn <strong>Implementation</strong> và <strong>Convergence</strong>, đồng thời xử lý bug thực tế
+    phát sinh sau Convergence (lỗi giao diện kéo thả) bằng bộ công cụ <code>/speckit-bug-assess</code> và
+    <code>/speckit-bug-fix</code> — Chapter 7 tiếp theo sẽ triển khai sản phẩm hoàn chỉnh này lên Vercel và TiDB.
   </div>
 
   <h2 class="section-heading">Mục tiêu</h2>
   <ul class="feature-list">
-    <li>Dùng <code>/speckit.implement</code> để Claude Code triển khai lần lượt các task đã chia ở <code>tasks.md</code>.</li>
+    <li>Dùng <code>/speckit-implement</code> để Claude Code triển khai lần lượt các task đã chia ở <code>tasks.md</code>.</li>
     <li>Theo dõi tiến độ thực thi từng task, xác nhận từng bước trước khi cho phép ghi file.</li>
     <li>Kiểm chứng màn chơi kéo thả vượt mê cung chạy đúng thực tế trên trình duyệt sau khi implement xong.</li>
-    <li>Đối chiếu kết quả thực tế với <code>spec.md</code> ban đầu (giai đoạn Convergence) — xác nhận không thiếu, không lệch yêu cầu.</li>
+    <li>Dùng <code>/speckit-converge</code> để Claude Code tự đối chiếu kết quả thực tế với <code>spec.md</code> ban đầu — xác nhận không thiếu, không lệch yêu cầu.</li>
+    <li>Dùng <code>/speckit-bug-assess</code> và <code>/speckit-bug-fix</code> để chẩn đoán và sửa các bug phát sinh khi thử nghiệm thực tế mà <code>spec.md</code> chưa mô tả đủ chi tiết để <code>/speckit-converge</code> phát hiện ra.</li>
   </ul>
 
   <h2 class="section-heading">Mô hình kiến trúc</h2>
@@ -42,7 +44,7 @@
       Tasks["📋 tasks.md<br/>(Chapter 5)"]
       Spec["📝 spec.md<br/>(Chapter 4)"]
 
-      subgraph Loop["🔁 /speckit.implement — lặp qua từng task"]
+      subgraph Loop["🔁 /speckit-implement — lặp qua từng task"]
           T1["Task 1: schema.prisma<br/>Level · Player · Progress"]
           T2["Task 2: lib/maze-engine.ts"]
           T3["Task 3: unit test engine"]
@@ -52,16 +54,19 @@
       end
 
       Browser["<img src='../../assets/svg-icon/browser.svg' style='width:26px;height:26px;'/><br/>Kiểm chứng thực tế<br/>localhost:3000"]
-      Converge["✅ <b>Convergence</b><br/>Đối chiếu code với spec.md"]
+      Converge["✅ <b>/speckit-converge</b><br/>Đối chiếu code với spec.md"]
+      Report["📄 Báo cáo: Converged /<br/>còn phần lệch"]
 
-      Dev -->|"/speckit.implement"| CC
+      Dev -->|"/speckit-implement"| CC
       Tasks --> CC
       CC --> Loop
       Loop --> Browser
-      Browser --> Converge
+      Browser -->|"Dev gõ"| Converge
       Spec -.->|"Đối chiếu lại"| Converge
+      Converge --> Report
+      Report -.->|"Còn lệch → sửa spec/plan/tasks, chạy lại"| Loop
   </div>
-  <p class="arch-caption">Claude Code thực thi tuần tự từng task trong <code>tasks.md</code>, đánh dấu hoàn thành ngược lại vào file này. Sau khi hết task, bước Convergence đối chiếu toàn bộ kết quả với <code>spec.md</code> gốc để xác nhận đúng yêu cầu — khép vòng SDD cho tính năng lõi của CodeKids Blocks.</p>
+  <p class="arch-caption">Claude Code thực thi tuần tự từng task trong <code>tasks.md</code>, đánh dấu hoàn thành ngược lại vào file này. Sau khi hết task và kiểm chứng thủ công trên trình duyệt, chạy <code>/speckit-converge</code> để Claude Code tự đối chiếu toàn bộ kết quả với <code>spec.md</code> gốc — lặp lại cặp implement/converge cho đến khi báo cáo xác nhận <strong>Converged</strong>, khép vòng SDD cho tính năng lõi của CodeKids Blocks.</p>
 
   <h2 class="section-heading">Yêu cầu trước khi bắt đầu</h2>
   <ul class="feature-list">
@@ -73,7 +78,7 @@
 
   <h2 class="section-heading">Các bước thực hành</h2>
 
-  <h3 class="sub-heading">Phần 1: Triển khai bằng /speckit.implement</h3>
+  <h3 class="sub-heading">Phần 1: Triển khai bằng /speckit-implement</h3>
   <ol class="step-list">
     <li>
       <div>
@@ -85,9 +90,9 @@ claude</code></pre>
     </li>
     <li>
       <div>
-        <strong>Bước 2: Chạy /speckit.implement để bắt đầu triển khai</strong>
+        <strong>Bước 2: Chạy /speckit-implement để bắt đầu triển khai</strong>
         <p>Claude Code sẽ đọc <code>tasks.md</code> và thực thi lần lượt từng task theo đúng thứ tự đã chia ở Chapter 5.</p>
-        <pre class="command-line" data-prompt=">"><code class="language-text">/speckit.implement</code></pre>
+        <pre class="command-line" data-prompt=">"><code class="language-text">/speckit-implement</code></pre>
       </div>
     </li>
     <li>
@@ -121,7 +126,7 @@ PASS  __tests__/maze-engine.test.ts
     </li>
   </ol>
 
-  <h3 class="sub-heading">Phần 2: Kiểm chứng thực tế và Convergence</h3>
+  <h3 class="sub-heading">Phần 2: Kiểm chứng thực tế và Convergence với /speckit-converge</h3>
   <ol class="step-list">
     <li>
       <div>
@@ -144,29 +149,72 @@ PASS  __tests__/maze-engine.test.ts
     </li>
     <li>
       <div>
-        <strong>Bước 10: Đối chiếu kết quả với spec.md — giai đoạn Convergence</strong>
-        <p>Mở lại <code>spec.md</code> ở Chapter 4, lập checklist từng yêu cầu (9 mục đã liệt kê) và xác nhận từng mục đã đáp ứng đúng trên thực tế.</p>
-        <pre class="command-line" data-prompt=">"><code class="language-text">Đọc lại spec.md của tính năng kéo thả vượt mê cung và so sánh với code đã implement. Liệt kê rõ: yêu cầu nào đã đáp ứng đầy đủ, yêu cầu nào còn thiếu hoặc chưa đúng (nếu có), kèm vị trí file liên quan.</code></pre>
+        <strong>Bước 10: Chạy /speckit-converge để đối chiếu kết quả với spec.md</strong>
+        <p>Thay vì tự viết checklist đối chiếu bằng tay, dùng đúng slash command Convergence có sẵn của Spec-Kit — lệnh này tự đọc lại <code>spec.md</code>, so sánh với code hiện tại và kết quả kiểm chứng ở các bước trên.</p>
+        <pre class="command-line" data-prompt=">"><code class="language-text">/speckit-converge</code></pre>
+        <p>Đọc kỹ báo cáo trả về: liệt kê yêu cầu nào trong <code>spec.md</code> đã đáp ứng đầy đủ, yêu cầu nào còn thiếu hoặc chưa đúng (nếu có), kèm vị trí file liên quan, và trạng thái tổng thể (<strong>Converged</strong> hoặc còn phần lệch).</p>
       </div>
     </li>
     <li>
       <div>
         <strong>Bước 11: Xử lý phần chưa khớp (nếu có)</strong>
-        <p>Nếu Bước 10 phát hiện sai lệch, quay lại cập nhật <code>spec.md</code>/<code>plan.md</code>/<code>tasks.md</code> cho đúng thực tế mong muốn rồi chạy lại <code>/speckit.implement</code> cho phần liên quan — không sửa tay trực tiếp vào code mà bỏ qua việc cập nhật spec.</p>
+        <p>Nếu báo cáo ở Bước 10 chưa phải <strong>Converged</strong>, quay lại cập nhật <code>spec.md</code>/<code>plan.md</code>/<code>tasks.md</code> cho đúng thực tế mong muốn (nếu spec sai) hoặc yêu cầu sửa code (nếu implement sai), rồi chạy lại <code>/speckit-implement</code> cho phần liên quan — không sửa tay trực tiếp vào code mà bỏ qua việc cập nhật spec. Lặp lại cặp <code>/speckit-implement</code> → <code>/speckit-converge</code> cho đến khi báo cáo xác nhận Converged.</p>
+      </div>
+    </li>
+  </ol>
+
+  <h3 class="sub-heading">Phần 3: Xử lý bug phát sinh sau khi Converged bằng /speckit-bug-assess và /speckit-bug-fix</h3>
+  <div class="alert alert-info">
+    <code>/speckit-converge</code> chỉ đối chiếu code với <strong>yêu cầu đã đặc tả</strong> trong <code>spec.md</code> — nó không phát hiện những lỗi hành vi thực tế mà spec chưa mô tả đủ chi tiết (ví dụ vùng nhận thả của khối lệnh chưa tính đúng mọi vị trí trong workspace). Đây là lúc dùng đúng bộ công cụ <strong>bug fixing</strong> riêng của Spec-Kit — <code>/speckit-bug-assess</code> để chẩn đoán, <code>/speckit-bug-fix</code> để sửa — thay vì quay lại <code>/speckit-implement</code>. Bộ công cụ này là <strong>extension riêng</strong>, chưa có sẵn khi cài Spec-Kit mặc định.
+  </div>
+  <ol class="step-list">
+    <li>
+      <div>
+        <strong>Bước 12: Cài extension bug fixing cho Spec-Kit</strong>
+        <p>Bộ lệnh <code>/speckit-bug-assess</code>, <code>/speckit-bug-fix</code> <strong>không có sẵn</strong> khi chạy <code>specify init</code> mặc định ở Chapter 3 — đây là extension riêng, cần cài thêm vào project trước khi dùng.</p>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">cd D:\lab-codekids-blocks
+specify extension add bug</code></pre>
+        <p>Sau khi cài xong, mở lại phiên Claude Code (<code>/exit</code> rồi chạy lại <code>claude</code>) để slash command mới được nạp — gõ <code>/speckit-bug-</code> để xác nhận thấy gợi ý <code>/speckit-bug-assess</code> và <code>/speckit-bug-fix</code> trước khi qua bước tiếp theo.</p>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 13: Ghi nhận Bug — Không thể kéo block mới vào vị trí dưới cùng</strong>
+        <p>Mô tả lại đúng hiện tượng và bước tái hiện cho <code>/speckit-bug-assess</code> chẩn đoán trước khi sửa.</p>
+        <pre class="command-line" data-prompt=">"><code class="language-text">/speckit-bug-assess Khi kéo khối lệnh thứ 2 trở đi từ palette vào workspace, không thể kéo khối lệnh vào bên dưới khối lệnh đã có, bắt buộc phải kéo đè lên khối lệnh đã có sau đó tinh chỉnh lại vị trí. Tái hiện: mở màn bất kỳ 1/2/3 (nhiều khối), kéo một khối bất kỳ sau đó kéo khối thứ 2 rồi thả vào ngay dưới khối thứ nhất, mong đợi khối thứ 2 sẽ nằm dưới nhưng kết quả là khối thứ 2 bị bật trở lại lại palette</code></pre>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 14: Đọc báo cáo chẩn đoán, xác nhận trước khi sửa</strong>
+        <p>Đọc kỹ phần root cause, file/hàm liên quan và mức độ ảnh hưởng mà <code>/speckit-bug-assess</code> trả về (thường trỏ đúng vào hàm xử lý <code>ondrop</code> — vùng nhận thả (drop zone) chưa tính đúng khoảng trống ngay dưới khối cuối cùng trong workspace). Xác nhận chẩn đoán khớp với hiện tượng đã thấy trên trình duyệt trước khi cho phép sửa.</p>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 15: Chạy /speckit-bug-fix để sửa bug</strong>
+        <pre class="command-line" data-prompt=">"><code class="language-text">/speckit-bug-fix</code></pre>
+        <p>Đọc thay đổi được đề xuất trước khi xác nhận ghi file — đúng phạm vi sửa là cách xác định vùng nhận thả hợp lệ trong workspace, không sửa lan sang logic chấm điểm hay cấu trúc dữ liệu khối lệnh.</p>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 16: Kiểm chứng lại trên trình duyệt</strong>
+        <p>Lặp lại đúng bước tái hiện ở Bước 13 (kéo khối thứ 2 thả ngay dưới khối thứ nhất) ở cả 3 màn 1/2/3 — xác nhận khối mới nằm đúng vị trí dưới khối đã có ngay lần thả đầu tiên, không còn bị bật trở lại palette.</p>
       </div>
     </li>
   </ol>
 
   <div class="verify-box">
     <h4>✅ Kết quả mong đợi</h4>
-    <p class="body-text">Màn chơi kéo thả khối lệnh vượt mê cung hoạt động đúng với cả 3 kết quả (đến đích, va chạm, chưa hoàn thành), chấm sao đúng theo số khối lệnh đã dùng, chơi được ngay bằng biệt danh không cần đăng nhập. Toàn bộ yêu cầu trong <code>spec.md</code> được đối chiếu và xác nhận đã đáp ứng — hoàn tất giai đoạn Convergence, khép vòng SDD cho tính năng lõi của CodeKids Blocks.</p>
+    <p class="body-text">Màn chơi kéo thả khối lệnh vượt mê cung hoạt động đúng với cả 3 kết quả (đến đích, va chạm, chưa hoàn thành), chấm sao đúng theo số khối lệnh đã dùng, chơi được ngay bằng biệt danh không cần đăng nhập. <code>/speckit-converge</code> báo cáo trạng thái <strong>Converged</strong>, và bug phát sinh khi thử nghiệm thực tế (không kéo thả được khối mới vào đúng vị trí dưới cùng) đã được chẩn đoán bằng <code>/speckit-bug-assess</code> và sửa bằng <code>/speckit-bug-fix</code>, xác nhận lại đúng trên trình duyệt — khép vòng SDD cho tính năng lõi của CodeKids Blocks.</p>
   </div>
 
   <h2 class="section-heading">Troubleshoot</h2>
   <div class="alert alert-warning">
-    <strong>Lỗi:</strong> <code>/speckit.implement</code> dừng giữa chừng, báo lỗi khi thực thi một task cụ thể.<br/>
+    <strong>Lỗi:</strong> <code>/speckit-implement</code> dừng giữa chừng, báo lỗi khi thực thi một task cụ thể.<br/>
     <strong>Nguyên nhân:</strong> Task đó phụ thuộc vào một package chưa được cài đặt đúng, hoặc mô tả task chưa đủ rõ so với thực tế project.<br/>
-    <strong>Giải pháp:</strong> Đọc thông báo lỗi cụ thể, yêu cầu Claude Code cài package còn thiếu (<code>npm install</code>) hoặc làm rõ lại task đó rồi tiếp tục <code>/speckit.implement</code> — các task đã hoàn thành trước đó vẫn được giữ nguyên.
+    <strong>Giải pháp:</strong> Đọc thông báo lỗi cụ thể, yêu cầu Claude Code cài package còn thiếu (<code>npm install</code>) hoặc làm rõ lại task đó rồi tiếp tục <code>/speckit-implement</code> — các task đã hoàn thành trước đó vẫn được giữ nguyên.
   </div>
   <div class="alert alert-warning">
     <strong>Lỗi:</strong> Kéo thả khối lệnh trên trình duyệt bị giật, thả không đúng vị trí trong khung làm việc.<br/>
@@ -177,6 +225,21 @@ PASS  __tests__/maze-engine.test.ts
     <strong>Lỗi:</strong> Số sao lưu vào database khác với số sao hiển thị trên giao diện.<br/>
     <strong>Nguyên nhân:</strong> UI tự tính sao ở client bằng logic riêng thay vì dùng đúng kết quả server trả về từ <code>/api/progress</code>.<br/>
     <strong>Giải pháp:</strong> Yêu cầu Claude Code sửa UI để hiển thị đúng số sao lấy từ response của API — chỉ dùng logic client để xem trước hiệu ứng di chuyển, không dùng để tính điểm cuối cùng.
+  </div>
+  <div class="alert alert-warning">
+    <strong>Lỗi:</strong> <code>/speckit-converge</code> báo cáo lặp đi lặp lại là chưa Converged dù đã sửa code đúng như spec.<br/>
+    <strong>Nguyên nhân:</strong> Bản thân <code>spec.md</code> mô tả mơ hồ hoặc thiếu chi tiết ở đúng phần đang bị đối chiếu lệch, khiến Claude Code hiểu sai ý định ban đầu mỗi lần chạy lại.<br/>
+    <strong>Giải pháp:</strong> Đọc kỹ phần "còn lệch" trong báo cáo, cập nhật trực tiếp câu chữ mơ hồ trong <code>spec.md</code> cho rõ ràng hơn (thay vì chỉ sửa code), rồi chạy lại <code>/speckit-implement</code> → <code>/speckit-converge</code>.
+  </div>
+  <div class="alert alert-warning">
+    <strong>Lỗi:</strong> <code>/speckit-bug-assess</code> chỉ ra sai file, hoặc chẩn đoán chung ("có thể do logic drag-drop") không đủ cụ thể để sửa.<br/>
+    <strong>Nguyên nhân:</strong> Mô tả bug ban đầu thiếu bước tái hiện cụ thể (thiếu màn cụ thể, thiếu đúng thứ tự thao tác kéo thả), khiến Claude Code không có đủ dữ kiện để khoanh vùng đúng.<br/>
+    <strong>Giải pháp:</strong> Bổ sung lại bước tái hiện chi tiết hơn (màn nào, thao tác theo đúng thứ tự nào, kết quả mong đợi so với kết quả thực tế) rồi chạy lại <code>/speckit-bug-assess</code> — chẩn đoán chính xác phụ thuộc trực tiếp vào chất lượng mô tả tái hiện.
+  </div>
+  <div class="alert alert-warning">
+    <strong>Lỗi:</strong> Chạy <code>/speckit-bug-assess</code> hoặc <code>/speckit-bug-fix</code> nhưng Claude Code báo không nhận diện được slash command.<br/>
+    <strong>Nguyên nhân:</strong> Chưa chạy <code>specify extension add bug</code> ở Bước 12, hoặc đã chạy nhưng vẫn dùng phiên Claude Code cũ mở từ trước đó nên chưa nạp lại slash command mới.<br/>
+    <strong>Giải pháp:</strong> Chạy <code>specify extension add bug</code> tại thư mục project (<code>D:\lab-codekids-blocks</code>) nếu chưa chạy, sau đó thoát phiên Claude Code hiện tại (<code>/exit</code>) và chạy lại <code>claude</code> để nạp lại toàn bộ slash command.
   </div>
 
   <h2 class="section-heading">Dọn dẹp resource</h2>

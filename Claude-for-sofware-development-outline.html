@@ -1,0 +1,544 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Claude 101 for Software Development - Tiếng Việt — Nội dung khoá học</title>
+<style>
+  :root {
+    --font: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    --color-bg: #f8fafc;
+    --color-card-bg: #ffffff;
+    --color-text: #1e293b;
+    --color-text-muted: #64748b;
+    --color-border: #e2e8f0;
+    --color-header-bg: #1a2035;
+    --accent-blue: #2563eb;
+    --accent-purple: #7c3aed;
+    --accent-orange: #f97316;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html, body {
+    font-family: var(--font);
+    background: var(--color-bg);
+    color: var(--color-text);
+    line-height: 1.6;
+  }
+
+  /* ── Header ── */
+  .hero {
+    background: linear-gradient(135deg, var(--color-header-bg) 0%, var(--accent-blue) 100%);
+    color: #fff;
+    padding: 48px 24px 40px;
+    text-align: center;
+  }
+  .hero .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(255,255,255,.12);
+    border: 1px solid rgba(255,255,255,.25);
+    padding: 6px 16px;
+    border-radius: 999px;
+    font-size: 13px;
+    font-weight: 600;
+    margin-bottom: 18px;
+  }
+  .hero .badge .dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--accent-orange);
+  }
+  .hero h1 {
+    font-size: 30px;
+    font-weight: 800;
+    margin-bottom: 10px;
+    letter-spacing: .2px;
+  }
+  .hero p {
+    max-width: 640px;
+    margin: 0 auto;
+    color: #cbd5e1;
+    font-size: 15px;
+  }
+
+  /* ── Intro info strip ── */
+  .info-strip {
+    max-width: 900px;
+    margin: -28px auto 0;
+    padding: 0 20px;
+    position: relative;
+    z-index: 2;
+  }
+  .info-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 14px;
+    background: var(--color-card-bg);
+    border: 1px solid var(--color-border);
+    border-radius: 14px;
+    padding: 20px;
+    box-shadow: 0 8px 24px rgba(0,0,0,.08);
+  }
+  .info-item { text-align: center; padding: 6px; }
+  .info-item .icon { font-size: 22px; margin-bottom: 6px; }
+  .info-item .label {
+    font-size: 11px; text-transform: uppercase; letter-spacing: .5px;
+    color: var(--color-text-muted); font-weight: 700; margin-bottom: 2px;
+  }
+  .info-item .value { font-size: 14px; font-weight: 700; color: var(--color-text); }
+
+  /* ── Explain box: dành cho người không rành kỹ thuật ── */
+  .explain-box {
+    max-width: 900px;
+    margin: 28px auto 0;
+    padding: 18px 22px;
+    background: #eff6ff;
+    border: 1px solid #bfdbfe;
+    border-left: 4px solid var(--accent-blue);
+    border-radius: 10px;
+    font-size: 14px;
+    color: #1e40af;
+  }
+  .explain-box strong { color: #1e3a8a; }
+
+  /* ── Main container ── */
+  .container {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 36px 20px 70px;
+  }
+
+  .container h2.page-title {
+    font-size: 20px;
+    font-weight: 800;
+    color: var(--color-text);
+    margin-bottom: 4px;
+  }
+  .container p.page-subtitle {
+    font-size: 14px;
+    color: var(--color-text-muted);
+    margin-bottom: 28px;
+  }
+
+  /* ── Section card (mỗi Section = 1 chương lớn) ── */
+  .section-card {
+    background: var(--color-card-bg);
+    border: 1px solid var(--color-border);
+    border-radius: 14px;
+    margin-bottom: 22px;
+    overflow: hidden;
+    box-shadow: 0 1px 4px rgba(0,0,0,.04);
+  }
+
+  .section-head {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 18px 22px;
+    border-bottom: 1px solid var(--color-border);
+    background: #fafbfd;
+  }
+  .section-num {
+    flex-shrink: 0;
+    width: 40px; height: 40px;
+    border-radius: 10px;
+    background: var(--accent-blue);
+    color: #fff;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px; font-weight: 800;
+  }
+  .section-head h3 {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--color-text);
+    margin-bottom: 2px;
+  }
+  .section-head .section-meta {
+    font-size: 12px;
+    color: var(--color-text-muted);
+    font-weight: 600;
+  }
+
+  .section-body { padding: 18px 22px 20px; }
+  .section-desc {
+    font-size: 14px;
+    color: #475569;
+    margin-bottom: 16px;
+  }
+
+  .lesson-list { list-style: none; }
+  .lesson-list li {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 8px 0;
+    font-size: 14px;
+    border-bottom: 1px dashed #f1f5f9;
+  }
+  .lesson-list li:last-child { border-bottom: none; }
+  .lesson-list .lesson-num {
+    flex-shrink: 0;
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    background: #eff6ff;
+    color: var(--accent-blue);
+    font-size: 11px;
+    font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+    margin-top: 1px;
+  }
+  .lesson-list li.is-lab .lesson-num {
+    background: #f5f3ff;
+    color: var(--accent-purple);
+  }
+  .lesson-text { flex: 1; color: var(--color-text); }
+  .tag-lab {
+    display: inline-block;
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--accent-purple);
+    background: #f5f3ff;
+    border-radius: 999px;
+    padding: 1px 8px;
+    margin-left: 6px;
+    vertical-align: middle;
+  }
+
+  /* ── color variants theo từng section cho dễ phân biệt ── */
+  .section-card.c-orange .section-num { background: var(--accent-orange); }
+  .section-card.c-purple .section-num { background: var(--accent-purple); }
+  .section-card.c-green  .section-num { background: #16a34a; }
+
+  /* ── Footer summary ── */
+  .summary-card {
+    background: linear-gradient(135deg, #1e293b 0%, #2563eb 100%);
+    color: #fff;
+    border-radius: 14px;
+    padding: 26px 26px;
+    margin-top: 30px;
+    text-align: center;
+  }
+  .summary-card h3 { font-size: 17px; margin-bottom: 6px; }
+  .summary-card p { font-size: 13px; color: #cbd5e1; margin-bottom: 18px; }
+  .summary-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 14px;
+  }
+  .summary-stat {
+    background: rgba(255,255,255,.08);
+    border: 1px solid rgba(255,255,255,.15);
+    border-radius: 10px;
+    padding: 14px 10px;
+  }
+  .summary-stat .num { font-size: 22px; font-weight: 800; color: var(--accent-orange); }
+  .summary-stat .lbl { font-size: 11px; color: #cbd5e1; margin-top: 2px; }
+
+  footer.page-footer {
+    text-align: center;
+    font-size: 12px;
+    color: var(--color-text-muted);
+    padding: 24px 20px 40px;
+  }
+
+  @media (max-width: 560px) {
+    .hero h1 { font-size: 24px; }
+    .section-head { flex-wrap: wrap; }
+  }
+</style>
+</head>
+<body>
+
+  <div class="hero">
+    <h1>Claude 101 for Software Development - Tiếng Việt</h1>
+    <p>Học cách sử dụng Claude (trợ lý AI của Anthropic) để làm việc nhanh hơn, thông minh hơn — dành cho tất cả mọi người, kể cả người không biết lập trình.</p>
+  </div>
+
+  <div class="info-strip">
+    <div class="info-cards">
+      <div class="info-item">
+        <div class="icon">🎯</div>
+        <div class="label">Trình độ</div>
+        <div class="value">Người mới bắt đầu</div>
+      </div>
+      <div class="info-item">
+        <div class="icon">🗂️</div>
+        <div class="label">Số chương</div>
+        <div class="value">11 Section</div>
+      </div>
+      <div class="info-item">
+        <div class="icon">🕑</div>
+        <div class="label">Thời lượng</div>
+        <div class="value">~17 hour video</div>
+      </div>
+      <div class="info-item">
+        <div class="icon">🌐</div>
+        <div class="label">Ngôn ngữ</div>
+        <div class="value">Tiếng Việt</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="container">
+    <h2 class="page-title">Nội dung chi tiết khoá học</h2>
+    <p class="page-subtitle">11 chương (Section), đi từ làm quen cơ bản đến ứng dụng chuyên sâu theo từng vai trò công việc.</p>
+
+    <!-- Section 1 -->
+    <div class="section-card">
+      <div class="section-head">
+        <div class="section-num">1</div>
+        <div>
+          <h3>Giới thiệu về giảng viên &amp; khoá học</h3>
+          <div class="section-meta">4 bài học · Làm quen</div>
+        </div>
+      </div>
+      <div class="section-body">
+        <p class="section-desc">Làm quen với giảng viên, hiểu mục tiêu khoá học, những gì cần chuẩn bị trước khi bắt đầu và cách trao đổi khi cần hỗ trợ.</p>
+        <ul class="lesson-list">
+          <li><span class="lesson-num">1</span><span class="lesson-text">Giới thiệu giảng viên Linh Nguyễn</span></li>
+          <li><span class="lesson-num">2</span><span class="lesson-text">Nội dung khoá học &amp; mục tiêu sau khi hoàn thành</span></li>
+          <li><span class="lesson-num">3</span><span class="lesson-text">Cần chuẩn bị gì trước khi học &amp; lưu ý trong quá trình học</span></li>
+          <li><span class="lesson-num">4</span><span class="lesson-text">Cách trao đổi, hỏi đáp với giảng viên</span></li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Section 2 -->
+    <div class="section-card c-orange">
+      <div class="section-head">
+        <div class="section-num">2</div>
+        <div>
+          <h3>Làm quen với Claude</h3>
+          <div class="section-meta">13 bài học · Thực hành nhiều</div>
+        </div>
+      </div>
+      <div class="section-body">
+        <p class="section-desc">Đây là chương nền tảng: cài đặt các công cụ Claude, hiểu Claude là gì, dùng thử từng ứng dụng (chat, viết code, làm việc nhóm, thiết kế), và học cách "nói chuyện" với Claude sao cho hiệu quả, tiết kiệm chi phí.</p>
+        <ul class="lesson-list">
+          <li class="is-lab"><span class="lesson-num">1</span><span class="lesson-text">Cài đặt Claude Desktop &amp; Claude Code trên máy tính<span class="tag-lab">THỰC HÀNH</span></span></li>
+          <li><span class="lesson-num">2</span><span class="lesson-text">Những hiểu lầm thường gặp về công cụ AI tạo sinh</span></li>
+          <li><span class="lesson-num">3</span><span class="lesson-text">Claude là gì? Các phiên bản Haiku / Sonnet / Opus khác nhau ra sao</span></li>
+          <li><span class="lesson-num">4</span><span class="lesson-text">Claude Desktop App — trò chuyện, Projects &amp; Artifacts</span></li>
+          <li><span class="lesson-num">5</span><span class="lesson-text">Claude Code — trợ lý AI cho việc lập trình, khác gì so với chat thông thường</span></li>
+          <li><span class="lesson-num">6</span><span class="lesson-text">Claude Cowork — làm việc nhóm cùng Claude</span></li>
+          <li><span class="lesson-num">7</span><span class="lesson-text">Claude Design — hỗ trợ thiết kế</span></li>
+          <li><span class="lesson-num">8</span><span class="lesson-text">Cách đặt câu hỏi (prompt) hiệu quả &amp; mẹo tiết kiệm chi phí</span></li>
+          <li class="is-lab"><span class="lesson-num">9</span><span class="lesson-text">Thực hành các thao tác cơ bản với Claude<span class="tag-lab">THỰC HÀNH</span></span></li>
+          <li class="is-lab"><span class="lesson-num">10</span><span class="lesson-text">Thực hành sử dụng Claude Cowork<span class="tag-lab">THỰC HÀNH</span></span></li>
+          <li class="is-lab"><span class="lesson-num">11</span><span class="lesson-text">Thực hành sử dụng Claude Design<span class="tag-lab">THỰC HÀNH</span></span></li>
+          <li class="is-lab"><span class="lesson-num">12</span><span class="lesson-text">Thực hành Claude Code: các chế độ làm việc cơ bản<span class="tag-lab">THỰC HÀNH</span></span></li>
+          <li class="is-lab"><span class="lesson-num">13</span><span class="lesson-text">Thực hành: viết "bản hướng dẫn riêng" (CLAUDE.md) cho một dự án mẫu<span class="tag-lab">THỰC HÀNH</span></span></li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Section 3 -->
+    <div class="section-card c-purple">
+      <div class="section-head">
+        <div class="section-num">3</div>
+        <div>
+          <h3>Claude Skills &amp; Agent</h3>
+          <div class="section-meta">6 bài học · Mở rộng khả năng</div>
+        </div>
+      </div>
+      <div class="section-body">
+        <p class="section-desc">Học cách "dạy" Claude những kỹ năng riêng (Skill) và cách để Claude tự phân công công việc cho các trợ lý nhỏ hơn (Agent) — giúp Claude làm được nhiều việc chuyên biệt hơn.</p>
+        <ul class="lesson-list">
+          <li><span class="lesson-num">1</span><span class="lesson-text">Claude Skill là gì?</span></li>
+          <li class="is-lab"><span class="lesson-num">2</span><span class="lesson-text">Thực hành tạo một Claude Skill<span class="tag-lab">THỰC HÀNH</span></span></li>
+          <li><span class="lesson-num">3</span><span class="lesson-text">Agent / Sub-Agent là gì?</span></li>
+          <li class="is-lab"><span class="lesson-num">4</span><span class="lesson-text">Thực hành tạo một Sub-Agent<span class="tag-lab">THỰC HÀNH</span></span></li>
+          <li class="is-lab"><span class="lesson-num">5</span><span class="lesson-text">Thực hành cài đặt các Skill có sẵn từ Anthropic<span class="tag-lab">THỰC HÀNH</span></span></li>
+          <li class="is-lab"><span class="lesson-num">6</span><span class="lesson-text">Thực hành tạo lệnh tắt riêng (custom slash command)<span class="tag-lab">THỰC HÀNH</span></span></li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Section 4 -->
+    <div class="section-card">
+      <div class="section-head">
+        <div class="section-num">4</div>
+        <div>
+          <h3>Claude Code cho lập trình viên (Developer)</h3>
+          <div class="section-meta">8 bài học · Xuyên suốt 1 dự án thực tế</div>
+        </div>
+      </div>
+      <div class="section-body">
+        <p class="section-desc">Ứng dụng Claude Code vào công việc lập trình hàng ngày thông qua một dự án thực tế xuyên suốt: xây dựng ứng dụng "Quản lý chi tiêu", từ khởi tạo, viết tính năng, đến đưa lên hệ thống Cloud.</p>
+        <ul class="lesson-list">
+          <li><span class="lesson-num">1</span><span class="lesson-text">Giới thiệu chương</span></li>
+          <li><span class="lesson-num">2</span><span class="lesson-text">Quy trình làm việc chuẩn: Tìm hiểu → Lên kế hoạch → Viết code → Kiểm tra lại</span></li>
+          <li class="is-lab"><span class="lesson-num">3</span><span class="lesson-text">Thực hành khởi tạo dự án "Quản lý chi tiêu"<span class="tag-lab">THỰC HÀNH</span></span></li>
+          <li class="is-lab"><span class="lesson-num">4</span><span class="lesson-text">Thực hành: định nghĩa quy tắc làm việc riêng cho dự án<span class="tag-lab">THỰC HÀNH</span></span></li>
+          <li class="is-lab"><span class="lesson-num">5</span><span class="lesson-text">Thực hành nâng cấp quy trình làm việc bằng Skill &amp; Sub-Agent<span class="tag-lab">THỰC HÀNH</span></span></li>
+          <li><span class="lesson-num">6</span><span class="lesson-text">Kết hợp Claude Code với Git — giới hạn &amp; rủi ro cần lưu ý</span></li>
+          <li class="is-lab"><span class="lesson-num">7</span><span class="lesson-text">Thực hành: tự động kiểm tra chất lượng code trước khi gộp<span class="tag-lab">THỰC HÀNH</span></span></li>
+          <li class="is-lab"><span class="lesson-num">8</span><span class="lesson-text">Thực hành triển khai ứng dụng lên dịch vụ Cloud<span class="tag-lab">THỰC HÀNH</span></span></li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Section 5 -->
+    <div class="section-card c-green">
+      <div class="section-head">
+        <div class="section-num">5</div>
+        <div>
+          <h3>Claude cho Tester / QA</h3>
+          <div class="section-meta">5 bài học · Kiểm thử phần mềm</div>
+        </div>
+      </div>
+      <div class="section-body">
+        <p class="section-desc">Dùng Claude để tăng tốc công việc kiểm thử: tự sinh kịch bản kiểm thử, viết test tự động, và soạn báo cáo lỗi chuyên nghiệp — thực hành trên chính dự án "Quản lý chi tiêu" ở chương trước.</p>
+        <ul class="lesson-list">
+          <li><span class="lesson-num">1</span><span class="lesson-text">Vai trò của Claude trong công việc kiểm thử &amp; đảm bảo chất lượng</span></li>
+          <li class="is-lab"><span class="lesson-num">2</span><span class="lesson-text">Thực hành sinh bộ kịch bản kiểm thử từ yêu cầu<span class="tag-lab">THỰC HÀNH</span></span></li>
+          <li class="is-lab"><span class="lesson-num">3</span><span class="lesson-text">Thực hành viết kiểm thử tự động cho một chức năng có sẵn<span class="tag-lab">THỰC HÀNH</span></span></li>
+          <li class="is-lab"><span class="lesson-num">4</span><span class="lesson-text">Thực hành viết báo cáo lỗi hoàn chỉnh<span class="tag-lab">THỰC HÀNH</span></span></li>
+          <li class="is-lab"><span class="lesson-num">5</span><span class="lesson-text">Thực hành kiểm thử tự động toàn trình với Playwright<span class="tag-lab">THỰC HÀNH</span></span></li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Section 6 -->
+    <div class="section-card c-orange">
+      <div class="section-head">
+        <div class="section-num">6</div>
+        <div>
+          <h3>Claude cho DevOps &amp; Cloud Engineer</h3>
+          <div class="section-meta">6 bài học · Vận hành hạ tầng</div>
+        </div>
+      </div>
+      <div class="section-body">
+        <p class="section-desc">Ứng dụng Claude vào công việc vận hành hệ thống: thiết kế kiến trúc, tự động dựng hạ tầng trên AWS, và thiết lập quy trình triển khai tự động — luôn kèm nguyên tắc an toàn khi để AI thao tác trên hệ thống thật.</p>
+        <ul class="lesson-list">
+          <li><span class="lesson-num">1</span><span class="lesson-text">Vai trò của Claude trong vận hành hệ thống &amp; nguyên tắc an toàn</span></li>
+          <li><span class="lesson-num">2</span><span class="lesson-text">Cách đặt yêu cầu để Claude viết hạ tầng dưới dạng "mã lệnh" (Infrastructure as Code)</span></li>
+          <li><span class="lesson-num">3</span><span class="lesson-text">Kết hợp Claude Code vào quy trình triển khai tự động (CI/CD)</span></li>
+          <li class="is-lab"><span class="lesson-num">4</span><span class="lesson-text">Thực hành thiết kế hạ tầng hệ thống trên AWS cùng Claude<span class="tag-lab">THỰC HÀNH</span></span></li>
+          <li class="is-lab"><span class="lesson-num">5</span><span class="lesson-text">Thực hành tự động hoá việc dựng hạ tầng bằng Terraform<span class="tag-lab">THỰC HÀNH</span></span></li>
+          <li class="is-lab"><span class="lesson-num">6</span><span class="lesson-text">Thực hành thiết lập quy trình triển khai tự động trên AWS<span class="tag-lab">THỰC HÀNH</span></span></li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Section 7 -->
+    <div class="section-card">
+      <div class="section-head">
+        <div class="section-num">7</div>
+        <div>
+          <h3>Claude cho Project Manager</h3>
+          <div class="section-meta">2 bài học · Quản lý dự án</div>
+        </div>
+      </div>
+      <div class="section-body">
+        <p class="section-desc">Dùng Claude để hỗ trợ công việc quản lý dự án: soạn thảo tài liệu, lập kế hoạch và ước lượng thời gian/nguồn lực nhanh chóng hơn.</p>
+        <ul class="lesson-list">
+          <li><span class="lesson-num">1</span><span class="lesson-text">Vai trò của Claude trong công việc quản lý dự án</span></li>
+          <li class="is-lab"><span class="lesson-num">2</span><span class="lesson-text">Thực hành soạn thảo kế hoạch dự án &amp; ước lượng<span class="tag-lab">THỰC HÀNH</span></span></li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Section 8 -->
+    <div class="section-card c-purple">
+      <div class="section-head">
+        <div class="section-num">8</div>
+        <div>
+          <h3>Kết nối Claude với hệ thống bên ngoài (MCP)</h3>
+          <div class="section-meta">5 bài học · Mở rộng phạm vi hoạt động</div>
+        </div>
+      </div>
+      <div class="section-body">
+        <p class="section-desc">MCP là "cây cầu" giúp Claude kết nối và làm việc trực tiếp với các hệ thống bên ngoài như cơ sở dữ liệu, mã nguồn dự án — thay vì chỉ trả lời trong khung chat. Thực hành kết nối Claude với dữ liệu thật để tự kiểm tra công việc mình vừa làm.</p>
+        <ul class="lesson-list">
+          <li><span class="lesson-num">1</span><span class="lesson-text">Giới thiệu về MCP — cây cầu kết nối Claude với thế giới bên ngoài</span></li>
+          <li><span class="lesson-num">2</span><span class="lesson-text">Kết nối "tại máy" và kết nối "từ xa" &amp; rủi ro bảo mật cần lưu ý</span></li>
+          <li><span class="lesson-num">3</span><span class="lesson-text">Các kết nối phổ biến: tệp tin, mã nguồn, cơ sở dữ liệu...</span></li>
+          <li class="is-lab"><span class="lesson-num">4</span><span class="lesson-text">Thực hành: kết nối CodeGraph MCP giúp Claude hiểu codebase dự án mà không cần scan lại<span class="tag-lab">THỰC HÀNH</span></span></li>
+          <li class="is-lab"><span class="lesson-num">5</span><span class="lesson-text">Thực hành: kết nối Database MCP giúp Claude kiểm chứng kết quả<span class="tag-lab">THỰC HÀNH</span></span></li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Section 9 -->
+    <div class="section-card">
+      <div class="section-head">
+        <div class="section-num">9</div>
+        <div>
+          <h3>Claude Code Hooks — Tự động hoá</h3>
+          <div class="section-meta">4 bài học · Tự động hoá quy trình</div>
+        </div>
+      </div>
+      <div class="section-body">
+        <p class="section-desc">"Hook" giúp tự động chạy một hành động nhất định vào đúng thời điểm trong lúc làm việc với Claude Code — ví dụ tự động dọn dẹp code, hoặc tự động báo khi công việc hoàn tất.</p>
+        <ul class="lesson-list">
+          <li><span class="lesson-num">1</span><span class="lesson-text">Giới thiệu về Hook — tự động hoá trong Claude Code</span></li>
+          <li><span class="lesson-num">2</span><span class="lesson-text">Các thời điểm có thể "chèn" tự động hoá vào</span></li>
+          <li class="is-lab"><span class="lesson-num">3</span><span class="lesson-text">Thực hành: tự động dọn dẹp code mỗi khi Claude chỉnh sửa file<span class="tag-lab">THỰC HÀNH</span></span></li>
+          <li class="is-lab"><span class="lesson-num">4</span><span class="lesson-text">Thực hành: tự động gửi thông báo khi Claude hoàn thành công việc<span class="tag-lab">THỰC HÀNH</span></span></li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Section 10 -->
+    <div class="section-card c-green">
+      <div class="section-head">
+        <div class="section-num">10</div>
+        <div>
+          <h3>Phát triển phần mềm có kiểm soát với Spec-Kit</h3>
+          <div class="section-meta">7 bài học · Quy trình bài bản từ A-Z</div>
+        </div>
+      </div>
+      <div class="section-body">
+        <p class="section-desc">Spec-Kit là một phương pháp làm việc giúp Claude phát triển phần mềm theo đúng quy trình rõ ràng — thay vì làm theo cảm tính: viết yêu cầu đầy đủ trước, lên kế hoạch kỹ thuật, rồi mới triển khai. Giúp giảm rủi ro sai sót khi làm việc với AI.</p>
+        <ul class="lesson-list">
+          <li><span class="lesson-num">1</span><span class="lesson-text">Phương pháp phát triển phần mềm dựa trên đặc tả (Spec-Driven Development) là gì</span></li>
+          <li><span class="lesson-num">2</span><span class="lesson-text">Giới thiệu công cụ Spec-Kit</span></li>
+          <li class="is-lab"><span class="lesson-num">3</span><span class="lesson-text">Thực hành cài đặt &amp; khởi tạo một dự án mới với Spec-Kit<span class="tag-lab">THỰC HÀNH</span></span></li>
+          <li class="is-lab"><span class="lesson-num">4</span><span class="lesson-text">Thực hành: định nghĩa nguyên tắc &amp; đặc tả cho một tính năng mới<span class="tag-lab">THỰC HÀNH</span></span></li>
+          <li class="is-lab"><span class="lesson-num">5</span><span class="lesson-text">Thực hành: lập kế hoạch kỹ thuật &amp; chia nhỏ công việc<span class="tag-lab">THỰC HÀNH</span></span></li>
+          <li class="is-lab"><span class="lesson-num">6</span><span class="lesson-text">Thực hành: để Claude triển khai &amp; đối chiếu kết quả với yêu cầu ban đầu<span class="tag-lab">THỰC HÀNH</span></span></li>
+          <li class="is-lab"><span class="lesson-num">7</span><span class="lesson-text">Thực hành triển khai sản phẩm lên dịch vụ Cloud<span class="tag-lab">THỰC HÀNH</span></span></li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Section 11 -->
+    <div class="section-card">
+      <div class="section-head">
+        <div class="section-num">11</div>
+        <div>
+          <h3>Tổng kết &amp; Định hướng nâng cao</h3>
+          <div class="section-meta">3 bài học · Khép lại khoá học</div>
+        </div>
+      </div>
+      <div class="section-body">
+        <p class="section-desc">Ôn lại toàn bộ kiến thức đã học, xây dựng lộ trình áp dụng Claude vào công việc thực tế của riêng học viên, và gợi ý hướng học sâu hơn nếu muốn.</p>
+        <ul class="lesson-list">
+          <li><span class="lesson-num">1</span><span class="lesson-text">Tổng hợp lại các công cụ đã học &amp; khi nào nên dùng công cụ nào</span></li>
+          <li><span class="lesson-num">2</span><span class="lesson-text">Định hướng nâng cao dành cho lập trình viên muốn tìm hiểu sâu hơn</span></li>
+          <li class="is-lab"><span class="lesson-num">3</span><span class="lesson-text">Bài tập tổng hợp cuối khoá<span class="tag-lab">THỰC HÀNH</span></span></li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="summary-card">
+      <h3>🎓 Tổng kết khoá học</h3>
+      <p>Từ những bước đầu tiên đến khi ứng dụng Claude thành thạo trong công việc thực tế.</p>
+      <div class="summary-stats">
+        <div class="summary-stat"><div class="num">11</div><div class="lbl">Chương học</div></div>
+        <div class="summary-stat"><div class="num">63</div><div class="lbl">Bài học</div></div>
+        <div class="summary-stat"><div class="num">40+</div><div class="lbl">Bài thực hành</div></div>
+        <div class="summary-stat"><div class="num">17h+</div><div class="lbl">Thời lượng Video</div></div>
+      </div>
+    </div>
+  </div>
+
+  <footer class="page-footer">
+    Claude 101 for Software Development - Tiếng Việt · Tài liệu tóm tắt nội dung khoá học
+  </footer>
+
+</body>
+</html>

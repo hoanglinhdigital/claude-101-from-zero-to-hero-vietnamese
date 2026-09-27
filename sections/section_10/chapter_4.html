@@ -25,11 +25,8 @@
   </div>
 
   <div class="alert alert-warning">
-    <strong>Vì sao cần phân tích yêu cầu kỹ hơn ở bài lab này?</strong> Các bài lab dùng <code>lab-expense-management</code>
-    ở chapter trước là <em>thêm một tính năng</em> vào codebase đã có sẵn nghiệp vụ, quy ước, dữ liệu mẫu. CodeKids
-    Blocks là một <strong>sản phẩm hoàn toàn mới</strong>: chưa có nghiệp vụ, chưa có người dùng thật, đối tượng là
-    trẻ 7-12 tuổi — nhóm người dùng có nhu cầu rất khác người lớn (đọc chữ ít, thao tác đơn giản, cần an toàn nội
-    dung). Bỏ qua bước phân tích yêu cầu nghiệp vụ + kỹ thuật mà nhảy thẳng vào <code>/speckit.specify</code> rất dễ
+    <strong>Vì sao cần phân tích yêu cầu kỹ hơn ở bài lab này?</strong> CodeKids Blocks là một <strong>sản phẩm hoàn toàn mới</strong>: chưa có nghiệp vụ, chưa có người dùng thật, đối tượng là trẻ 7-12 tuổi — nhóm người dùng có nhu cầu rất khác người lớn (đọc chữ ít, thao tác đơn giản, cần an toàn nội
+    dung). Bỏ qua bước phân tích yêu cầu nghiệp vụ + kỹ thuật mà nhảy thẳng vào <code>/speckit-specify</code> rất dễ
     khiến Claude Code đặc tả một sản phẩm "chung chung", không thực sự phù hợp đối tượng học sinh nhỏ tuổi.
   </div>
 
@@ -37,8 +34,8 @@
   <ul class="feature-list">
     <li>Phân tích rõ yêu cầu <strong>nghiệp vụ (business)</strong>: đối tượng người dùng, mục tiêu giáo dục, ràng buộc an toàn cho trẻ em, tiêu chí thành công.</li>
     <li>Phân tích rõ yêu cầu <strong>kỹ thuật</strong>: cơ chế kéo thả, mô hình dữ liệu mê cung/khối lệnh, cách chấm điểm chương trình học sinh ghép ra.</li>
-    <li>Dùng <code>/speckit.constitution</code> định nghĩa nguyên tắc chung cho project CodeKids Blocks, phản ánh đúng các ràng buộc đã phân tích.</li>
-    <li>Dùng <code>/speckit.specify</code> đặc tả chi tiết tính năng lõi: <strong>màn chơi kéo thả khối lệnh điều khiển nhân vật vượt mê cung</strong>.</li>
+    <li>Dùng <code>/speckit-constitution</code> định nghĩa nguyên tắc chung cho project CodeKids Blocks, phản ánh đúng các ràng buộc đã phân tích.</li>
+    <li>Dùng <code>/speckit-specify</code> đặc tả chi tiết tính năng lõi: <strong>màn chơi kéo thả khối lệnh điều khiển nhân vật vượt mê cung</strong>.</li>
   </ul>
 
   <h2 class="section-heading">Mô hình kiến trúc</h2>
@@ -53,12 +50,12 @@
       end
 
       subgraph Step1["Bước 1"]
-          Cmd1["/speckit.constitution"]
+          Cmd1["/speckit-constitution"]
           F1["📜 constitution.md"]
       end
 
       subgraph Step2["Bước 2"]
-          Cmd2["/speckit.specify"]
+          Cmd2["/speckit-specify"]
           F2["📝 spec.md<br/>Kéo thả vượt mê cung"]
       end
 
@@ -71,7 +68,7 @@
       F1 -.->|"Đọc lại làm ngữ cảnh"| CC
       CC --> F2
   </div>
-  <p class="arch-caption">Vì là project mới, Bước 0 (phân tích nghiệp vụ + kỹ thuật) làm bằng tay trước khi gõ bất kỳ slash command nào — kết quả phân tích này được đưa thẳng vào nội dung prompt của <code>/speckit.constitution</code> và <code>/speckit.specify</code>, thay vì để Claude Code tự đoán.</p>
+  <p class="arch-caption">Vì là project mới, Bước 0 (phân tích nghiệp vụ + kỹ thuật) làm bằng tay trước khi gõ bất kỳ slash command nào — kết quả phân tích này được đưa thẳng vào nội dung prompt của <code>/speckit-constitution</code> và <code>/speckit-specify</code>, thay vì để Claude Code tự đoán.</p>
 
   <h2 class="section-heading">Các bước thực hành</h2>
 
@@ -119,7 +116,7 @@
       <div>
         <strong>Bước 4: Xác định cơ chế kéo thả và lưu tiến độ</strong>
         <ul class="feature-list">
-          <li><strong>Kéo thả:</strong> dùng HTML5 Drag and Drop API (vanilla, không phụ thuộc thư viện ngoài) để kéo khối lệnh từ bảng lệnh (palette) vào khung làm việc, và sắp xếp lại thứ tự trong khung làm việc.</li>
+          <li><strong>Kéo thả:</strong> Dùng các thư viện có sẵn hỗ trợ drag/drop để tránh phải implement từ đầu.</li>
           <li><strong>Lưu tiến độ:</strong> mỗi lần học sinh hoàn thành một màn (đến đích), lưu vào database: <code>userId</code> (hoặc <code>guestId</code> nếu chơi không đăng nhập), <code>levelId</code>, số sao đạt được, số khối lệnh đã dùng, thời gian hoàn thành.</li>
           <li><strong>Không yêu cầu real-time/multiplayer</strong> — mỗi phiên chơi độc lập, không cần WebSocket hay đồng bộ nhiều người chơi cùng lúc.</li>
         </ul>
@@ -138,14 +135,15 @@ claude</code></pre>
     </li>
     <li>
       <div>
-        <strong>Bước 6: Chạy /speckit.constitution dựa trên kết quả phân tích ở Phần 1-2</strong>
-        <pre class="command-line" data-prompt=">"><code class="language-text">/speckit.constitution Định nghĩa nguyên tắc chung cho project CodeKids Blocks (Next.js + Prisma + MySQL) — website học lập trình kéo thả cho trẻ 7-12 tuổi. Nguyên tắc bắt buộc:
+        <strong>Bước 6: Chạy /speckit-constitution dựa trên kết quả phân tích ở Phần 1-2</strong>
+        <pre class="command-line" data-prompt=">"><code class="language-text">/speckit-constitution Định nghĩa nguyên tắc chung cho project CodeKids Blocks (Next.js + Prisma + MySQL) — website học lập trình kéo thả cho trẻ 7-12 tuổi. Nguyên tắc bắt buộc:
 1. An toàn cho trẻ em là ưu tiên cao nhất: không thêm tính năng mạng xã hội (chat, bình luận công khai, kết bạn); không thu thập thông tin cá nhân nhạy cảm của trẻ (chỉ nickname, không email/SĐT của trẻ).
-2. Giao diện phải đơn giản cho trẻ 7-12 tuổi: ưu tiên icon/hình ảnh/màu sắc lớn hơn chữ, hạn chế đoạn văn bản dài, mọi hành động chính chỉ cần 1 thao tác kéo-thả hoặc 1 cú nhấp.
+2. Giao diện phải đơn giản cho trẻ 7-12 tuổi: ưu tiên icon/hình ảnh/màu sắc lớn hơn chữ, hạn chế đoạn văn bản dài, mọi hành động chính chỉ cần 1 thao tác kéo-thả hoặc 1 cú nhấp. Tham khảo mockup trong .specify\memory\mockup\codekit.png
 3. Không có cơ chế "thua/mất điểm" mang tính trừng phạt — học sinh luôn được thử lại ngay lập tức, không giới hạn số lần chơi một màn.
 4. Mọi API route mới phải validate input đầu vào trước khi xử lý, trả lỗi rõ ràng nếu input không hợp lệ.
 5. Logic thực thi khối lệnh (chấm màn chơi) phải là hàm thuần, tách riêng khỏi UI và khỏi Next.js request/response, đặt trong thư mục lib/, để viết unit test dễ dàng và tái sử dụng được ở cả phía client (xem trước) lẫn server (chấm điểm chính thức).
-6. Dùng Prisma Client đã cấu hình sẵn cho mọi truy vấn database, không thêm ORM khác.</code></pre>
+6. Dùng Prisma Client đã cấu hình sẵn cho mọi truy vấn database, không thêm ORM khác.
+7. Dùng các thư viện có sẵn hỗ trợ drag/drop để tránh phải implement từ đầu.</code></pre>
       </div>
     </li>
     <li>
@@ -160,9 +158,9 @@ claude</code></pre>
   <ol class="step-list">
     <li>
       <div>
-        <strong>Bước 8: Chạy /speckit.specify cho tính năng lõi</strong>
-        <p>Đưa toàn bộ kết quả phân tích nghiệp vụ + kỹ thuật ở Phần 1-2 vào prompt — mô tả rõ hành vi mong đợi, chưa cần nói chi tiết thư viện hay tên file kỹ thuật (việc đó dành cho <code>/speckit.plan</code> ở Chapter 5).</p>
-        <pre class="command-line" data-prompt=">"><code class="language-text">/speckit.specify Xây dựng tính năng lõi của CodeKids Blocks: màn chơi kéo thả khối lệnh điều khiển nhân vật vượt mê cung, dành cho học sinh 7-12 tuổi. Yêu cầu:
+        <strong>Bước 8: Chạy /speckit-specify cho tính năng lõi</strong>
+        <p>Đưa toàn bộ kết quả phân tích nghiệp vụ + kỹ thuật ở Phần 1-2 vào prompt — mô tả rõ hành vi mong đợi, chưa cần nói chi tiết thư viện hay tên file kỹ thuật (việc đó dành cho <code>/speckit-plan</code> ở Chapter 5).</p>
+        <pre class="command-line" data-prompt=">"><code class="language-text">/speckit-specify Xây dựng tính năng lõi của CodeKids Blocks: màn chơi kéo thả khối lệnh điều khiển nhân vật vượt mê cung, dành cho học sinh 7-12 tuổi. Yêu cầu:
 1. Học sinh thấy một mê cung dạng lưới ô vuông, có 1 nhân vật ở ô xuất phát và 1 ô đích được đánh dấu rõ ràng bằng hình ảnh/màu sắc.
 2. Bên cạnh mê cung là bảng lệnh (palette) gồm 4 loại khối: Đi tới, Rẽ trái, Rẽ phải, Lặp lại N lần (khối chứa các khối con bên trong).
 3. Học sinh kéo khối lệnh từ bảng lệnh vào khung làm việc để ghép thành một chuỗi lệnh theo thứ tự mong muốn, có thể kéo để sắp xếp lại thứ tự hoặc kéo ra ngoài để xoá khối khỏi khung làm việc.
