@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8" />
+<title>Claude 101 Intro</title>
+<style>
+  :root {
+    --bg: #0b0d12;
+    --bg2: #12151d;
+    --card: #161a24;
+    --line: #262b38;
+    --text: #f1f5f9;
+    --muted: #94a3b8;
+    --orange: #f97316;
+    --clay: #d97757;
+    --violet: #7c3aed;
+    --pink: #c31be9;
+    --green: #22c55e;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { width: 1920px; height: 1080px; overflow: hidden; background: var(--bg); }
+  body { font-family: 'Segoe UI', system-ui, sans-serif; color: var(--text); }
+  #stage { position: relative; width: 1920px; height: 1080px; overflow: hidden;
+    background: radial-gradient(ellipse at 50% 120%, #1a1222 0%, var(--bg) 60%); }
+  .grid { position: absolute; inset: -200px; opacity: .35;
+    background-image: linear-gradient(var(--line) 1px, transparent 1px), linear-gradient(90deg, var(--line) 1px, transparent 1px);
+    background-size: 80px 80px;
+    -webkit-mask-image: radial-gradient(ellipse at center, #000 20%, transparent 70%); }
+  .glow { position: absolute; border-radius: 50%; filter: blur(120px); }
+  #glowA { width: 900px; height: 900px; background: var(--orange); opacity: .18; left: -200px; top: -300px; }
+  #glowB { width: 800px; height: 800px; background: var(--violet); opacity: .22; right: -250px; bottom: -350px; }
+  .scene { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; opacity: 0; }
+  .mono { font-family: 'Cascadia Code', 'Cascadia Mono', Consolas, monospace; }
+  .grad { background: linear-gradient(90deg, var(--orange), var(--pink) 55%, var(--violet)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+
+  /* Scene 1 */
+  #logo1 { width: 180px; height: 180px; filter: drop-shadow(0 0 60px rgba(217,119,87,.6)); }
+  #term1 { margin-top: 40px; font-size: 34px; color: var(--muted); height: 46px; }
+  #term1 .p { color: var(--orange); }
+  .caret { display: inline-block; width: 16px; height: 36px; background: var(--orange); vertical-align: -6px; margin-left: 4px; }
+  #title1 { margin-top: 26px; font-size: 120px; font-weight: 800; letter-spacing: -3px; line-height: 1; }
+  #sub1 { margin-top: 22px; font-size: 52px; font-weight: 600; color: var(--text); }
+  #tag1 { margin-top: 28px; font-size: 26px; letter-spacing: 10px; text-transform: uppercase; color: var(--muted); }
+
+  /* Scene 2 */
+  .kicker { font-size: 28px; letter-spacing: 8px; text-transform: uppercase; color: var(--orange); font-weight: 600; }
+  .h { font-size: 78px; font-weight: 800; letter-spacing: -2px; margin-top: 14px; text-align: center; }
+  #chips { margin-top: 60px; display: flex; flex-wrap: wrap; gap: 22px; justify-content: center; width: 1500px; }
+  .chip { padding: 20px 34px; border-radius: 18px; background: var(--card); border: 1px solid var(--line);
+    font-size: 32px; font-weight: 600; display: flex; align-items: center; gap: 16px; }
+  .chip .n { font-size: 22px; color: var(--orange); }
+
+  /* Scene 3 */
+  #roles { margin-top: 70px; display: flex; gap: 40px; }
+  .role { width: 340px; height: 380px; border-radius: 28px; background: linear-gradient(180deg, #1a1f2b, #12151d);
+    border: 1px solid var(--line); display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; overflow: hidden; }
+  .role::before { content: ''; position: absolute; left: 0; right: 0; top: 0; height: 4px; background: var(--c, var(--orange)); }
+  .role .ic { width: 130px; height: 130px; border-radius: 30px; background: #f8fafc; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 50px var(--cg, rgba(249,115,22,.35)); }
+  .role .ic img { width: 92px; height: 92px; }
+  .role h3 { margin-top: 36px; font-size: 40px; font-weight: 700; }
+  .role p { margin-top: 12px; font-size: 24px; color: var(--muted); text-align: center; padding: 0 20px; }
+
+  /* Scene 4 */
+  #wrap4 { display: flex; gap: 70px; align-items: center; margin-top: 50px; }
+  #win { width: 980px; border-radius: 22px; background: #0f1218; border: 1px solid var(--line); overflow: hidden; box-shadow: 0 40px 120px rgba(0,0,0,.6); }
+  #win .bar { height: 54px; background: #161a22; display: flex; align-items: center; padding: 0 22px; gap: 12px; border-bottom: 1px solid var(--line); }
+  #win .dot { width: 16px; height: 16px; border-radius: 50%; }
+  #win .bar span { margin-left: 18px; font-size: 20px; color: var(--muted); }
+  #code { padding: 30px 36px; font-size: 27px; line-height: 1.75; height: 420px; white-space: pre; }
+  .cm { color: #64748b; } .ok { color: var(--green); } .or { color: var(--orange); } .vi { color: #a78bfa; }
+  #flow { display: flex; flex-direction: column; gap: 22px; }
+  .step { width: 420px; padding: 24px 30px; border-radius: 18px; background: var(--card); border: 1px solid var(--line);
+    font-size: 36px; font-weight: 700; display: flex; align-items: center; gap: 22px; }
+  .step b { width: 54px; height: 54px; border-radius: 14px; display: flex; align-items: center; justify-content: center; font-size: 26px; background: rgba(249,115,22,.15); color: var(--orange); }
+  .step.on { border-color: var(--orange); box-shadow: 0 0 40px rgba(249,115,22,.25); }
+
+  /* Scene 5 */
+  #stats { display: flex; gap: 90px; margin-top: 10px; }
+  .stat { text-align: center; }
+  .stat .v { font-size: 130px; font-weight: 800; line-height: 1; }
+  .stat .l { font-size: 30px; color: var(--muted); margin-top: 12px; }
+  #logo5 { width: 120px; height: 120px; filter: drop-shadow(0 0 50px rgba(217,119,87,.55)); }
+  #title5 { font-size: 96px; font-weight: 800; letter-spacing: -2px; margin-top: 26px; text-align: center; line-height: 1.05; }
+  #cta { margin-top: 44px; padding: 26px 64px; border-radius: 999px; font-size: 40px; font-weight: 700;
+    background: linear-gradient(90deg, var(--orange), var(--pink)); box-shadow: 0 20px 60px rgba(249,115,22,.35); }
+  #by { margin-top: 34px; font-size: 28px; color: var(--muted); }
+  #by b { color: var(--text); }
+  #flash { position: absolute; inset: 0; background: #fff; opacity: 0; pointer-events: none; }
+</style>
+</head>
+<body>
+<div id="stage">
+  <div class="grid" id="grid"></div>
+  <div class="glow" id="glowA"></div>
+  <div class="glow" id="glowB"></div>
+
+  <!-- Scene 1: Title -->
+  <section class="scene" id="s1">
+    <img id="logo1" src="icons/claude-logo.svg" alt="" />
+    <div id="term1" class="mono"><span class="p">$</span> <span id="typed"></span><span class="caret" id="caret1"></span></div>
+    <div id="title1"><span class="grad">Claude 101</span></div>
+    <div id="sub1">for Software Development</div>
+    <div id="tag1">From Zero to Hero · Tiếng Việt</div>
+  </section>
+
+  <!-- Scene 2: Curriculum -->
+  <section class="scene" id="s2">
+    <div class="kicker">Lộ trình khoá học</div>
+    <div class="h">Từ <span class="grad">Zero</span> đến <span class="grad">Hero</span> với Claude</div>
+    <div id="chips">
+      <div class="chip"><span class="n">02</span>Claude Desktop &amp; Code</div>
+      <div class="chip"><span class="n">02</span>Cowork &amp; Design</div>
+      <div class="chip"><span class="n">02</span>Prompt hiệu quả</div>
+      <div class="chip"><span class="n">03</span>Skills &amp; Sub-Agent</div>
+      <div class="chip"><span class="n">04</span>Explore → Plan → Code</div>
+      <div class="chip"><span class="n">04</span>Git &amp; PR Review</div>
+      <div class="chip"><span class="n">06</span>Terraform &amp; CI/CD</div>
+      <div class="chip"><span class="n">08</span>MCP Server</div>
+      <div class="chip"><span class="n">09</span>Claude Code Hooks</div>
+      <div class="chip"><span class="n">10</span>Spec-Kit · SDD</div>
+      <div class="chip"><span class="n">11</span>Claude API &amp; Agent SDK</div>
+    </div>
+  </section>
+
+  <!-- Scene 3: Roles -->
+  <section class="scene" id="s3">
+    <div class="kicker">Dành cho mọi vai trò IT</div>
+    <div class="h">Áp dụng Claude vào <span class="grad">công việc hằng ngày</span></div>
+    <div id="roles">
+      <div class="role" style="--c:#f97316;--cg:rgba(249,115,22,.4)"><div class="ic"><img src="icons/developer.svg" alt=""/></div><h3>Developer</h3><p>Next.js · Prisma · MySQL</p></div>
+      <div class="role" style="--c:#22c55e;--cg:rgba(34,197,94,.4)"><div class="ic"><img src="icons/browser.svg" alt=""/></div><h3>Tester / QA</h3><p>Test case · Playwright E2E</p></div>
+      <div class="role" style="--c:#7c3aed;--cg:rgba(124,58,237,.45)"><div class="ic"><img src="icons/terraform.svg" alt=""/></div><h3>DevOps &amp; Cloud</h3><p>Terraform · AWS CodePipeline</p></div>
+      <div class="role" style="--c:#c31be9;--cg:rgba(195,27,233,.4)"><div class="ic"><img src="icons/jira.svg" alt=""/></div><h3>Project Manager</h3><p>Kế hoạch · Estimation</p></div>
+    </div>
+  </section>
+
+  <!-- Scene 4: Hands-on -->
+  <section class="scene" id="s4">
+    <div class="kicker">Thực hành là chính</div>
+    <div class="h">Làm chủ <span class="grad">Claude Code</span> qua dự án thật</div>
+    <div id="wrap4">
+      <div id="win">
+        <div class="bar"><div class="dot" style="background:#ef4444"></div><div class="dot" style="background:#eab308"></div><div class="dot" style="background:#22c55e"></div><span class="mono">~/expense-management — claude</span></div>
+        <div id="code" class="mono"></div>
+      </div>
+      <div id="flow">
+        <div class="step"><b>1</b>Explore</div>
+        <div class="step"><b>2</b>Plan</div>
+        <div class="step"><b>3</b>Code</div>
+        <div class="step"><b>4</b>Verify</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Scene 5: Stats + CTA -->
+  <section class="scene" id="s5">
+    <div class="kicker" style="margin-bottom:50px">Nội dung toàn diện</div>
+    <div id="stats">
+      <div class="stat"><div class="v grad" data-to="11">0</div><div class="l">Section</div></div>
+      <div class="stat"><div class="v grad" data-to="65">0</div><div class="l">Bài học</div></div>
+      <div class="stat"><div class="v grad" data-to="32">0</div><div class="l">Bài Lab thực hành</div></div>
+    </div>
+  </section>
+
+  <section class="scene" id="s6">
+    <img id="logo5" src="icons/claude-logo.svg" alt="" />
+    <div id="title5">Claude 101<br/><span class="grad">for Software Development</span></div>
+    <div id="cta">Bắt đầu hành trình ngay hôm nay</div>
+    <div id="by">Giảng viên <b>Linh Nguyễn</b> · Khoá học Tiếng Việt</div>
+  </section>
+
+  <div id="flash"></div>
+</div>
+
+<script>
+  const DURATION = 30;
+  const $ = (s) => document.querySelector(s);
+  const $$ = (s) => Array.from(document.querySelectorAll(s));
+  const clamp = (v, a = 0, b = 1) => Math.min(b, Math.max(a, v));
+  const prog = (t, a, b) => clamp((t - a) / (b - a));
+  const easeOut = (x) => 1 - Math.pow(1 - x, 3);
+  const easeInOut = (x) => x < .5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
+  const backOut = (x) => { const c1 = 1.70158, c3 = c1 + 1; return 1 + c3 * Math.pow(x - 1, 3) + c1 * Math.pow(x - 1, 2); };
+
+  // Scene visibility: fade in over [in, in+0.5], fade out over [out-0.5, out]
+  function sceneAlpha(t, tin, tout) {
+    return Math.min(easeOut(prog(t, tin, tin + 0.5)), 1 - easeInOut(prog(t, tout - 0.5, tout)));
+  }
+  function appear(el, t, start, dur = 0.6, dy = 40, scaleFrom = 1) {
+    const p = easeOut(prog(t, start, start + dur));
+    const s = scaleFrom + (1 - scaleFrom) * backOut(prog(t, start, start + dur));
+    el.style.opacity = p;
+    el.style.transform = `translateY(${(1 - p) * dy}px) scale(${s})`;
+  }
+
+  const CMD = 'claude';
+  const codeLines = [
+    '<span class="or">&gt;</span> Thêm tính năng export báo cáo chi tiêu',
+    '<span class="cm">● Explore</span>  đọc CLAUDE.md, prisma/schema.prisma',
+    '<span class="cm">● Plan</span>     tạo kế hoạch 4 bước ...',
+    '<span class="vi">● Edit</span>     src/app/api/report/route.ts',
+    '<span class="vi">● Edit</span>     src/components/ExportButton.tsx',
+    '<span class="cm">● Verify</span>   npm test',
+    '<span class="ok">✔ 24 tests passed</span> · ready for PR review',
+  ];
+
+  // Mốc thời gian từng cảnh (giây) — chỉnh tại đây để đổi nhịp video
+  const SC = {
+    s1: [0, 5.0],
+    s2: [4.8, 12.5],   // danh sách chủ đề/tool — có đoạn dừng + highlight từng thẻ
+    s3: [12.3, 19.8],  // danh sách role — dừng + highlight từng role
+    s4: [19.6, 25.0],
+    s5: [24.8, 27.6],
+    s6: [27.4, 30.0],
+  };
+
+  // Highlight lần lượt từng phần tử trong khoảng [start, end]: trả về 0..1 cho phần tử i
+  function spot(t, i, n, start, end) {
+    const slot = (end - start) / n;
+    const a = start + i * slot;
+    const p = prog(t, a, a + slot);
+    return p <= 0 || p >= 1 ? 0 : Math.sin(Math.PI * p);
+  }
+
+  function render(t) {
+    // Background drift
+    $('#grid').style.transform = `translate(${-t * 5}px, ${-t * 3}px)`;
+    $('#glowA').style.transform = `translate(${Math.sin(t * .3) * 120}px, ${Math.cos(t * .25) * 80}px)`;
+    $('#glowB').style.transform = `translate(${Math.cos(t * .28) * 120}px, ${Math.sin(t * .35) * 90}px)`;
+
+    // ---- Scene 1 : Title
+    let [a, b] = SC.s1;
+    $('#s1').style.opacity = sceneAlpha(t, a, b);
+    appear($('#logo1'), t, a + 0.2, 1.2, 0, 0.3);
+    $('#logo1').style.transform += ` rotate(${(1 - easeOut(prog(t, a + 0.2, a + 1.6))) * -90}deg)`;
+    const nChars = Math.floor(prog(t, a + 1.0, a + 1.8) * CMD.length + 0.0001);
+    $('#typed').textContent = CMD.slice(0, nChars);
+    $('#caret1').style.opacity = Math.floor(t * 2.5) % 2 === 0 ? 1 : 0.15;
+    appear($('#term1'), t, a + 0.7, 0.5, 10);
+    appear($('#title1'), t, a + 2.0, 0.8, 50, 0.85);
+    appear($('#sub1'), t, a + 2.5, 0.7, 40);
+    appear($('#tag1'), t, a + 3.0, 0.7, 20);
+    $('#tag1').style.letterSpacing = `${10 + (1 - easeOut(prog(t, a + 3.0, a + 4.2))) * 20}px`;
+
+    // ---- Scene 2 : Lộ trình / tools (hold + spotlight)
+    [a, b] = SC.s2;
+    $('#s2').style.opacity = sceneAlpha(t, a, b);
+    $('#s2').style.transform = `scale(${1 + prog(t, a, b) * 0.03})`;
+    appear($('#s2 .kicker'), t, a + 0.1, 0.6, 20);
+    appear($('#s2 .h'), t, a + 0.3, 0.7, 30);
+    const chips = $$('#chips .chip');
+    chips.forEach((c, i) => {
+      appear(c, t, a + 0.9 + i * 0.2, 0.6, 30, 0.7);
+      const sp = spot(t, i, chips.length, a + 3.6, b - 0.6);
+      c.style.transform += ` scale(${1 + sp * 0.08})`;
+      c.style.borderColor = sp > 0.05 ? 'var(--orange)' : 'var(--line)';
+      c.style.boxShadow = `0 0 ${sp * 40}px rgba(249,115,22,${sp * 0.45})`;
+      c.style.background = sp > 0.05 ? `rgba(249,115,22,${0.08 * sp + 0.0})` : '';
+    });
+
+    // ---- Scene 3 : Roles (hold + spotlight)
+    [a, b] = SC.s3;
+    $('#s3').style.opacity = sceneAlpha(t, a, b);
+    $('#s3').style.transform = `scale(${1 + prog(t, a, b) * 0.03})`;
+    appear($('#s3 .kicker'), t, a + 0.1, 0.6, 20);
+    appear($('#s3 .h'), t, a + 0.3, 0.7, 30);
+    const roles = $$('.role');
+    roles.forEach((r, i) => {
+      appear(r, t, a + 0.9 + i * 0.35, 0.8, 80, 0.85);
+      const fl = Math.sin((t - a - i * 0.4) * 1.6) * 6 * prog(t, a + 2.0, a + 2.6);
+      const sp = spot(t, i, roles.length, a + 3.0, b - 0.5);
+      r.style.transform += ` translateY(${fl - sp * 18}px) scale(${1 + sp * 0.07})`;
+      r.style.borderColor = sp > 0.05 ? 'var(--c)' : 'var(--line)';
+      r.style.boxShadow = `0 0 ${sp * 70}px var(--cg)`;
+    });
+
+    // ---- Scene 4 : Hands-on terminal
+    [a, b] = SC.s4;
+    $('#s4').style.opacity = sceneAlpha(t, a, b);
+    appear($('#s4 .kicker'), t, a + 0.1, 0.6, 20);
+    appear($('#s4 .h'), t, a + 0.3, 0.7, 30);
+    appear($('#win'), t, a + 0.6, 0.8, 60, 0.92);
+    const shown = Math.floor(prog(t, a + 1.0, a + 4.0) * codeLines.length + 0.0001);
+    $('#code').innerHTML = t < a + 1.0 ? '' : codeLines.slice(0, Math.min(shown + 1, codeLines.length))
+      .map((l, i) => i <= shown - 1 || shown >= codeLines.length ? l : l + '<span class="caret" style="height:28px;width:13px;vertical-align:-4px"></span>')
+      .join('\n');
+    const stepOn = [1, 2, 3, 5].map(n => shown > n);
+    $$('.step').forEach((s, i) => {
+      const st = a + 0.8 + i * 0.15;
+      appear(s, t, st, 0.6, 0, 0.8);
+      s.style.transform = s.style.transform.replace(/translateY\([^)]*\)/, `translateX(${(1 - easeOut(prog(t, st, st + 0.6))) * 60}px)`);
+      s.classList.toggle('on', stepOn[i]);
+    });
+
+    // ---- Scene 5 : Stats
+    [a, b] = SC.s5;
+    $('#s5').style.opacity = sceneAlpha(t, a, b);
+    appear($('#s5 .kicker'), t, a + 0.05, 0.6, 20);
+    $$('.stat').forEach((s, i) => {
+      appear(s, t, a + 0.1 + i * 0.2, 0.7, 50, 0.8);
+      const v = s.querySelector('.v');
+      v.textContent = Math.round(+v.dataset.to * easeOut(prog(t, a + 0.2 + i * 0.2, a + 1.5 + i * 0.2)));
+    });
+
+    // ---- Scene 6 : CTA
+    [a, b] = SC.s6;
+    $('#s6').style.opacity = Math.min(easeOut(prog(t, a, a + 0.5)), 1 - prog(t, b - 0.4, b));
+    appear($('#logo5'), t, a + 0.05, 0.7, 0, 0.4);
+    appear($('#title5'), t, a + 0.25, 0.7, 40, 0.9);
+    appear($('#cta'), t, a + 0.6, 0.7, 30, 0.8);
+    appear($('#by'), t, a + 0.9, 0.6, 20);
+    const pulse = 1 + Math.sin(t * 5) * 0.02 * prog(t, a + 1.3, a + 1.6);
+    $('#cta').style.transform += ` scale(${pulse})`;
+
+    // Flash transitions
+    const flashAt = [SC.s2[0] + 0.1, SC.s6[0] + 0.05];
+    $('#flash').style.opacity = Math.max(...flashAt.map(f => Math.max(0, 0.12 - Math.abs(t - f) * 0.6)));
+  }
+
+  window.seek = (t) => render(t);
+  window.DURATION = DURATION;
+
+  // Live preview when opened in a normal browser (add ?static to disable)
+  if (!location.search.includes('static')) {
+    const t0 = performance.now();
+    (function loop() { render(((performance.now() - t0) / 1000) % DURATION); requestAnimationFrame(loop); })();
+  } else {
+    render(0);
+  }
+</script>
+</body>
+</html>
