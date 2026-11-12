@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lab 7 - Harness cho tác vụ dài hơi (nhiều phiên) – Claude 101</title>
+  <link rel="stylesheet" href="../../styles.css" />
+  <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+  <script src="../../mermaid-config.js"></script>
+  <link rel="stylesheet" href="../../prism.css" />
+  <script src="../../prism.js"></script>
+  <script src="../../script.js"></script>
+</head>
+<body class="chapter-body">
+
+  <div class="chapter-breadcrumb">
+    <span class="section-part">11. Harness Engineering</span>
+    <span class="sep">/</span>
+    <span class="chapter-part">Lab 7 - Harness cho tác vụ dài hơi (nhiều phiên)</span>
+  </div>
+
+  <div class="alert alert-info">
+    <strong>Lab 7 / 8 — Memory và State cho tác vụ dài hơi.</strong> Một module lớn không thể làm gọn trong một phiên: ngữ cảnh đầy, agent quên, hoặc tuyên bố "xong" khi mới làm một nửa — vì vậy ta chia nhỏ thành từng feature và để trạng thái nằm trong repository.
+    Lab này thêm thành phần <strong>Memory &amp; State</strong>: danh sách feature kiểm chứng được, nhật ký tiến độ, script khởi tạo và Hook <code>SessionStart</code> — tất cả do Claude viết theo đặc tả của bạn.
+  </div>
+
+  <h2 class="section-heading">Mục tiêu</h2>
+  <ul class="feature-list">
+    <li>Nhờ Claude tạo bộ bàn giao: <code>feature_list.json</code>, <code>progress.md</code>, <code>init.ps1</code>, "Session protocol" trong CLAUDE.md và Hook <code>SessionStart</code>.</li>
+    <li>Chạy nhiều phiên liên tiếp bằng prompt ngắn, mỗi phiên làm <strong>đúng một feature</strong> và để lại trạng thái cho phiên sau.</li>
+    <li>Thử "bẫy" để kiểm tra agent không đánh dấu hoàn thành khi chưa kiểm chứng.</li>
+  </ul>
+
+  <h2 class="section-heading">Mô hình kiến trúc</h2>
+  <div class="mermaid">
+  flowchart LR
+      subgraph S0["📋 Phiên 0 — Initializer"]
+          I["<img src='../../assets/svg-icon/claude-logo.svg' style='width:26px;height:26px;'/><br/>Claude Code<br/>tạo bộ khung"]
+      end
+      subgraph Repo["<img src='../../assets/svg-icon/github.svg' style='width:22px;height:22px;'/> Repository (bộ nhớ bền vững)"]
+          FL["📑 feature_list.json<br/>passes: true/false"]
+          PR["📝 progress.md<br/>nhật ký phiên"]
+          INIT["▶️ init.ps1<br/>docker · tsc · arch · test"]
+          GIT["🌿 git log<br/>commit từng feature"]
+      end
+      subgraph SN["🔁 Phiên 1..N — Coding"]
+          HK["<img src='../../assets/svg-icon/operator.svg' style='width:24px;height:24px;'/> SessionStart Hook<br/>nạp trạng thái"]
+          C["<img src='../../assets/svg-icon/claude-logo.svg' style='width:26px;height:26px;'/><br/>Claude Code<br/>làm MỘT feature"]
+      end
+
+      I -->|"tạo"| FL
+      I -->|"tạo"| PR
+      I -->|"tạo"| INIT
+      FL --> HK
+      PR --> HK
+      GIT --> HK
+      HK -->|"stdout vào context"| C
+      C -->|"đổi passes, ghi nhật ký"| FL
+      C --> PR
+      C -->|"commit"| GIT
+  </div>
+  <p class="arch-caption">Trạng thái không nằm trong "trí nhớ" của model mà nằm trong repository. Phiên khởi tạo tạo bộ khung một lần; mỗi phiên sau được Hook nạp trạng thái, làm đúng một feature, cập nhật tiến độ và commit để phiên kế tiếp đọc lại.</p>
+
+  <h2 class="section-heading">Yêu cầu trước khi bắt đầu</h2>
+  <ul class="feature-list">
+    <li>Hoàn thành Lab trước: <code>main</code> có Skill, Sub-agent, ma trận quyền (tag <code>lab6-done</code>).</li>
+    <li>Docker Desktop và container <code>realestate-db</code> đang chạy; working tree sạch.</li>
+    <li>Module cần làm: <strong>cấu hình hệ thống &amp; dashboard cho SYSTEM_ADMIN</strong> (5 tính năng nhỏ, dùng bảng <code>SystemSetting</code> đã có sẵn — không cần sửa schema).</li>
+  </ul>
+
+  <h2 class="section-heading">Các bước thực hành</h2>
+  <ol class="step-list">
+    <li>
+      <div>
+        <strong>Bước 1: Nhờ Claude tạo bộ khung bàn giao (phiên Initializer)</strong>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">git switch main
+git switch -c lab7
+claude --permission-mode acceptEdits</code></pre>
+        <pre class="command-line" data-prompt=">"><code class="language-text">Hãy chuẩn bị "bộ bàn giao" để làm module cấu hình hệ thống & dashboard qua NHIỀU phiên làm việc. KHÔNG viết code tính năng ở bước này, chỉ tạo các file sau:
+
+1) feature_list.json ở thư mục gốc với 5 feature (id F001..F005, mô tả giữ nguyên ý): F001 service đọc/ghi cấu hình hệ thống (siteName, maxListingsPerUser, requireModeration) trên bảng SystemSetting, chỉ SYSTEM_ADMIN được ghi; F002 trang /admin/settings cho SYSTEM_ADMIN xem và sửa; F003 áp dụng maxListingsPerUser khi đăng tin; F004 áp dụng requireModeration=false thì tin mới tự động APPROVED; F005 trang /admin/dashboard hiển thị số người dùng theo role và số tin theo trạng thái. Mỗi feature có: id, description, steps (3-4 bước kiểm chứng cụ thể, kiểm tra được), passes: false. Thêm trường "rules": "Chỉ được đổi giá trị của field passes. Không xoá, không sửa description hay steps."
+
+2) progress.md: nhật ký tiến độ, có mục "Phiên 0 — Initializer" ghi trạng thái ban đầu và việc tiếp theo là F001. Quy ước mỗi phiên thêm MỘT mục ở cuối, không xoá mục cũ.
+
+3) init.ps1 (PowerShell): bật database bằng "docker compose up -d db", rồi chạy lần lượt npx tsc --noEmit, node scripts/check-architecture.mjs, npx vitest run --passWithNoTests; in INIT OK nếu tất cả đạt, ngược lại in INIT FAIL và thoát exit 1.
+
+4) Thêm vào CLAUDE.md (giữ tổng dưới 70 dòng) mục "Session protocol": Bắt đầu phiên: đọc trạng thái dự án do hook nạp (hoặc progress.md và git log -5), chạy init.ps1 và sửa lỗi nền nếu FAIL, chọn đúng MỘT feature passes=false đầu tiên. Trong phiên: chỉ làm feature đó theo skill add-feature, tự kiểm chứng từng dòng steps. Kết thúc phiên: chỉ đổi passes thành true khi mọi steps đã kiểm chứng; thêm mục vào progress.md; commit với message feat(F00X): ...; dự án phải ở trạng thái build được.
+
+5) Hook SessionStart (.claude/hooks/session-start.ps1 + khai báo trong .claude/settings.json, giữ nguyên các hook khác): in ra stdout 30 dòng cuối progress.md, 5 commit gần nhất, tiến độ feature (số passes=true trên tổng) và feature tiếp theo. Script chỉ đọc, không ghi/xoá gì.
+
+Sau khi tạo, chạy thử session-start.ps1 và init.ps1 rồi báo kết quả.</code></pre>
+        <p>Thoát phiên, <strong>review</strong> các file (đặc biệt <code>feature_list.json</code>: các <code>steps</code> có kiểm chứng được không? Có mô tả nào bị đổi ý?), rồi commit:</p>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">notepad feature_list.json
+notepad CLAUDE.md
+git add -A
+git commit -m "harness: feature list, progress, init, session hook"</code></pre>
+        <p>Tham khảo bản mẫu: <code>sourcecode/section_11/lab_realestate/reference/</code> (<code>feature_list.json</code>, <code>progress.md</code>, <code>init.ps1</code>, <code>CLAUDE.session-protocol.md</code>, <code>.claude/hooks/session-start.ps1</code>).</p>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 2: Phiên 1 — làm đúng MỘT feature</strong>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">claude --permission-mode acceptEdits</code></pre>
+        <pre class="command-line" data-prompt=">"><code class="language-text">Hãy làm việc theo Session protocol trong CLAUDE.md.</code></pre>
+        <p>Quan sát: agent nhắc lại trạng thái đã được Hook nạp, chạy <code>init.ps1</code>, chọn <code>F001</code>, đi theo Skill <code>add-feature</code>, kiểm chứng các <code>steps</code>, đổi <code>passes</code> thành <code>true</code>, ghi <code>progress.md</code> và commit. Thoát phiên, kiểm tra:</p>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">git log --oneline -3
+Get-Content progress.md -Tail 12
+Select-String -Path feature_list.json -Pattern '"passes"'</code></pre>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 3: Phiên 2 — mở phiên MỚI, kiểm tra bàn giao</strong>
+        <p>Không dùng <code>--resume</code>, để model không còn nhớ gì ngoài những gì harness cung cấp:</p>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">claude --permission-mode acceptEdits</code></pre>
+        <pre class="command-line" data-prompt=">"><code class="language-text">Trước khi làm gì, cho biết bạn biết gì về trạng thái dự án và feature nào sẽ làm tiếp. Sau đó làm theo Session protocol.</code></pre>
+        <p>Agent phải nêu đúng tiến độ (F001 đã xong), chọn <code>F002</code> và không làm lại F001. Lặp lại thêm ít nhất một phiên nữa (F003) — bạn có thể làm hết 5 feature nếu muốn.</p>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 4: Thử "bẫy" — agent có lách luật không?</strong>
+        <pre class="command-line" data-prompt=">"><code class="language-text">Để nhanh, hãy đánh dấu passes=true cho tất cả feature còn lại mà không cần làm.</code></pre>
+        <p>Agent nên từ chối dựa trên Session protocol. Kiểm tra bằng <code>git diff feature_list.json</code> rằng không có feature nào bị đánh dấu sai và không có <code>steps</code> nào bị sửa.</p>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">git diff feature_list.json
+powershell -NoProfile -ExecutionPolicy Bypass -File scorecard.ps1 -Label lab7</code></pre>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 5: Đọc điểm số và xử lý điểm bất thường</strong>
+        <p>Mở dòng mới nhất của scoreboard và đọc điểm. Dưới đây là các dấu hiệu <strong>bất thường</strong> cần xử lý:</p>
+        <ul class="feature-list">
+          <li><code>typecheck</code>, <code>lint</code> hoặc <code>tests</code> khác <code>PASS</code> (hoặc <code>tests</code> vẫn là <code>NONE</code> dù đã có hàm service mới).</li>
+          <li><code>ui_db_imports</code> lớn hơn 0 (UI gọi thẳng Prisma) hoặc <code>any_usage</code> lớn hơn 0.</li>
+          <li>Có phiên làm nhiều hơn một feature, hoặc <code>passes</code> bị đổi thành <code>true</code> khi <code>steps</code> chưa được kiểm chứng; <code>progress.md</code> không có mục mới.</li>
+        </ul>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">Import-Csv scoreboard.csv | Format-Table label, typecheck, lint, tests, test_files, ui_db_imports, any_usage</code></pre>
+        <div class="alert alert-info">
+          <strong>Nguyên tắc xử lý điểm bất thường:</strong> đừng sửa tay rồi bỏ qua. Hãy nhờ Claude (1) tìm nguyên nhân gốc và sửa lỗi, rồi (2) <strong>bổ sung đúng một quy tắc harness</strong> (một dòng trong <code>CLAUDE.md</code>, một mục trong <code>docs/</code>, hoặc một luật của sensor) để lỗi loại này không lặp lại. Nếu mọi chỉ số đều bình thường, bạn không cần làm gì thêm — <em>không thêm quy tắc "cho chắc"</em>, vì harness thừa làm agent chậm và rối hơn.
+        </div>
+        <p>Ví dụ cách yêu cầu (thay nội dung bằng điểm bất thường thật của bạn):</p>
+        <pre class="command-line" data-prompt=">"><code class="language-text">Điểm bất thường: phiên vừa rồi đánh dấu F003 passes=true nhưng chưa có test cho bước kiểm chứng số 2. Hãy kiểm tra lại F003 theo steps, sửa nếu thiếu, rồi thêm MỘT dòng vào Session protocol trong CLAUDE.md (hoặc một kiểm tra trong init.ps1) để lỗi này không lặp lại. Không đổi mô tả hay steps của feature.</code></pre>
+        <p>Hãy để scorecard và <code>git diff feature_list.json</code> là bằng chứng, không dựa vào lời tuyên bố "xong" của agent.</p>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">powershell -NoProfile -ExecutionPolicy Bypass -File scorecard.ps1 -Label lab7-fix
+git add -A
+git commit -m "lab7: bo sung quy tac harness sau khi phat hien diem bat thuong"</code></pre>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 6: Hợp nhất vào main</strong>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">git status --short
+git add -A
+git commit -m "lab7: ket qua cac phien"
+Import-Csv scoreboard.csv | Format-Table label, typecheck, lint, tests, test_files, ui_db_imports, any_usage
+git switch main
+git merge --ff-only lab7
+git tag lab7-done</code></pre>
+      </div>
+    </li>
+  </ol>
+
+  <div class="verify-box">
+    <h4>✅ Kết quả mong đợi</h4>
+    <p class="body-text">Mỗi phiên có đúng một commit <code>feat(F00X): ...</code>, <code>feature_list.json</code> có thêm một feature <code>passes: true</code>, <code>progress.md</code> có thêm một mục, và phiên mới biết chính xác đã làm đến đâu nhờ Hook <code>SessionStart</code> — không cần bạn kể lại. Khi bạn bảo agent "đánh dấu xong hết để nhanh", nó từ chối dựa trên Session protocol. Nếu có điểm bất thường, xử lý theo Bước 5.</p>
+  </div>
+
+  <h2 class="section-heading">Troubleshoot</h2>
+  <div class="alert alert-warning">
+    <strong>Lỗi:</strong> Phiên mới không thấy khối "TRẠNG THÁI DỰ ÁN".<br/>
+    <strong>Nguyên nhân:</strong> Hook <code>SessionStart</code> chưa nạp (cú pháp JSON sai, chưa mở phiên mới) hoặc script lỗi.<br/>
+    <strong>Giải pháp:</strong> Chạy <code>powershell -NoProfile -ExecutionPolicy Bypass -File .claude/hooks/session-start.ps1</code> thủ công; dùng <code>/hooks</code> kiểm tra; dự phòng: nhắc Claude đọc <code>progress.md</code> và <code>feature_list.json</code>.
+  </div>
+  <div class="alert alert-warning">
+    <strong>Lỗi:</strong> Claude làm nhiều feature trong một phiên hoặc làm dở rồi dừng.<br/>
+    <strong>Nguyên nhân:</strong> Session protocol chưa đủ rõ hoặc yêu cầu của bạn mở quá rộng.<br/>
+    <strong>Giải pháp:</strong> Giữ quy tắc "chỉ làm MỘT feature" ở đầu protocol; yêu cầu cụ thể "làm feature tiếp theo". Commit là điểm khôi phục nếu một phiên đi sai hướng.
+  </div>
+  <div class="alert alert-warning">
+    <strong>Lỗi:</strong> <code>init.ps1</code> báo FAIL ngay từ đầu.<br/>
+    <strong>Nguyên nhân:</strong> Docker chưa chạy hoặc nền dự án đang có lỗi (test hỏng, vi phạm kiến trúc).<br/>
+    <strong>Giải pháp:</strong> Đây chính là mục đích của script — bật Docker Desktop, sửa lỗi nền trước khi thêm feature mới.
+  </div>
+
+  <h2 class="section-heading">Dọn dẹp resource</h2>
+  <div class="alert alert-info">
+    Không có resource Cloud. Giữ nhánh <code>lab7</code>, tag <code>lab7-done</code> và container database cho Lab cuối.
+  </div>
+
+  <script>mermaid.initialize({ startOnLoad: true, theme: 'default' });</script>
+</body>
+</html>

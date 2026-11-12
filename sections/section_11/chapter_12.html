@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lab 8 - Quan sát, cải tiến &amp; tổng kết hành trình – Claude 101</title>
+  <link rel="stylesheet" href="../../styles.css" />
+  <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+  <script src="../../mermaid-config.js"></script>
+  <link rel="stylesheet" href="../../prism.css" />
+  <script src="../../prism.js"></script>
+  <script src="../../script.js"></script>
+</head>
+<body class="chapter-body">
+
+  <div class="chapter-breadcrumb">
+    <span class="section-part">11. Harness Engineering</span>
+    <span class="sep">/</span>
+    <span class="chapter-part">Lab 8 - Quan sát, cải tiến &amp; tổng kết hành trình</span>
+  </div>
+
+  <div class="alert alert-info">
+    <strong>Lab 8 / 8 — Quan sát và cải tiến.</strong> Một harness không "xong" ở lần đầu. Lab cuối dạy vòng lặp khép kín của người làm Harness Engineering:
+    <strong>quan sát → đo → sửa một điều → đo lại → ghi nhận</strong>, rồi nhìn lại toàn bộ hành trình từ Prompt tới Harness hoàn chỉnh bằng số liệu.
+  </div>
+
+  <h2 class="section-heading">Mục tiêu</h2>
+  <ul class="feature-list">
+    <li>Nhờ Claude viết công cụ đọc <strong>transcript</strong> của một phiên để thấy agent đã gọi tool nào và vấp lỗi nào.</li>
+    <li>Nhờ Claude tạo bộ <strong>eval</strong> (3 task cố định, chạy headless, chấm điểm bằng <code>scorecard.ps1</code>) và đo harness hiện tại (nhãn <code>v1</code>).</li>
+    <li>Biến một lỗi lặp lại thành cải tiến harness (guide hoặc sensor), ghi <code>harness-changelog.md</code> và đo lại (nhãn <code>v2</code>).</li>
+    <li>Tổng hợp <strong>bản đồ hành trình</strong>: mỗi thành phần harness ngăn được loại lỗi nào, qua <code>scoreboard.csv</code>.</li>
+    <li>Dọn dẹp toàn bộ môi trường (container, volume, nhánh thực hành).</li>
+  </ul>
+
+  <h2 class="section-heading">Mô hình kiến trúc</h2>
+  <div class="mermaid">
+  flowchart LR
+      Dev(("<img src='../../assets/svg-icon/developer.svg' style='width:26px;height:26px;'/><br/><b>Học viên</b>"))
+      Eval["<img src='../../assets/svg-icon/operator.svg' style='width:26px;height:26px;'/><br/><b>run-eval.ps1</b><br/>chạy bộ task"]
+      CC["<img src='../../assets/svg-icon/claude-logo.svg' style='width:28px;height:28px;'/><br/><b>claude -p</b><br/>headless + harness hiện tại"]
+      Score["📊 <b>scorecard.ps1</b><br/>→ scoreboard.csv"]
+      TR["📜 <b>Transcript .jsonl</b>"]
+      An["🔍 <b>analyze-transcript.ps1</b><br/>đếm tool, gom lỗi lặp"]
+      Fix["🛠️ <b>Cải tiến harness</b><br/>guide / sensor"]
+      Log["📝 <b>harness-changelog.md</b>"]
+
+      Dev --> Eval --> CC --> Score
+      CC -.-> TR --> An --> Dev
+      Dev -->|"lỗi lặp lại"| Fix --> Log
+      Fix -->|"chạy lại, nhãn mới"| Eval
+      Score -->|"so sánh v1 vs v2"| Dev
+  </div>
+  <p class="arch-caption">Vòng cải tiến khép kín: chạy bộ task → chấm điểm tự động → đọc transcript tìm lỗi lặp → sửa harness → chạy lại với nhãn mới và so sánh số liệu. Mọi thay đổi đều có bằng chứng đo lường.</p>
+
+  <h2 class="section-heading">Yêu cầu trước khi bắt đầu</h2>
+  <ul class="feature-list">
+    <li>Hoàn thành các Lab trước: <code>main</code> chứa toàn bộ harness (tag <code>lab7-done</code>); container database đang chạy.</li>
+    <li>Claude Code CLI hỗ trợ chế độ <code>-p</code> (chạy không tương tác): kiểm tra <code>claude --help</code>.</li>
+    <li>Chấp nhận chi phí token: 3 task × mỗi lần đo, giới hạn <code>--max-turns 40</code> cho mỗi task.</li>
+  </ul>
+
+  <h2 class="section-heading">Các bước thực hành</h2>
+  <ol class="step-list">
+    <li>
+      <div>
+        <strong>Bước 1: Tạo nhánh và nhờ Claude viết công cụ phân tích transcript</strong>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">cd D:\lab-realestate
+git switch main
+git switch -c lab8-improve
+claude --permission-mode acceptEdits</code></pre>
+        <pre class="command-line" data-prompt=">"><code class="language-text">Hãy viết script PowerShell analyze-transcript.ps1 để tóm tắt một phiên Claude Code từ file transcript .jsonl. Claude Code lưu transcript tại %USERPROFILE%\.claude\projects\&lt;đường-dẫn-project-mã-hoá, mọi ký tự không phải chữ/số thay bằng dấu gạch ngang&gt;\*.jsonl. Script: nhận tham số -Path (tuỳ chọn; nếu bỏ trống thì lấy file .jsonl mới nhất của project hiện tại); đọc từng dòng JSON (bỏ qua dòng không parse được); đếm số lần gọi mỗi tool (phần tử content có type=tool_use, lấy name); gom các tool_result có is_error=true, cắt 160 ký tự đầu, nhóm theo nội dung và in 10 lỗi lặp lại nhiều nhất. Cuối cùng in gợi ý: lỗi lặp từ 2 lần trở lên là ứng viên để thêm rule hoặc sensor. Script chỉ đọc, không ghi file.</code></pre>
+        <p>Thoát phiên, chạy thử (có thể truyền transcript của phiên bất kỳ ở các Lab trước):</p>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">powershell -NoProfile -ExecutionPolicy Bypass -File analyze-transcript.ps1</code></pre>
+        <div class="alert alert-warning">
+          <strong>Lưu ý:</strong> định dạng transcript là chi tiết nội bộ của Claude Code và có thể đổi giữa các phiên bản. Nếu kết quả trống, mở một file <code>.jsonl</code> để xem cấu trúc thực tế và nhờ Claude điều chỉnh script. (Bản tham khảo: <code>reference/analyze-transcript.ps1</code>.)
+        </div>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 2: Nhờ Claude tạo bộ eval</strong>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">claude --permission-mode acceptEdits</code></pre>
+        <pre class="command-line" data-prompt=">"><code class="language-text">Hãy tạo bộ đánh giá (eval) cho harness:
+
+1) eval-tasks.json: mảng 3 task có id và prompt, đều là task KHÔNG cần đổi schema Prisma và chưa có trong code hiện tại: T1-profile — thêm trang /profile cho người dùng đã đăng nhập, hiển thị email, tên, role và số tin đã đăng theo từng trạng thái; T2-area-filter — thêm bộ lọc diện tích tối thiểu/tối đa (areaM2) vào trang danh sách /listings; T3-admin-user-detail — thêm trang /admin/users/[id] chỉ cho SYSTEM_ADMIN, hiển thị chi tiết tài khoản và danh sách tin của tài khoản đó. (Nếu một tính năng đã tồn tại trong code thì đổi prompt sang tính năng tương tự chưa có.)
+
+2) run-eval.ps1 (PowerShell) với tham số bắt buộc -Label: từ chối chạy nếu "git status --porcelain" không rỗng; với mỗi task: chạy "claude -p <prompt> --permission-mode acceptEdits --max-turns 40", rồi chạy scorecard.ps1 -Label "<Label>-<id task>", sau đó khôi phục working tree bằng "git restore --source=HEAD --staged --worktree ." và "git clean -fd". Cuối cùng in bảng các dòng trong scoreboard.csv có label bắt đầu bằng <Label>-. Ghi chú đầu file cảnh báo script xoá thay đổi chưa commit.
+
+Không chạy script, chỉ tạo file.</code></pre>
+        <p>Thoát phiên. <strong>Review kỹ <code>run-eval.ps1</code></strong> — script có lệnh xoá file (<code>git clean</code>), phải chắc chắn nó chỉ chạy khi working tree sạch và chỉ làm trên nhánh thực hành. (Bản tham khảo: <code>reference/run-eval.ps1</code>, <code>reference/eval-tasks.json</code>.)</p>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">notepad run-eval.ps1
+git add -A
+git commit -m "harness: eval tools"</code></pre>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 3: Chạy bộ eval trên harness hiện tại (nhãn v1)</strong>
+        <div class="alert alert-danger">
+          <strong>Cảnh báo:</strong> <code>run-eval.ps1</code> khôi phục working tree sau mỗi task (<code>git clean -fd</code>), xoá mọi thay đổi chưa commit. Hãy chắc chắn đã commit hết và <strong>chỉ chạy trên nhánh thực hành</strong> <code>lab8-improve</code>. File bị Git bỏ qua (<code>.env</code>, <code>scoreboard.csv</code>) không bị xoá.
+        </div>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">git status --short
+powershell -NoProfile -ExecutionPolicy Bypass -File run-eval.ps1 -Label v1</code></pre>
+        <p>Quá trình mất vài phút. Kết quả cuối in ra bảng của ba task với các cột <code>typecheck</code>, <code>lint</code>, <code>tests</code>, <code>ui_db_imports</code>, <code>any_usage</code>.</p>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 4: Phân tích để tìm lỗi lặp</strong>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">powershell -NoProfile -ExecutionPolicy Bypass -File analyze-transcript.ps1</code></pre>
+        <p>Chỉ ra: task nào có cột <code>FAIL</code>/chỉ số xấu? Lỗi nào lặp từ 2 lần trở lên? Mở lại task đó bằng chế độ tương tác (<code>claude</code> + dán prompt của task) nếu cần hiểu nguyên nhân gốc.</p>
+        <div class="alert alert-info">
+          <strong>Mẹo:</strong> nếu cả 3 task đều "xanh" ở v1, hãy làm khó bộ task (thêm yêu cầu liên quan đến nhiều role hoặc ràng buộc nghiệp vụ) rồi chạy lại với nhãn mới. Harness tốt cần bộ task đủ khó để lộ điểm yếu.
+        </div>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 5: Khi v1 lộ điểm bất thường — chọn loại cải tiến (Guide hay Sensor) và chỉ đổi MỘT điều</strong>
+        <p>Chỉ cải tiến khi số liệu v1 cho thấy vấn đề thật; nếu mọi chỉ số đều bình thường, hãy làm khó bộ task (Bước 4) chứ đừng thêm quy tắc "cho chắc".</p>
+        <ul class="feature-list">
+          <li>Lỗi kiểm tra được bằng máy → thêm/siết <strong>sensor</strong> (rule trong <code>check-architecture.mjs</code>, test, bước trong Hook).</li>
+          <li>Lỗi do agent thiếu thông tin → bổ sung <strong>guide</strong> (ví dụ cụ thể trong <code>docs/*.md</code>, một dòng rõ ràng trong CLAUDE.md, mô tả Skill).</li>
+        </ul>
+        <p>Ví dụ yêu cầu Claude thực hiện cải tiến (thay nội dung bằng lỗi thật bạn quan sát được):</p>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">claude --permission-mode acceptEdits</code></pre>
+        <pre class="command-line" data-prompt=">"><code class="language-text">Trong lần eval v1, task T3 (trang chi tiết tài khoản của SYSTEM_ADMIN) bị lỗi: hàm lấy danh sách tin của một tài khoản không kiểm tra role ở tầng service, chỉ kiểm ở trang. Hãy cải tiến harness để lỗi loại này không lặp lại, chỉ thay đổi MỘT điều: bổ sung vào docs/DOMAIN.md một mục "Hàm đọc dữ liệu không công khai" nêu rõ mọi hàm đọc dữ liệu của người khác hay dữ liệu quản trị cũng phải gọi requireRole ở tầng service, kèm ví dụ ngắn; và thêm một dòng nhắc trong CLAUDE.md. Không đổi gì khác.</code></pre>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">git diff --stat
+git add -A
+git commit -m "harness v2: bo sung quy tac phan quyen cho ham doc du lieu"</code></pre>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 6: Đo lại (nhãn v2) và ghi nhận</strong>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">powershell -NoProfile -ExecutionPolicy Bypass -File run-eval.ps1 -Label v2</code></pre>
+        <p>Nhờ Claude hoặc tự tạo <code>harness-changelog.md</code> theo mẫu: ngày, lỗi quan sát được, nguyên nhân gốc, loại cải tiến (Guide/Sensor), thay đổi, kết quả đo lại (ví dụ <code>v1: 2/3 → v2: 3/3</code>). Bản mẫu tại <code>reference/harness-changelog.md</code>.</p>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">notepad harness-changelog.md
+git add -A
+git commit -m "harness: changelog"</code></pre>
+        <p>Nếu v2 không tốt hơn v1: đó vẫn là kết quả hợp lệ — kết quả của model có độ biến thiên. Chạy mỗi nhãn 2–3 lần trước khi kết luận.</p>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 7: Nhìn lại toàn bộ hành trình</strong>
+        <p>Liệt kê mọi điểm đo từ Lab 0 đến nay (các nhãn <code>lab2</code>, <code>lab3</code>, … và <code>-fix</code> nếu có):</p>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">Import-Csv scoreboard.csv | Format-Table label, typecheck, lint, tests, test_files, ui_db_imports, any_usage -AutoSize</code></pre>
+        <p>Hoàn thành bảng "bản đồ hành trình" cho riêng bạn (ghi những điểm bất thường bạn đã gặp và quy tắc đã thêm ở mỗi Lab):</p>
+        <table class="compare-table">
+          <thead>
+            <tr><th>Lab</th><th>Thành phần harness thêm vào</th><th>Loại</th><th>Loại lỗi nó ngăn được (ghi theo số liệu của bạn)</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>1</td><td>Prompt có cấu trúc</td><td>Guide (trong lượt hỏi)</td><td>...</td></tr>
+            <tr><td>2</td><td>CLAUDE.md + docs/</td><td>Guide bền vững</td><td>...</td></tr>
+            <tr><td>3</td><td>check-architecture.mjs</td><td>Sensor computational</td><td>...</td></tr>
+            <tr><td>4</td><td>Vitest + Hook PostToolUse/Stop</td><td>Sensor + phản hồi tự động</td><td>...</td></tr>
+            <tr><td>5</td><td>Ma trận quyền + permissions.deny</td><td>Sensor + giới hạn quyền</td><td>...</td></tr>
+            <tr><td>6</td><td>Skill + Sub-agent reviewer</td><td>Guide đóng gói + Sensor inferential</td><td>...</td></tr>
+            <tr><td>7</td><td>feature_list + progress + SessionStart</td><td>Memory &amp; State</td><td>...</td></tr>
+            <tr><td>8</td><td>Eval + changelog</td><td>Quan sát &amp; cải tiến</td><td>...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 8: Hợp nhất kết quả cuối</strong>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">git switch main
+git merge --ff-only lab8-improve
+git tag lab8-done</code></pre>
+      </div>
+    </li>
+  </ol>
+
+  <div class="verify-box">
+    <h4>✅ Kết quả mong đợi</h4>
+    <p class="body-text">Bạn có <code>scoreboard.csv</code> với các nhãn từ <code>scaffold</code> đến <code>v2</code>, một dòng trong <code>harness-changelog.md</code> mô tả cải tiến dựa trên lỗi quan sát thật, và hiểu quy trình <strong>quan sát → giả thuyết → thay đổi một điều → đo lại → ghi nhận</strong>. Quan trọng hơn: bạn đã quen với nguyên tắc <strong>đo trước, rồi mới thêm quy tắc harness khi số liệu có điểm bất thường</strong> — thay vì thêm theo cảm tính.</p>
+  </div>
+
+  <h2 class="section-heading">Troubleshoot</h2>
+  <div class="alert alert-warning">
+    <strong>Lỗi:</strong> <code>run-eval.ps1</code> báo "Working tree chưa sạch".<br/>
+    <strong>Nguyên nhân:</strong> Còn thay đổi chưa commit (kể cả file mới).<br/>
+    <strong>Giải pháp:</strong> <code>git status --short</code> để xem, rồi <code>git add -A</code> và <code>git commit</code>. Đảm bảo <code>scoreboard.csv</code> nằm trong <code>.gitignore</code>.
+  </div>
+  <div class="alert alert-warning">
+    <strong>Lỗi:</strong> <code>claude -p</code> dừng chờ xác nhận quyền hoặc không sửa được file.<br/>
+    <strong>Nguyên nhân:</strong> Chế độ không tương tác không thể hỏi bạn; thao tác ngoài phạm vi <code>acceptEdits</code> hoặc bị <code>permissions.deny</code> chặn.<br/>
+    <strong>Giải pháp:</strong> Giữ task trong phạm vi sửa file và các lệnh kiểm tra; nếu cần thêm lệnh, khai báo trong <code>permissions.allow</code> của <code>.claude/settings.json</code>. Không dùng chế độ bỏ qua toàn bộ quyền trên máy thật.
+  </div>
+  <div class="alert alert-warning">
+    <strong>Lỗi:</strong> <code>analyze-transcript.ps1</code> báo không tìm thấy transcript.<br/>
+    <strong>Nguyên nhân:</strong> Tên thư mục project được mã hoá khác dự kiến.<br/>
+    <strong>Giải pháp:</strong> Liệt kê <code>Get-ChildItem "$env:USERPROFILE\.claude\projects"</code>, chọn thư mục tương ứng và truyền đường dẫn file bằng <code>-Path</code>.
+  </div>
+  <div class="alert alert-warning">
+    <strong>Lỗi:</strong> Kết quả v1 và v2 dao động khó kết luận.<br/>
+    <strong>Nguyên nhân:</strong> Kết quả của model có tính ngẫu nhiên; ba task là mẫu nhỏ.<br/>
+    <strong>Giải pháp:</strong> Chạy mỗi nhãn 2–3 lần, tăng số task; chỉ rút ra kết luận khi sự khác biệt lặp lại.
+  </div>
+
+  <h2 class="section-heading">Dọn dẹp resource</h2>
+  <div class="alert alert-info">
+    Database chạy local trong Docker, không phát sinh chi phí Cloud. Khoản chi phí duy nhất là token đã dùng khi chạy eval. Khi đã hoàn tất cả chuỗi Lab, hãy dọn môi trường.
+  </div>
+  <div class="alert alert-warning">
+    <strong>Quan trọng:</strong> Lệnh dưới <strong>xoá dữ liệu database</strong> (volume Docker) — chỉ chạy khi không còn cần project. Nếu muốn giữ harness làm mẫu cho project thật, hãy sao chép <code>CLAUDE.md</code>, <code>docs/</code>, <code>scripts/</code>, <code>.claude/</code> sang nơi khác trước.
+  </div>
+  <pre class="command-line" data-prompt="PS>"><code class="language-powershell">cd D:\lab-realestate
+docker compose down -v
+cd D:\
+Remove-Item D:\lab-realestate -Recurse -Force</code></pre>
+
+  <script>mermaid.initialize({ startOnLoad: true, theme: 'default' });</script>
+</body>
+</html>

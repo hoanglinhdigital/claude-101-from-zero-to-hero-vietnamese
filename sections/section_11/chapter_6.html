@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lab 2 - Thêm Context (CLAUDE.md &amp; docs/) – Claude 101</title>
+  <link rel="stylesheet" href="../../styles.css" />
+  <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+  <script src="../../mermaid-config.js"></script>
+  <link rel="stylesheet" href="../../prism.css" />
+  <script src="../../prism.js"></script>
+  <script src="../../script.js"></script>
+</head>
+<body class="chapter-body">
+
+  <div class="chapter-breadcrumb">
+    <span class="section-part">11. Harness Engineering</span>
+    <span class="sep">/</span>
+    <span class="chapter-part">Lab 2 - Thêm Context (CLAUDE.md &amp; docs/)</span>
+  </div>
+
+  <div class="alert alert-info">
+    <strong>Lab 2 / 8 — thêm Context.</strong> Mỗi phiên mới agent đều "quên" quy tắc của dự án. Lab này thêm thành phần đầu tiên của harness:
+    <strong>Context bền vững</strong> (<code>CLAUDE.md</code> ngắn như bản đồ + thư mục <code>docs/</code>) — và để <strong>chính Claude viết</strong> các tài liệu đó
+    theo chỉ dẫn của bạn thay vì copy-paste.
+  </div>
+
+  <h2 class="section-heading">Mục tiêu</h2>
+  <ul class="feature-list">
+    <li>Dùng Claude để tạo <code>docs/DOMAIN.md</code>, <code>docs/ARCHITECTURE.md</code> và <code>CLAUDE.md</code> dạng bản đồ ngắn; học cách <em>review</em> tài liệu do AI viết.</li>
+    <li>Dùng Plan mode để Claude refactor code cũ về đúng kiến trúc 3 tầng (UI → service → Prisma).</li>
+    <li>Thêm tính năng tìm kiếm bằng <strong>một prompt ngắn</strong> (không cần nhắc lại quy tắc) rồi đo bằng <code>scorecard.ps1</code>; nếu điểm bất thường thì bổ sung quy tắc harness.</li>
+  </ul>
+
+  <h2 class="section-heading">Mô hình kiến trúc</h2>
+  <div class="mermaid">
+  flowchart LR
+      Dev(("<img src='../../assets/svg-icon/developer.svg' style='width:26px;height:26px;'/><br/><b>Học viên</b>"))
+      CC["<img src='../../assets/svg-icon/claude-logo.svg' style='width:28px;height:28px;'/><br/><b>Claude Code</b>"]
+
+      subgraph Ctx["📖 Context (guides) — thành phần mới"]
+          CM["<b>CLAUDE.md</b><br/>bản đồ &lt; 60 dòng"]
+          AR["<b>docs/ARCHITECTURE.md</b><br/>3 tầng, quy ước"]
+          DM["<b>docs/DOMAIN.md</b><br/>role, ma trận quyền, trạng thái"]
+      end
+
+      subgraph Code["<img src='../../assets/svg-icon/ide.svg' style='width:22px;height:22px;'/> src/"]
+          UI["src/app · src/components<br/>UI + server action mỏng"]
+          SV["src/services<br/>nghiệp vụ + phân quyền"]
+          DB["src/lib/prisma.ts"]
+      end
+
+      Dev -->|"Prompt ngắn"| CC
+      CM -->|"tự nạp mỗi phiên"| CC
+      CM -.->|"trỏ tới"| AR
+      CM -.->|"trỏ tới"| DM
+      CC -->|"đọc khi cần"| AR
+      CC --> UI --> SV --> DB
+  </div>
+  <p class="arch-caption"><code>CLAUDE.md</code> được Claude Code nạp tự động ở đầu mỗi phiên, nên chỉ nên là <b>bản đồ ngắn</b>; chi tiết nằm trong <code>docs/</code> và chỉ được đọc khi cần — tiết kiệm token và dễ bảo trì.</p>
+
+  <h2 class="section-heading">Yêu cầu trước khi bắt đầu</h2>
+  <ul class="feature-list">
+    <li>Hoàn thành Lab trước: nhánh <code>main</code> chứa chức năng đăng nhập/đăng tin, có tag <code>lab1-done</code>.</li>
+    <li>Container <code>realestate-db</code> đang chạy; working tree sạch.</li>
+  </ul>
+
+  <h2 class="section-heading">Các bước thực hành</h2>
+  <ol class="step-list">
+    <li>
+      <div>
+        <strong>Bước 1: Tạo nhánh làm việc và để Claude khảo sát code hiện có</strong>
+        <p>Bắt đầu từ <code>main</code>. Lệnh <code>/init</code> làm Claude đọc codebase và sinh <code>CLAUDE.md</code> ban đầu:</p>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">git switch main
+git switch -c lab2
+claude</code></pre>
+        <pre class="command-line" data-prompt=">"><code class="language-text">/init</code></pre>
+        <p>Mở file vừa tạo và nhận xét: thường nó <em>mô tả</em> những gì đang có (cấu trúc thư mục, lệnh) nhưng <strong>chưa chứa luật chơi</strong> của dự án (ai được làm gì, tầng nào được gọi DB). Đó là phần chỉ bạn mới biết — và phải đưa vào.</p>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 2: Giao "luật chơi" cho Claude viết thành tài liệu</strong>
+        <p>Trong cùng phiên, dán prompt sau. Lưu ý nó yêu cầu Claude <em>chỉ ghi những gì bạn nêu</em> — tài liệu do AI tự bịa quy tắc còn nguy hiểm hơn không có tài liệu.</p>
+        <pre class="command-line" data-prompt=">"><code class="language-text">Hãy thiết lập tài liệu cho project này để các phiên làm việc sau tuân theo cùng một quy tắc. Chỉ ghi những quy tắc tôi liệt kê, không tự bịa thêm.
+
+Tạo 3 file:
+
+1) docs/DOMAIN.md — nghiệp vụ:
+- 4 role: BUYER đăng tin WANTED (cần mua); SELLER đăng tin SALE (bán); MODERATOR duyệt/từ chối tin; SYSTEM_ADMIN quản lý tài khoản và cấu hình hệ thống. Khách chưa đăng nhập chỉ xem tin APPROVED.
+- Có bảng ma trận phân quyền (hàng = hành động, cột = Khách/BUYER/SELLER/MODERATOR/SYSTEM_ADMIN) cho: xem tin APPROVED; đăng tin WANTED; đăng tin SALE; sửa/xoá tin của chính mình; xem tin PENDING/REJECTED của người khác; duyệt/từ chối tin; khoá/mở tài khoản và đổi role; xem/sửa cấu hình hệ thống.
+- Luồng trạng thái tin: tạo mới = PENDING; MODERATOR chuyển PENDING sang APPROVED hoặc REJECTED (bắt buộc có rejectReason); chủ tin sửa tin APPROVED/REJECTED thì quay về PENDING; chủ tin được xoá tin ở mọi trạng thái; không ai được tự duyệt tin của mình. Chỉ BUYER/SELLER (chủ tin) được sửa/xoá tin của mình; MODERATOR và SYSTEM_ADMIN xem được tin PENDING/REJECTED của người khác.
+- Ràng buộc: tài khoản isActive=false không đăng nhập được; không được hạ role hoặc khoá SYSTEM_ADMIN cuối cùng; không được tự khoá chính mình; priceMillion và areaM2 là số nguyên dương.
+
+2) docs/ARCHITECTURE.md — kiến trúc 3 tầng và quy ước:
+- Tầng: UI (src/app, src/components) -> src/services -> src/lib/prisma.ts. Dùng chung: src/lib/authz.ts, session.ts, errors.ts, validators/.
+- Quy tắc: (a) UI không import @prisma/client (cho phép import type) và không import @/lib/prisma, UI chỉ gọi hàm trong src/services. (b) Truy vấn Prisma chỉ nằm trong src/services/*-service.ts. (c) Mỗi hàm service nhận actor (SessionUser hoặc null) làm tham số đầu tiên và gọi requireRole/requireUser (src/lib/authz.ts) trước khi đọc/ghi dữ liệu không công khai. (d) Server action (src/app/**/actions.ts) chỉ: validate bằng Zod -> lấy session -> gọi service -> revalidatePath/redirect. (e) Lỗi nghiệp vụ throw AppError (src/lib/errors.ts) với mã UNAUTHENTICATED, FORBIDDEN, NOT_FOUND, VALIDATION. (f) File đặt tên kebab-case; service là <domain>-service.ts. (g) Service không import từ src/app, src/components hay next/*.
+- Có 1 ví dụ đúng và 1 ví dụ sai ngắn.
+
+3) CLAUDE.md ở thư mục gốc — viết lại thành "bản đồ" DƯỚI 60 dòng: mô tả 2 dòng về dự án; các lệnh quan trọng (docker compose up -d db, npm run dev, npm run typecheck, npm run lint, npx prisma migrate dev, npx prisma db seed); 5 quy tắc bắt buộc quan trọng nhất (tóm tắt, trỏ sang docs/); không sửa prisma/schema.prisma khi chưa được yêu cầu; không đọc hoặc in nội dung .env; Definition of Done = chạy npm run typecheck và npm run lint đều pass trước khi báo xong; liệt kê 2 file docs để đọc khi cần. Không chép lại nội dung chi tiết của docs vào CLAUDE.md.</code></pre>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 3: Review tài liệu do AI viết</strong>
+        <p>Thoát phiên (<code>/exit</code>) và đọc kỹ ba file. Đây là kỹ năng cốt lõi của người làm harness: <em>agent soạn nháp, bạn chịu trách nhiệm nội dung</em>.</p>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">(Get-Content CLAUDE.md).Count
+notepad CLAUDE.md
+notepad docs\DOMAIN.md
+notepad docs\ARCHITECTURE.md</code></pre>
+        <p>Checklist review:</p>
+        <ul class="feature-list">
+          <li><code>CLAUDE.md</code> dưới 60 dòng, không chép lại nội dung chi tiết của <code>docs/</code>.</li>
+          <li>Ma trận quyền trong <code>DOMAIN.md</code> khớp <em>đúng</em> với những gì bạn đã nêu (không có quyền lạ).</li>
+          <li>Các quy tắc (a)–(g) đầy đủ, ví dụ đúng/sai rõ ràng.</li>
+        </ul>
+        <p>Nếu có chỗ sai, sửa trực tiếp hoặc mở lại <code>claude</code> và yêu cầu chỉnh. Sau đó kiểm tra Claude Code đã nạp file:</p>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">claude</code></pre>
+        <pre class="command-line" data-prompt=">"><code class="language-text">/memory</code></pre>
+        <p>Danh sách phải có <code>CLAUDE.md</code> của project. Thoát phiên rồi commit:</p>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">git add -A
+git commit -m "harness: CLAUDE.md va docs (context)"</code></pre>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 4: Đưa code cũ về đúng kiến trúc (Plan mode)</strong>
+        <p>Code đăng nhập/đăng tin ở Lab trước được viết khi chưa có luật chơi. Dùng <strong>Plan mode</strong> để Claude đề xuất kế hoạch refactor, bạn duyệt rồi mới cho thực thi.</p>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">claude --permission-mode plan</code></pre>
+        <pre class="command-line" data-prompt=">"><code class="language-text">Hãy refactor code hiện có (đăng nhập, đăng xuất, đăng tin, danh sách tin) cho khớp docs/ARCHITECTURE.md và docs/DOMAIN.md: tạo src/lib/authz.ts (requireUser, requireRole), src/lib/errors.ts (AppError), src/lib/session.ts (getSessionUser) nếu chưa có; tạo src/services/auth-service.ts và src/services/listing-service.ts chứa toàn bộ truy vấn Prisma và kiểm tra quyền; chuyển validate Zod vào src/lib/validators; làm cho server action và trang chỉ gọi service. Giữ nguyên hành vi hiện tại. Chưa viết test ở bước này. Trình bày kế hoạch trước.</code></pre>
+        <p>Đọc kế hoạch Claude đưa ra: có tách đúng tầng không? Có đụng vào <code>prisma/schema.prisma</code> không (không được phép)? Nếu ổn, chọn phương án cho phép thực thi (chấp nhận sửa file). Khi xong, yêu cầu:</p>
+        <pre class="command-line" data-prompt=">"><code class="language-text">Chạy npm run typecheck và npm run lint rồi sửa lỗi nếu có.</code></pre>
+        <p>Kiểm tra nhanh chức năng đăng nhập/đăng tin vẫn chạy (<code>npm run dev</code>, đăng nhập <code>seller@demo.vn</code> và đăng một tin), sau đó đo và commit:</p>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">powershell -NoProfile -ExecutionPolicy Bypass -File scorecard.ps1 -Label lab2-refactor
+git add -A
+git commit -m "refactor: dua code ve kien truc 3 tang"</code></pre>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 5: Thêm tính năng bằng một prompt ngắn</strong>
+        <p>Mở <strong>phiên mới</strong> để chắc chắn agent chỉ biết những gì harness cung cấp. Prompt chỉ nêu <em>yêu cầu</em> — không nhắc kiến trúc, không nhắc quy tắc, vì <code>CLAUDE.md</code> đã làm việc đó. Agent hiện đại đủ thông minh để hiểu một yêu cầu ngắn nếu có đúng Context.</p>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">claude --permission-mode acceptEdits</code></pre>
+        <pre class="command-line" data-prompt=">"><code class="language-text">Thêm tìm kiếm và bộ lọc cho trang /listings: lọc theo thành phố/quận, loại bất động sản, khoảng giá; có phân trang.</code></pre>
+        <p>Quan sát log: agent đọc <code>CLAUDE.md</code>, mở <code>docs/ARCHITECTURE.md</code> khi cần, đặt truy vấn trong <code>src/services</code> và chạy typecheck/lint trước khi báo xong. Đo và commit:</p>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">powershell -NoProfile -ExecutionPolicy Bypass -File scorecard.ps1 -Label lab2
+git add -A
+git commit -m "lab2: tim kiem va bo loc"</code></pre>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 6: Đọc điểm số và xử lý điểm bất thường</strong>
+        <p>Mở dòng mới nhất của scoreboard và đọc điểm. Dưới đây là các dấu hiệu <strong>bất thường</strong> cần xử lý:</p>
+        <ul class="feature-list">
+          <li><code>typecheck</code>, <code>lint</code> hoặc <code>tests</code> khác <code>PASS</code> (hoặc <code>tests</code> vẫn là <code>NONE</code> dù đã có hàm service mới).</li>
+          <li><code>ui_db_imports</code> lớn hơn 0 (UI gọi thẳng Prisma) hoặc <code>any_usage</code> lớn hơn 0.</li>
+          <li>Còn thư mục/trang mới đặt truy vấn ngoài <code>src/services</code> (kiểm tra: <code>Select-String -Path src\app\*\*.tsx -Pattern "prisma"</code>).</li>
+        </ul>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">Import-Csv scoreboard.csv | Format-Table label, typecheck, lint, tests, test_files, ui_db_imports, any_usage</code></pre>
+        <div class="alert alert-info">
+          <strong>Nguyên tắc xử lý điểm bất thường:</strong> đừng sửa tay rồi bỏ qua. Hãy nhờ Claude (1) tìm nguyên nhân gốc và sửa lỗi, rồi (2) <strong>bổ sung đúng một quy tắc harness</strong> (một dòng trong <code>CLAUDE.md</code>, một mục trong <code>docs/</code>, hoặc một luật của sensor) để lỗi loại này không lặp lại. Nếu mọi chỉ số đều bình thường, bạn không cần làm gì thêm — <em>không thêm quy tắc "cho chắc"</em>, vì harness thừa làm agent chậm và rối hơn.
+        </div>
+        <p>Ví dụ cách yêu cầu (thay nội dung bằng điểm bất thường thật của bạn):</p>
+        <pre class="command-line" data-prompt=">"><code class="language-text">Điểm số lần chạy vừa rồi có bất thường: ui_db_imports = 2 (trang /listings import thẳng prisma). Hãy tìm nguyên nhân gốc, chuyển truy vấn về src/services theo docs/ARCHITECTURE.md, rồi đề xuất MỘT quy tắc harness (một dòng trong CLAUDE.md hoặc một ví dụ trong docs/ARCHITECTURE.md) để lỗi này không lặp lại. Chỉ thêm quy tắc, không viết lại tài liệu.</code></pre>
+        <p>Context là "guide" — nó làm tăng xác suất agent làm đúng nhưng không bảo đảm. Nếu vẫn có điểm bất thường, bạn vừa thấy lý do cần Sensor ở Lab tiếp theo.</p>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">powershell -NoProfile -ExecutionPolicy Bypass -File scorecard.ps1 -Label lab2-fix
+git add -A
+git commit -m "lab2: bo sung quy tac harness sau khi phat hien diem bat thuong"</code></pre>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 7: Hợp nhất vào main</strong>
+        <p>Khi điểm số ổn, hợp nhất vào <code>main</code> và đặt tag để Lab sau bắt đầu từ đây:</p>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">git status --short
+git switch main
+git merge --ff-only lab2
+git tag lab2-done</code></pre>
+        <p>Xem lại toàn bộ điểm số của Lab: <code>Import-Csv scoreboard.csv | Format-Table label, typecheck, lint, tests, test_files, ui_db_imports, any_usage</code>.</p>
+      </div>
+    </li>
+  </ol>
+
+  <div class="verify-box">
+    <h4>✅ Kết quả mong đợi</h4>
+    <p class="body-text">Prompt ngắn ở Bước 5 cho ra code có truy vấn nằm trong <code>src/services</code>, dùng lại <code>requireRole</code>/<code>AppError</code> đã tạo ở bước refactor, <code>typecheck</code> và <code>lint</code> đều <code>PASS</code>, <code>ui_db_imports</code> bằng 0 hoặc gần 0. Quan trọng hơn là thói quen bạn vừa luyện: <strong>đo kết quả, và chỉ thêm quy tắc khi số liệu cho thấy có vấn đề</strong>. Context là "guide" — nếu vẫn còn vi phạm, đó chính là lý do cần Sensor ở Lab tiếp theo.</p>
+  </div>
+
+  <h2 class="section-heading">Troubleshoot</h2>
+  <div class="alert alert-warning">
+    <strong>Lỗi:</strong> <code>/init</code> sinh <code>CLAUDE.md</code> rất dài (trăm dòng).<br/>
+    <strong>Nguyên nhân:</strong> Công cụ mô tả toàn bộ codebase.<br/>
+    <strong>Giải pháp:</strong> Bước 3 yêu cầu viết lại thành bản đồ dưới 60 dòng — kiểm tra bằng <code>(Get-Content CLAUDE.md).Count</code>. Nguyên tắc: chỉ giữ thứ agent <em>không tự suy ra được</em> từ code.
+  </div>
+  <div class="alert alert-warning">
+    <strong>Lỗi:</strong> Claude tự thêm quy tắc hoặc quyền không có trong prompt vào <code>docs/DOMAIN.md</code>.<br/>
+    <strong>Nguyên nhân:</strong> Model có xu hướng "làm đầy" tài liệu.<br/>
+    <strong>Giải pháp:</strong> Xoá phần thừa, hoặc nhắc lại: "Chỉ giữ đúng nội dung tôi liệt kê, xoá mọi thứ bạn tự thêm."
+  </div>
+  <div class="alert alert-warning">
+    <strong>Lỗi:</strong> Sau refactor, đăng nhập hoặc đăng tin không còn hoạt động.<br/>
+    <strong>Nguyên nhân:</strong> Refactor làm thay đổi hành vi (lỗi thường gặp khi chưa có test).<br/>
+    <strong>Giải pháp:</strong> Dán thông báo lỗi cho Claude Code và yêu cầu sửa; hoặc <code>git reset --hard</code> về commit trước refactor rồi chạy lại Bước 5. Đây cũng là lý do Lab sau thêm test và sensor.
+  </div>
+  <div class="alert alert-warning">
+    <strong>Lỗi:</strong> Claude không đọc <code>docs/</code> mà tự chọn cách làm riêng.<br/>
+    <strong>Nguyên nhân:</strong> <code>CLAUDE.md</code> chưa trỏ rõ tới tài liệu hoặc quy tắc quá chung chung.<br/>
+    <strong>Giải pháp:</strong> Đo bằng scorecard, rồi theo Bước 6: yêu cầu Claude bổ sung đúng một dòng/ví dụ cụ thể vào <code>CLAUDE.md</code> hoặc <code>docs/ARCHITECTURE.md</code>.
+  </div>
+
+  <h2 class="section-heading">Dọn dẹp resource</h2>
+  <div class="alert alert-info">
+    Không có resource Cloud. Giữ nhánh <code>lab2</code> và tag <code>lab2-done</code> để đối chiếu ở Lab cuối.
+  </div>
+
+  <script>mermaid.initialize({ startOnLoad: true, theme: 'default' });</script>
+</body>
+</html>

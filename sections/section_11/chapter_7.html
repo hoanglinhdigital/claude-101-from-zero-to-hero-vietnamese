@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lab 3 - Thêm Sensor kiểm tra kiến trúc – Claude 101</title>
+  <link rel="stylesheet" href="../../styles.css" />
+  <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+  <script src="../../mermaid-config.js"></script>
+  <link rel="stylesheet" href="../../prism.css" />
+  <script src="../../prism.js"></script>
+  <script src="../../script.js"></script>
+</head>
+<body class="chapter-body">
+
+  <div class="chapter-breadcrumb">
+    <span class="section-part">11. Harness Engineering</span>
+    <span class="sep">/</span>
+    <span class="chapter-part">Lab 3 - Thêm Sensor kiểm tra kiến trúc</span>
+  </div>
+
+  <div class="alert alert-info">
+    <strong>Lab 3 / 8 — thêm Sensor đầu tiên.</strong> Context (guide) chỉ <em>nhắc</em> agent làm đúng, không bảo đảm. Lab này thêm
+    <strong>Sensor</strong>: một script kiểm tra kiến trúc bằng code (computational) để phát hiện vi phạm một cách chắc chắn. Quan trọng: bạn sẽ
+    <strong>nhờ Claude viết sensor</strong> theo đặc tả của bạn rồi tự kiểm chứng sensor hoạt động đúng.
+  </div>
+
+  <h2 class="section-heading">Mục tiêu</h2>
+  <ul class="feature-list">
+    <li>Nhờ Claude tạo <code>scripts/check-architecture.mjs</code> và lệnh <code>npm run check:arch</code>; học cách <strong>đặc tả</strong> một sensor và <strong>kiểm chứng</strong> sensor (bắt đúng lỗi, không báo nhầm).</li>
+    <li>Đưa sensor vào "Definition of Done" trong CLAUDE.md, thêm một tính năng bằng prompt ngắn và quan sát agent tự chạy sensor, tự sửa khi bị báo lỗi.</li>
+  </ul>
+
+  <h2 class="section-heading">Mô hình kiến trúc</h2>
+  <div class="mermaid">
+  flowchart LR
+      Dev(("<img src='../../assets/svg-icon/developer.svg' style='width:26px;height:26px;'/><br/><b>Học viên</b>"))
+      CC["<img src='../../assets/svg-icon/claude-logo.svg' style='width:28px;height:28px;'/><br/><b>Claude Code</b>"]
+      Guide["📖 <b>Guide</b><br/>CLAUDE.md + docs/"]
+      Code["<img src='../../assets/svg-icon/ide.svg' style='width:24px;height:24px;'/><br/><b>src/</b><br/>code do agent viết"]
+      Sensor["📏 <b>check-architecture.mjs</b><br/>Sensor (computational)<br/>npm run check:arch"]
+      Result{"Có vi phạm?"}
+
+      Dev -->|"Prompt"| CC
+      Guide --> CC
+      CC -->|"viết code"| Code
+      Code --> Sensor --> Result
+      Result -->|"Có: file:dòng + cách sửa"| CC
+      Result -->|"Không"| Dev
+  </div>
+  <p class="arch-caption">Sensor đọc mã nguồn và trả về kết quả <b>xác định</b> (pass/fail) kèm hướng dẫn sửa. Ở Lab này agent chạy sensor vì <i>CLAUDE.md yêu cầu</i>; Lab sau sẽ tự động hoá bằng Hook để không còn phụ thuộc agent có "nhớ" chạy hay không.</p>
+
+  <h2 class="section-heading">Yêu cầu trước khi bắt đầu</h2>
+  <ul class="feature-list">
+    <li>Hoàn thành Lab trước: nhánh <code>main</code> có <code>CLAUDE.md</code>, <code>docs/</code>, tầng <code>src/services</code> (tag <code>lab2-done</code>).</li>
+    <li>Container database đang chạy; working tree sạch.</li>
+  </ul>
+
+  <h2 class="section-heading">Các bước thực hành</h2>
+  <ol class="step-list">
+    <li>
+      <div>
+        <strong>Bước 1: Nhờ Claude viết sensor theo đặc tả</strong>
+        <p>Từ <code>main</code>, tạo nhánh làm việc và đưa đặc tả. Chú ý đặc tả nêu rõ <em>cái cần bắt</em>, <em>cái không được báo nhầm</em> và <em>định dạng thông báo lỗi dành cho agent</em>:</p>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">git switch main
+git switch -c lab3
+claude --permission-mode acceptEdits</code></pre>
+        <pre class="command-line" data-prompt=">"><code class="language-text">Hãy viết một "sensor" kiểm tra kiến trúc bằng code, theo docs/ARCHITECTURE.md.
+
+Yêu cầu:
+- File scripts/check-architecture.mjs, Node.js ESM thuần, KHÔNG dùng thư viện ngoài.
+- Quy tắc 1: các file trong src/app và src/components không được import @prisma/client (trừ "import type") và không được import @/lib/prisma (kể cả đường dẫn tương đối tới src/lib/prisma).
+- Quy tắc 2: các file trong src/services không được import từ @/app, @/components hoặc next/*.
+- Bỏ qua các file *.test.ts / *.test.tsx.
+- KHÔNG được báo nhầm với "import type { Role } from '@prisma/client'" trong UI.
+- Khi vi phạm: in ra stderr, mỗi lỗi gồm file:dòng, tên quy tắc, dòng code vi phạm và "Cách sửa" ngắn gọn bằng tiếng Việt; thoát với exit code 1. Khi hợp lệ: in "Kiểm tra kiến trúc: OK" và exit 0.
+- Thêm script "check:arch": "node scripts/check-architecture.mjs" vào package.json.
+- Cập nhật CLAUDE.md: Definition of Done gồm cả npm run check:arch (giữ CLAUDE.md dưới 60 dòng).
+
+Sau khi viết xong, hãy CHỨNG MINH sensor hoạt động: (1) chạy trên code hiện tại; (2) tạo tạm một file src/app/tmp-violation/page.tsx có import { prisma } from '@/lib/prisma' và chạy lại, phải báo vi phạm; (3) tạo tạm một file khác dùng "import type { Role } from '@prisma/client'" trong UI, phải KHÔNG báo lỗi; (4) xoá các file tạm và chạy lại cho OK. Báo cáo kết quả từng bước.</code></pre>
+        <div class="alert alert-info">
+          <strong>Mẹo:</strong> bước "chứng minh" là điều khiến sensor đáng tin. Một sensor chưa từng được thử với lỗi thật có thể chạy "pass" mãi vì chính nó sai.
+        </div>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 2: Tự kiểm tra lại (đừng chỉ tin báo cáo)</strong>
+        <p>Thoát phiên, tự chạy và đọc script do Claude tạo:</p>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">npm run check:arch
+notepad scripts\check-architecture.mjs
+git status --short</code></pre>
+        <p>Kiểm tra: không còn file tạm; script đúng đặc tả. Rồi commit:</p>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">git add -A
+git commit -m "harness: sensor check-architecture + DoD"</code></pre>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 3: Thêm tính năng bằng một prompt ngắn — sensor làm việc</strong>
+        <p>Mở phiên mới. Yêu cầu chỉ mô tả tính năng, không dặn gì về kiến trúc hay sensor — những thứ đó đã nằm trong harness:</p>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">claude --permission-mode acceptEdits</code></pre>
+        <pre class="command-line" data-prompt=">"><code class="language-text">Thêm trang chi tiết tin /listings/[id] hiển thị đầy đủ thông tin tin đã duyệt.</code></pre>
+        <p>Quan sát chuỗi hành vi: agent viết code → chạy <code>npm run check:arch</code> theo Definition of Done → nếu có vi phạm thì tự sửa (ví dụ chuyển truy vấn vào service). Đo và commit:</p>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">powershell -NoProfile -ExecutionPolicy Bypass -File scorecard.ps1 -Label lab3
+git add -A
+git commit -m "lab3: trang chi tiet tin"</code></pre>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 4: Đọc điểm số và xử lý điểm bất thường</strong>
+        <p>Mở dòng mới nhất của scoreboard và đọc điểm. Dưới đây là các dấu hiệu <strong>bất thường</strong> cần xử lý:</p>
+        <ul class="feature-list">
+          <li><code>typecheck</code>, <code>lint</code> hoặc <code>tests</code> khác <code>PASS</code> (hoặc <code>tests</code> vẫn là <code>NONE</code> dù đã có hàm service mới).</li>
+          <li><code>ui_db_imports</code> lớn hơn 0 (UI gọi thẳng Prisma) hoặc <code>any_usage</code> lớn hơn 0.</li>
+          <li><code>npm run check:arch</code> báo vi phạm khi bạn tự chạy lại, dù agent đã báo "xong".</li>
+        </ul>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">Import-Csv scoreboard.csv | Format-Table label, typecheck, lint, tests, test_files, ui_db_imports, any_usage</code></pre>
+        <div class="alert alert-info">
+          <strong>Nguyên tắc xử lý điểm bất thường:</strong> đừng sửa tay rồi bỏ qua. Hãy nhờ Claude (1) tìm nguyên nhân gốc và sửa lỗi, rồi (2) <strong>bổ sung đúng một quy tắc harness</strong> (một dòng trong <code>CLAUDE.md</code>, một mục trong <code>docs/</code>, hoặc một luật của sensor) để lỗi loại này không lặp lại. Nếu mọi chỉ số đều bình thường, bạn không cần làm gì thêm — <em>không thêm quy tắc "cho chắc"</em>, vì harness thừa làm agent chậm và rối hơn.
+        </div>
+        <p>Ví dụ cách yêu cầu (thay nội dung bằng điểm bất thường thật của bạn):</p>
+        <pre class="command-line" data-prompt=">"><code class="language-text">Điểm số bất thường: ui_db_imports = 1 và npm run check:arch báo vi phạm ở src/app/listings/[id]/page.tsx. Hãy sửa lỗi, rồi xem sensor hoặc CLAUDE.md thiếu gì khiến agent không tự phát hiện, và bổ sung MỘT thay đổi nhỏ (ví dụ siết rule trong scripts/check-architecture.mjs kèm ca kiểm chứng, hoặc làm rõ Definition of Done). Không viết lại phần khác.</code></pre>
+        <p>Nhớ rằng sensor mới cũng cần được kiểm chứng: sau khi sửa, hãy chạy lại bước "chứng minh" ở Bước 1 với file vi phạm tạm.</p>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">powershell -NoProfile -ExecutionPolicy Bypass -File scorecard.ps1 -Label lab3-fix
+git add -A
+git commit -m "lab3: bo sung quy tac harness sau khi phat hien diem bat thuong"</code></pre>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 5: Hợp nhất vào main</strong>
+        <p>Khi điểm số ổn, hợp nhất vào <code>main</code> và đặt tag để Lab sau bắt đầu từ đây:</p>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">git status --short
+git switch main
+git merge --ff-only lab3
+git tag lab3-done</code></pre>
+      </div>
+    </li>
+  </ol>
+
+  <div class="verify-box">
+    <h4>✅ Kết quả mong đợi</h4>
+    <p class="body-text"><code>npm run check:arch</code> bắt đúng file tạm vi phạm, không báo nhầm <code>import type</code>, và trả OK sau khi dọn. Với prompt ngắn ở Bước 3, <code>ui_db_imports</code> bằng 0 và <code>check:arch</code> pass — kể cả khi agent lỡ viết sai lần đầu thì nó cũng bị sensor phản hồi và tự sửa. Bài học: <strong>Guide làm tăng xác suất đúng, Sensor làm lỗi không thể lọt qua mà không bị phát hiện</strong>. Nếu điểm vẫn bất thường, bổ sung quy tắc theo Bước 4.</p>
+  </div>
+
+  <h2 class="section-heading">Troubleshoot</h2>
+  <div class="alert alert-warning">
+    <strong>Lỗi:</strong> Sensor báo vi phạm ở file không nên vi phạm (báo nhầm).<br/>
+    <strong>Nguyên nhân:</strong> Biểu thức chính quy quá rộng, hoặc chưa loại trừ <code>import type</code>/file test.<br/>
+    <strong>Giải pháp:</strong> Cho Claude xem dòng bị báo nhầm và yêu cầu: "Sensor báo nhầm dòng này, hãy sửa quy tắc và thêm ca kiểm chứng cho trường hợp đó."
+  </div>
+  <div class="alert alert-warning">
+    <strong>Lỗi:</strong> Sensor luôn "OK" kể cả khi bạn tạo thử file vi phạm.<br/>
+    <strong>Nguyên nhân:</strong> Đường dẫn quét sai (ví dụ project không dùng thư mục <code>src/</code>) hoặc regex không khớp cách import của agent.<br/>
+    <strong>Giải pháp:</strong> Chạy lại bước "chứng minh" và yêu cầu Claude sửa tới khi file tạm bị bắt. Không tin một sensor chưa từng fail.
+  </div>
+  <div class="alert alert-warning">
+    <strong>Lỗi:</strong> Agent bỏ qua <code>check:arch</code>, không chạy dù DoD có yêu cầu.<br/>
+    <strong>Nguyên nhân:</strong> Đây là điểm yếu còn lại của Guide — việc chạy sensor vẫn phụ thuộc agent.<br/>
+    <strong>Giải pháp:</strong> Hoàn toàn bình thường ở Lab này; Lab tiếp theo dùng Hook để chạy sensor tự động, không phụ thuộc agent.
+  </div>
+
+  <h2 class="section-heading">Dọn dẹp resource</h2>
+  <div class="alert alert-info">
+    Không có resource Cloud. Chạy <code>git status --short</code> để chắc chắn working tree sạch. Giữ nhánh <code>lab3</code> và tag <code>lab3-done</code>.
+  </div>
+
+  <script>mermaid.initialize({ startOnLoad: true, theme: 'default' });</script>
+</body>
+</html>

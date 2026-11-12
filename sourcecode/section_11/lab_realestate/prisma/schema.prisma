@@ -1,0 +1,74 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  BUYER
+  SELLER
+  MODERATOR
+  SYSTEM_ADMIN
+}
+
+enum ListingType {
+  SALE   // Người bán đăng tin bán
+  WANTED // Người mua đăng tin cần mua
+}
+
+enum PropertyType {
+  APARTMENT
+  HOUSE
+  LAND
+}
+
+enum ListingStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model User {
+  id           Int       @id @default(autoincrement())
+  email        String    @unique
+  passwordHash String
+  name         String
+  role         Role      @default(BUYER)
+  isActive     Boolean   @default(true)
+  createdAt    DateTime  @default(now())
+  listings     Listing[] @relation("ListingOwner")
+  reviewed     Listing[] @relation("ListingReviewer")
+}
+
+model Listing {
+  id           Int           @id @default(autoincrement())
+  title        String
+  description  String
+  type         ListingType
+  propertyType PropertyType
+  priceMillion Int // Giá tính bằng triệu đồng
+  areaM2       Int
+  city         String
+  district     String
+  status       ListingStatus @default(PENDING)
+  rejectReason String?
+  ownerId      Int
+  owner        User          @relation("ListingOwner", fields: [ownerId], references: [id])
+  reviewedById Int?
+  reviewedBy   User?         @relation("ListingReviewer", fields: [reviewedById], references: [id])
+  reviewedAt   DateTime?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  @@index([status, type])
+  @@index([ownerId])
+}
+
+model SystemSetting {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt
+}

@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lab 0 - Khởi tạo project bất động sản (Next.js, Prisma, PostgreSQL) – Claude 101</title>
+  <link rel="stylesheet" href="../../styles.css" />
+  <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+  <script src="../../mermaid-config.js"></script>
+  <link rel="stylesheet" href="../../prism.css" />
+  <script src="../../prism.js"></script>
+  <script src="../../script.js"></script>
+</head>
+<body class="chapter-body">
+
+  <div class="chapter-breadcrumb">
+    <span class="section-part">11. Harness Engineering</span>
+    <span class="sep">/</span>
+    <span class="chapter-part">Lab 0 - Khởi tạo project bất động sản (Next.js, Prisma, PostgreSQL)</span>
+  </div>
+
+  <div class="alert alert-info">
+    <strong>Chuỗi Lab xuyên suốt Section 11:</strong> bạn sẽ xây một <strong>website bất động sản</strong> hoàn toàn mới
+    (project <code>D:\lab-realestate</code>), bắt đầu từ con số 0 và <strong>bổ sung dần từng thành phần của Harness</strong>:
+    Prompt → Context → Sensor → Hook &amp; Test → Phân quyền → Skill &amp; Sub-agent → Tác vụ dài hơi → Quan sát &amp; cải tiến.
+    Ở mỗi giai đoạn bạn chạy cùng một loại yêu cầu <em>trước</em> và <em>sau</em> khi thêm thành phần mới, rồi đo sự khác biệt bằng
+    <code>scorecard.ps1</code>. Project này <strong>độc lập</strong> với các project ở Section 4–10 để mọi thứ bắt đầu "sạch" (chưa có CLAUDE.md, Hook, Skill nào).
+  </div>
+
+  <h2 class="section-heading">Mục tiêu</h2>
+  <ul class="feature-list">
+    <li>Khởi tạo project <strong>Next.js (TypeScript) + Prisma + PostgreSQL chạy bằng docker-compose</strong>.</li>
+    <li>Tạo schema dữ liệu cho website bất động sản với <strong>4 role</strong>: <code>BUYER</code>, <code>SELLER</code>, <code>MODERATOR</code> (quản trị viên duyệt tin), <code>SYSTEM_ADMIN</code>.</li>
+    <li>Nạp dữ liệu mẫu (4 tài khoản, 3 tin đăng) và dựng "thước đo" <code>scorecard.ps1</code> dùng xuyên suốt các Lab sau.</li>
+    <li>Tạo điểm mốc <code>scaffold</code> trong Git — mọi thí nghiệm ở các Lab sau đều xuất phát từ các điểm mốc như vậy.</li>
+  </ul>
+
+  <h2 class="section-heading">Mô hình kiến trúc</h2>
+  <div class="mermaid">
+  flowchart LR
+      Dev(("<img src='../../assets/svg-icon/developer.svg' style='width:26px;height:26px;'/><br/><b>Học viên</b>"))
+      CC["<img src='../../assets/svg-icon/claude-logo.svg' style='width:28px;height:28px;'/><br/><b>Claude Code</b><br/>(dùng từ Lab sau)"]
+
+      subgraph Local["<img src='../../assets/svg-icon/laptop.svg' style='width:22px;height:22px;'/> Máy local — D:\lab-realestate"]
+          Next["⚛️ <b>Next.js</b><br/>localhost:3000"]
+          Prisma["🔷 <b>Prisma</b><br/>schema · migrate · seed"]
+          Score["📊 <b>scorecard.ps1</b><br/>thước đo kết quả"]
+      end
+
+      subgraph Docker["🐳 Docker Desktop"]
+          PG["<img src='../../assets/svg-icon/database.svg' style='width:26px;height:26px;'/><br/><b>PostgreSQL 16</b><br/>docker-compose · port 5432"]
+      end
+
+      Dev -->|"npm run dev"| Next
+      Next -->|"Prisma Client"| Prisma
+      Prisma -->|"DATABASE_URL"| PG
+      Dev -->|"đo kết quả"| Score
+      CC -.->|"sửa code ở các Lab sau"| Next
+  </div>
+  <p class="arch-caption">Ở Lab này chưa có harness nào. Bạn chỉ dựng nền: ứng dụng Next.js nói chuyện với PostgreSQL (chạy trong container) qua Prisma, cộng một script đo kết quả sẽ dùng lại ở mọi Lab sau.</p>
+
+  <h3 class="sub-heading">Domain của ứng dụng (sẽ dùng xuyên suốt)</h3>
+  <table class="compare-table">
+    <thead>
+      <tr><th>Role</th><th>Làm được gì</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><code>BUYER</code> (người mua)</td><td>Đăng tin <strong>cần mua</strong> (<code>WANTED</code>); xem tin đã duyệt</td></tr>
+      <tr><td><code>SELLER</code> (người bán)</td><td>Đăng tin <strong>bán</strong> (<code>SALE</code>); xem tin đã duyệt</td></tr>
+      <tr><td><code>MODERATOR</code> (quản trị viên)</td><td>Duyệt hoặc từ chối tin (<code>PENDING → APPROVED/REJECTED</code>)</td></tr>
+      <tr><td><code>SYSTEM_ADMIN</code></td><td>Quản lý tài khoản (khoá/mở, đổi role) và cấu hình hệ thống</td></tr>
+    </tbody>
+  </table>
+
+  <h2 class="section-heading">Yêu cầu trước khi bắt đầu</h2>
+  <ul class="feature-list">
+    <li>Node.js 20 trở lên (<code>node -v</code>), Git, Claude Code CLI đã đăng nhập.</li>
+    <li><strong>Docker Desktop</strong> đã cài đặt và đang chạy (<code>docker --version</code> chạy được).</li>
+    <li>Terminal PowerShell; cổng <code>3000</code> (web) và <code>5432</code> (PostgreSQL) chưa bị chiếm.</li>
+    <li>Toàn bộ file mẫu của chuỗi Lab nằm ở <code>sourcecode/section_11/lab_realestate/</code> trong repository khoá học.</li>
+  </ul>
+  <div class="alert alert-warning">
+    <strong>Để số liệu đo đáng tin:</strong> các Lab sau đo kết quả bằng scorecard sau mỗi lần thêm harness. Hãy kiểm tra không có cấu hình cấp user làm nhiễu
+    (file <code>~/.claude/CLAUDE.md</code> chứa quy tắc về code, Hook hoặc Skill đặt ở cấp user). Trong Claude Code dùng <code>/memory</code> và <code>/hooks</code> để xem; nếu có, hãy tạm thời vô hiệu hoá trong thời gian làm chuỗi Lab này.
+  </div>
+
+  <h2 class="section-heading">Các bước thực hành</h2>
+  <ol class="step-list">
+    <li>
+      <div>
+        <strong>Bước 1: Kiểm tra công cụ</strong>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">node -v
+npm -v
+git --version
+docker --version
+docker compose version
+claude --version</code></pre>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 2: Tạo project Next.js</strong>
+        <p>Tạo ứng dụng Next.js (App Router, TypeScript, thư mục <code>src/</code>, ESLint). Không dùng Tailwind để giữ project gọn.</p>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">cd D:\
+npx create-next-app@latest lab-realestate --ts --eslint --app --src-dir --no-tailwind --import-alias "@/*" --use-npm --yes
+cd D:\lab-realestate
+Get-ChildItem -Force | Select-Object Name</code></pre>
+        <div class="alert alert-warning">
+          <strong>Lưu ý:</strong> một số phiên bản <code>create-next-app</code> tự sinh sẵn file <code>AGENTS.md</code> và/hoặc <code>CLAUDE.md</code>. Nếu thấy, hãy <strong>xoá chúng</strong> (<code>Remove-Item AGENTS.md, CLAUDE.md -ErrorAction SilentlyContinue</code>) — mục tiêu là bắt đầu thí nghiệm khi project chưa có hướng dẫn nào cho agent; Lab 2 sẽ tự tạo lại đúng cách.
+        </div>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 3: Tạo docker-compose cho PostgreSQL và khởi động</strong>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">notepad docker-compose.yml</code></pre>
+        <pre class="file-block"><span class="filename">docker-compose.yml</span>
+services:
+  db:
+    image: postgres:16
+    container_name: realestate-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: app
+      POSTGRES_PASSWORD: app_password
+      POSTGRES_DB: realestate
+    ports:
+      - "5432:5432"
+    volumes:
+      - realestate-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U app -d realestate"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  realestate-pgdata:</pre>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">docker compose up -d db
+docker compose ps</code></pre>
+        <p>Cột <code>STATUS</code> cần hiện <code>healthy</code> (có thể phải chờ vài giây rồi chạy lại <code>docker compose ps</code>).</p>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 4: Cài thư viện và tạo file .env</strong>
+        <p>Dùng Prisma 6 (cấu hình <code>datasource</code> kiểu cổ điển trong <code>schema.prisma</code>) để các bước bên dưới khớp nhau.</p>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">npm install prisma@6 @prisma/client@6 bcryptjs jose zod
+npm install --save-dev tsx @types/bcryptjs
+notepad .env</code></pre>
+        <pre class="file-block"><span class="filename">.env</span>
+DATABASE_URL="postgresql://app:app_password@localhost:5432/realestate?schema=public"
+AUTH_SECRET="doi-thanh-chuoi-ngau-nhien-dai-it-nhat-32-ky-tu"</pre>
+        <p>Đổi <code>AUTH_SECRET</code> thành một chuỗi ngẫu nhiên dài từ 32 ký tự. Kiểm tra <code>.env</code> đã được Git bỏ qua và thêm file kết quả đo:</p>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">git check-ignore .env
+Add-Content .gitignore "`nscoreboard.csv"</code></pre>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 5: Tạo schema Prisma, chạy migration</strong>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">mkdir prisma -Force
+notepad prisma\schema.prisma</code></pre>
+        <pre class="file-block"><span class="filename">prisma/schema.prisma</span>
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  BUYER
+  SELLER
+  MODERATOR
+  SYSTEM_ADMIN
+}
+
+enum ListingType {
+  SALE   // Người bán đăng tin bán
+  WANTED // Người mua đăng tin cần mua
+}
+
+enum PropertyType {
+  APARTMENT
+  HOUSE
+  LAND
+}
+
+enum ListingStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model User {
+  id           Int       @id @default(autoincrement())
+  email        String    @unique
+  passwordHash String
+  name         String
+  role         Role      @default(BUYER)
+  isActive     Boolean   @default(true)
+  createdAt    DateTime  @default(now())
+  listings     Listing[] @relation("ListingOwner")
+  reviewed     Listing[] @relation("ListingReviewer")
+}
+
+model Listing {
+  id           Int           @id @default(autoincrement())
+  title        String
+  description  String
+  type         ListingType
+  propertyType PropertyType
+  priceMillion Int // Giá tính bằng triệu đồng
+  areaM2       Int
+  city         String
+  district     String
+  status       ListingStatus @default(PENDING)
+  rejectReason String?
+  ownerId      Int
+  owner        User          @relation("ListingOwner", fields: [ownerId], references: [id])
+  reviewedById Int?
+  reviewedBy   User?         @relation("ListingReviewer", fields: [reviewedById], references: [id])
+  reviewedAt   DateTime?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  @@index([status, type])
+  @@index([ownerId])
+}
+
+model SystemSetting {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt
+}</pre>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">npx prisma migrate dev --name init</code></pre>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 6: Tạo Prisma client dùng chung và dữ liệu mẫu</strong>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">mkdir src\lib -Force
+notepad src\lib\prisma.ts</code></pre>
+        <pre class="file-block"><span class="filename">src/lib/prisma.ts</span>
+import { PrismaClient } from '@prisma/client';
+
+const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient };
+
+export const prisma = globalForPrisma.prisma ?? new PrismaClient();
+
+if (process.env.NODE_ENV !== 'production') {
+  globalForPrisma.prisma = prisma;
+}</pre>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">notepad prisma\seed.ts</code></pre>
+        <pre class="file-block"><span class="filename">prisma/seed.ts</span>
+import { PrismaClient, Role, ListingType, PropertyType, ListingStatus } from '@prisma/client';
+import bcrypt from 'bcryptjs';
+
+const prisma = new PrismaClient();
+
+async function main() {
+  const passwordHash = await bcrypt.hash('Passw0rd!', 10);
+
+  const users = [
+    { email: 'admin@demo.vn', name: 'System Admin', role: Role.SYSTEM_ADMIN },
+    { email: 'mod@demo.vn', name: 'Kiểm duyệt viên', role: Role.MODERATOR },
+    { email: 'seller@demo.vn', name: 'Người bán Nam', role: Role.SELLER },
+    { email: 'buyer@demo.vn', name: 'Người mua Lan', role: Role.BUYER },
+  ];
+
+  for (const u of users) {
+    await prisma.user.upsert({
+      where: { email: u.email },
+      update: {},
+      create: { ...u, passwordHash },
+    });
+  }
+
+  const seller = await prisma.user.findUniqueOrThrow({ where: { email: 'seller@demo.vn' } });
+  const buyer = await prisma.user.findUniqueOrThrow({ where: { email: 'buyer@demo.vn' } });
+  const mod = await prisma.user.findUniqueOrThrow({ where: { email: 'mod@demo.vn' } });
+
+  if ((await prisma.listing.count()) === 0) {
+    await prisma.listing.createMany({
+      data: [
+        {
+          title: 'Căn hộ 2PN view sông Quận 7',
+          description: 'Căn hộ 68m2, full nội thất, sổ hồng riêng, gần Phú Mỹ Hưng.',
+          type: ListingType.SALE,
+          propertyType: PropertyType.APARTMENT,
+          priceMillion: 3200,
+          areaM2: 68,
+          city: 'Hồ Chí Minh',
+          district: 'Quận 7',
+          status: ListingStatus.APPROVED,
+          ownerId: seller.id,
+          reviewedById: mod.id,
+          reviewedAt: new Date(),
+        },
+        {
+          title: 'Nhà phố 4 tầng hẻm xe hơi Cầu Giấy',
+          description: 'Nhà 4 tầng, 52m2, ngõ ô tô tránh, gần trường học.',
+          type: ListingType.SALE,
+          propertyType: PropertyType.HOUSE,
+          priceMillion: 8900,
+          areaM2: 52,
+          city: 'Hà Nội',
+          district: 'Cầu Giấy',
+          status: ListingStatus.APPROVED,
+          ownerId: seller.id,
+          reviewedById: mod.id,
+          reviewedAt: new Date(),
+        },
+        {
+          title: 'Cần mua đất nền Đà Nẵng 100m2',
+          description: 'Ngân sách khoảng 3 tỷ, ưu tiên gần biển, pháp lý rõ ràng.',
+          type: ListingType.WANTED,
+          propertyType: PropertyType.LAND,
+          priceMillion: 3000,
+          areaM2: 100,
+          city: 'Đà Nẵng',
+          district: 'Sơn Trà',
+          status: ListingStatus.PENDING,
+          ownerId: buyer.id,
+        },
+      ],
+    });
+  }
+
+  console.log('Seed xong: 4 tài khoản (mật khẩu chung: Passw0rd!) và 3 tin mẫu.');
+}
+
+main()
+  .catch((e) =&gt; {
+    console.error(e);
+    process.exit(1);
+  })
+  .finally(() =&gt; prisma.$disconnect());</pre>
+        <p>Khai báo lệnh seed, thêm script typecheck rồi nạp dữ liệu:</p>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">npm pkg set prisma.seed="tsx prisma/seed.ts"
+npm pkg set scripts.typecheck="tsc --noEmit"
+npx prisma db seed</code></pre>
+        <p>Kiểm tra dữ liệu đã vào database:</p>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">docker compose exec db psql -U app -d realestate -c "SELECT email, role FROM \"User\";"</code></pre>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 7: Tạo "thước đo" scorecard.ps1</strong>
+        <p>Script này <strong>dành cho bạn</strong> (không phải một phần của harness): nó đo kết quả của agent bằng các chỉ số khách quan — typecheck, lint, số file test, test pass/fail, số file UI gọi thẳng Prisma, số chỗ dùng <code>any</code> — và ghi vào <code>scoreboard.csv</code>. Dùng nó, bạn so sánh các giai đoạn bằng số liệu thay vì cảm nhận.</p>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">notepad scorecard.ps1</code></pre>
+        <pre class="file-block"><span class="filename">scorecard.ps1</span>
+# scorecard.ps1 — "thước đo" kết quả của agent (dành cho con người, KHÔNG phải một phần của harness).
+# Chạy: powershell -NoProfile -ExecutionPolicy Bypass -File scorecard.ps1 -Label v0-weak
+# Mỗi lần chạy in một bảng và ghi thêm một dòng vào scoreboard.csv để so sánh giữa các giai đoạn.
+param([Parameter(Mandatory = $true)][string]$Label)
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+
+function PassFail($code) { if ($code -eq 0) { 'PASS' } else { 'FAIL' } }
+
+$row = [ordered]@{ timestamp = (Get-Date -Format s); label = $Label }
+
+npx tsc --noEmit *&gt; $null
+$row.typecheck = PassFail $LASTEXITCODE
+
+npm run lint --silent *&gt; $null
+$row.lint = PassFail $LASTEXITCODE
+
+$testFiles = @(Get-ChildItem src -Recurse -File -Include *.test.ts, *.test.tsx -ErrorAction SilentlyContinue)
+$row.test_files = $testFiles.Count
+if ($testFiles.Count -gt 0) {
+    npx vitest run *&gt; $null
+    $row.tests = PassFail $LASTEXITCODE
+} else {
+    $row.tests = 'NONE'
+}
+
+# Số file UI (src/app, src/components) import trực tiếp Prisma (không tính "import type")
+$pattern = "@prisma/client|@/lib/prisma|@/lib/db|lib/(prisma|db)['""]"
+$uiFiles = @(Get-ChildItem src/app, src/components -Recurse -File -Include *.ts, *.tsx -ErrorAction SilentlyContinue)
+$row.ui_db_imports = @($uiFiles | Where-Object {
+        $hits = Select-String -Path $_.FullName -Pattern $pattern | Where-Object { $_.Line -notmatch '^\s*import\s+type\b' }
+        $hits.Count -gt 0
+    }).Count
+
+# Số chỗ dùng "any" trong TypeScript
+$srcFiles = @(Get-ChildItem src -Recurse -File -Include *.ts, *.tsx -ErrorAction SilentlyContinue)
+$row.any_usage = @($srcFiles | Select-String -Pattern ':\s*any\b|as any\b|&lt;any&gt;').Count
+
+[pscustomobject]$row | Format-List
+
+$csv = 'scoreboard.csv'
+[pscustomobject]$row | Export-Csv -Path $csv -Append -NoTypeInformation -Encoding utf8
+Write-Host "Đã ghi vào $csv"</pre>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 8: Chạy thử ứng dụng và ghi điểm mốc đầu tiên</strong>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">npm run dev</code></pre>
+        <p>Mở <code>http://localhost:3000</code> để thấy trang mặc định của Next.js, sau đó dừng server (<code>Ctrl+C</code>) rồi đo:</p>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">powershell -NoProfile -ExecutionPolicy Bypass -File scorecard.ps1 -Label scaffold</code></pre>
+        <p>Kết quả mong đợi: <code>typecheck = PASS</code>, <code>lint = PASS</code>, <code>tests = NONE</code>, <code>test_files = 0</code>, <code>ui_db_imports = 0</code>.</p>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 9: Commit và gắn tag điểm mốc</strong>
+        <p>Tag <code>scaffold</code> là "điểm xuất phát sạch" — các Lab sau sẽ tạo nhánh thí nghiệm từ các điểm mốc kiểu này.</p>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">git add -A
+git commit -m "scaffold: nextjs + prisma + postgres + scorecard"
+git branch -M main
+git tag scaffold
+git branch --show-current</code></pre>
+        <p>Lệnh <code>git branch -M main</code> chuẩn hoá nhánh chính thành <code>main</code> — các Lab sau luôn dùng tên này.</p>
+      </div>
+    </li>
+  </ol>
+
+  <div class="verify-box">
+    <h4>✅ Kết quả mong đợi</h4>
+    <p class="body-text"><code>docker compose ps</code> báo container <code>realestate-db</code> ở trạng thái <code>healthy</code>; truy vấn <code>SELECT</code> trả về 4 email (<code>admin@</code>, <code>mod@</code>, <code>seller@</code>, <code>buyer@demo.vn</code>); <code>scoreboard.csv</code> có dòng đầu tiên với nhãn <code>scaffold</code>; Git có tag <code>scaffold</code>. Mật khẩu của cả 4 tài khoản mẫu là <code>Passw0rd!</code>.</p>
+  </div>
+
+  <h2 class="section-heading">Troubleshoot</h2>
+  <div class="alert alert-warning">
+    <strong>Lỗi:</strong> <code>docker compose up</code> báo cổng 5432 đã được sử dụng.<br/>
+    <strong>Nguyên nhân:</strong> Máy đang chạy một PostgreSQL khác.<br/>
+    <strong>Giải pháp:</strong> Dừng dịch vụ PostgreSQL cũ, hoặc đổi cổng trong <code>docker-compose.yml</code> thành <code>"5433:5432"</code> và sửa <code>DATABASE_URL</code> trong <code>.env</code> thành cổng <code>5433</code>.
+  </div>
+  <div class="alert alert-warning">
+    <strong>Lỗi:</strong> <code>Cannot connect to the Docker daemon</code> hoặc <code>docker compose</code> không chạy.<br/>
+    <strong>Nguyên nhân:</strong> Docker Desktop chưa khởi động.<br/>
+    <strong>Giải pháp:</strong> Mở Docker Desktop, chờ biểu tượng chuyển sang trạng thái chạy rồi thử lại.
+  </div>
+  <div class="alert alert-warning">
+    <strong>Lỗi:</strong> <code>prisma migrate dev</code> báo <code>P1001: Can't reach database server</code>.<br/>
+    <strong>Nguyên nhân:</strong> Container chưa healthy, hoặc <code>DATABASE_URL</code> sai.<br/>
+    <strong>Giải pháp:</strong> Chạy <code>docker compose ps</code> chờ <code>healthy</code>; kiểm tra thông tin trong <code>.env</code> khớp với <code>docker-compose.yml</code> (user <code>app</code>, mật khẩu <code>app_password</code>, database <code>realestate</code>).
+  </div>
+  <div class="alert alert-warning">
+    <strong>Lỗi:</strong> Cài Prisma xong nhưng <code>npx prisma</code> báo lỗi cấu hình khác với hướng dẫn (ví dụ yêu cầu <code>prisma.config.ts</code>).<br/>
+    <strong>Nguyên nhân:</strong> Đang dùng Prisma 7 thay vì Prisma 6.<br/>
+    <strong>Giải pháp:</strong> Chạy lại <code>npm install prisma@6 @prisma/client@6</code> để dùng đúng phiên bản của bài lab.
+  </div>
+  <div class="alert alert-warning">
+    <strong>Lỗi:</strong> Chạy <code>scorecard.ps1</code> báo "running scripts is disabled".<br/>
+    <strong>Nguyên nhân:</strong> Execution policy của PowerShell.<br/>
+    <strong>Giải pháp:</strong> Luôn gọi bằng <code>powershell -NoProfile -ExecutionPolicy Bypass -File scorecard.ps1 ...</code> như trong hướng dẫn.
+  </div>
+
+  <h2 class="section-heading">Dọn dẹp resource</h2>
+  <div class="alert alert-info">
+    Database chạy trong container trên máy local, không phát sinh chi phí Cloud. Các Lab sau dùng tiếp project và container này nên <strong>chưa cần dọn</strong>.
+  </div>
+  <p class="note-text">Khi tạm nghỉ, dừng container (dữ liệu vẫn được giữ trong volume):</p>
+  <pre class="command-line" data-prompt="PS>"><code class="language-powershell">cd D:\lab-realestate
+docker compose stop db</code></pre>
+  <p class="note-text">Lần học tiếp theo, bật lại bằng <code>docker compose up -d db</code>. Việc xoá hoàn toàn (gồm dữ liệu) được hướng dẫn ở Lab cuối của Section.</p>
+
+  <script>mermaid.initialize({ startOnLoad: true, theme: 'default' });</script>
+</body>
+</html>

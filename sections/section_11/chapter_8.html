@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lab 4 - Vòng phản hồi tự động với Test &amp; Hooks – Claude 101</title>
+  <link rel="stylesheet" href="../../styles.css" />
+  <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+  <script src="../../mermaid-config.js"></script>
+  <link rel="stylesheet" href="../../prism.css" />
+  <script src="../../prism.js"></script>
+  <script src="../../script.js"></script>
+</head>
+<body class="chapter-body">
+
+  <div class="chapter-breadcrumb">
+    <span class="section-part">11. Harness Engineering</span>
+    <span class="sep">/</span>
+    <span class="chapter-part">Lab 4 - Vòng phản hồi tự động với Test &amp; Hooks</span>
+  </div>
+
+  <div class="alert alert-info">
+    <strong>Lab 4 / 8 — tự động hoá phản hồi: Test + Hook.</strong> Sensor ở Lab trước vẫn phụ thuộc agent "nhớ" chạy. Lab này thêm hai thành phần:
+    <strong>bộ test</strong> (sensor kiểm tra hành vi) và <strong>Hook</strong> (chạy sensor tự động, đẩy lỗi ngược lại agent). Bạn nhờ Claude viết cả hai.
+  </div>
+
+  <h2 class="section-heading">Mục tiêu</h2>
+  <ul class="feature-list">
+    <li>Nhờ Claude cài Vitest, viết unit test cho các service hiện có và cập nhật quy tắc test trong CLAUDE.md.</li>
+    <li>Nhờ Claude tạo Hook <code>PostToolUse</code> (lint + typecheck + kiến trúc sau mỗi lần sửa file) và <code>Stop</code> (test + kiến trúc trước khi kết thúc), dùng exit code <code>2</code> để đẩy lỗi ngược lại agent.</li>
+    <li>Thêm tính năng sửa/xoá tin của chính mình bằng một prompt ngắn và quan sát agent tự sửa nhờ phản hồi tự động.</li>
+  </ul>
+
+  <h2 class="section-heading">Mô hình kiến trúc</h2>
+  <div class="mermaid">
+  flowchart LR
+      CC["<img src='../../assets/svg-icon/claude-logo.svg' style='width:28px;height:28px;'/><br/><b>Claude Code</b>"]
+      Edit["<img src='../../assets/svg-icon/ide.svg' style='width:24px;height:24px;'/><br/>Edit / Write<br/>file .ts/.tsx"]
+      Post["<img src='../../assets/svg-icon/operator.svg' style='width:24px;height:24px;'/><br/><b>PostToolUse Hook</b>"]
+      Fast["⚡ <b>Sensor nhanh</b><br/>eslint · tsc · check-arch"]
+      Stop["<img src='../../assets/svg-icon/operator.svg' style='width:24px;height:24px;'/><br/><b>Stop Hook</b>"]
+      Slow["🧪 <b>Sensor nặng</b><br/>vitest · check-arch"]
+      Done(["🏁 Kết thúc lượt"])
+
+      CC --> Edit --> Post --> Fast
+      Fast -.->|"Lỗi: exit 2 + stderr"| CC
+      CC -->|"muốn dừng"| Stop --> Slow
+      Slow -.->|"Fail: exit 2 + stderr"| CC
+      Slow -->|"Pass"| Done
+  </div>
+  <p class="arch-caption">Phân tầng sensor theo chi phí: kiểm tra nhanh sau <i>mỗi lần sửa file</i>, kiểm tra nặng (toàn bộ test) chỉ ở <i>cuối lượt</i>. Nét đứt là phản hồi tự động quay lại agent — bạn không phải nhắn thêm câu nào.</p>
+
+  <h2 class="section-heading">Yêu cầu trước khi bắt đầu</h2>
+  <ul class="feature-list">
+    <li>Hoàn thành Lab trước: <code>main</code> có <code>npm run check:arch</code> (tag <code>lab3-done</code>).</li>
+    <li>Hiểu cơ bản về Hook (Section 9): event, matcher, stdin JSON, exit code.</li>
+    <li>PowerShell chạy được <code>.ps1</code> với <code>-ExecutionPolicy Bypass</code>; database container đang chạy.</li>
+  </ul>
+
+  <h2 class="section-heading">Các bước thực hành</h2>
+  <ol class="step-list">
+    <li>
+      <div>
+        <strong>Bước 1: Nhờ Claude thiết lập Vitest và viết test</strong>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">git switch main
+git switch -c lab4
+claude --permission-mode acceptEdits</code></pre>
+        <pre class="command-line" data-prompt=">"><code class="language-text">Hãy thiết lập kiểm thử tự động cho project:
+1) Cài vitest, tạo vitest.config.ts có alias "@" trỏ tới src, thêm script "test": "vitest run" vào package.json.
+2) Viết unit test cho các hàm hiện có trong src/services (auth-service, listing-service), đặt trong src/services/__tests__/<tên>-service.test.ts. Dùng vi.mock('@/lib/prisma') để không phụ thuộc database. Mỗi hàm service phải có ít nhất: 1 ca chạy đúng, và 1 ca bị từ chối vì sai role hoặc dữ liệu không hợp lệ.
+3) Cập nhật CLAUDE.md (giữ dưới 60 dòng): thêm quy tắc "mỗi hàm service mới phải có unit test, gồm ca bị từ chối quyền", và Definition of Done gồm npm run typecheck, npm run lint, npm run check:arch, npm test.
+Chạy npm test và báo kết quả.</code></pre>
+        <p>Thoát phiên, commit:</p>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">npm test
+git add -A
+git commit -m "harness: vitest + unit test cho service"</code></pre>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 2: Nhờ Claude viết Hook phản hồi tự động</strong>
+        <p>Mô tả <strong>hành vi mong muốn</strong> thật cụ thể — đây là kỹ năng "đặc tả sensor" bạn đã luyện ở Lab trước:</p>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">claude --permission-mode acceptEdits</code></pre>
+        <pre class="command-line" data-prompt=">"><code class="language-text">Hãy tạo Hook cho Claude Code trong project này, dùng PowerShell, đặt script trong .claude/hooks/ và khai báo trong .claude/settings.json (project scope):
+
+1) Hook PostToolUse, matcher "Edit|Write": đọc JSON từ stdin, lấy tool_input.file_path. Chỉ xử lý file .ts/.tsx. Chạy lần lượt: npx eslint <file>; npx tsc --noEmit; node scripts/check-architecture.mjs. Nếu có lỗi: gom nội dung lỗi (có tiền tố [ESLINT]/[TYPECHECK]/[ARCHITECTURE]), cắt tối đa 4000 ký tự, ghi ra stderr và thoát exit code 2. Nếu ổn thoát 0.
+
+2) Hook Stop: đọc JSON từ stdin; NẾU stop_hook_active = true thì thoát 0 ngay (chống vòng lặp vô hạn). Ngược lại chạy node scripts/check-architecture.mjs và npx vitest run --passWithNoTests; nếu fail thì ghi lỗi ra stderr (cắt 4000 ký tự) và thoát exit code 2.
+
+Command trong settings.json dùng: powershell -NoProfile -ExecutionPolicy Bypass -File .claude/hooks/<tên>.ps1
+Lưu ý: script không được ghi/xoá file nào ngoài việc chạy các lệnh kiểm tra nêu trên. Sau khi tạo, hãy chỉ cho tôi cách chạy thử script thủ công bằng JSON giả lập trước khi tôi khởi động lại Claude Code.</code></pre>
+        <div class="alert alert-danger">
+          <strong>Bắt buộc review:</strong> Hook chạy tự động <em>với quyền của bạn</em>. Trước khi dùng, hãy mở từng script và xác nhận chỉ chạy các lệnh kiểm tra (eslint, tsc, node, vitest), không gọi mạng, không xoá/ghi file ngoài ý muốn. (Có bản tham khảo tại <code>sourcecode/section_11/lab_realestate/reference/.claude/</code>.)
+        </div>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 3: Chạy thử Hook thủ công</strong>
+        <p>Tạo file vi phạm, giả lập JSON mà Claude Code gửi vào stdin, kiểm tra exit code rồi xoá file:</p>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">mkdir src\app\tmp-violation -Force
+Set-Content -Path src\app\tmp-violation\page.tsx -Value "import { prisma } from '@/lib/prisma';`nexport default function P() { return null; }"
+'{"tool_input":{"file_path":"src/app/tmp-violation/page.tsx"}}' | powershell -NoProfile -ExecutionPolicy Bypass -File .claude/hooks/verify-changed-file.ps1
+"exit code = $LASTEXITCODE"
+Remove-Item src\app\tmp-violation -Recurse -Force</code></pre>
+        <p>Tên script có thể khác nếu Claude đặt tên khác — dùng đúng tên trong thư mục <code>.claude/hooks</code>. Kết quả mong đợi: có <code>[ARCHITECTURE]</code> và <code>exit code = 2</code>. Rồi commit harness:</p>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">git add -A
+git commit -m "harness: hook PostToolUse va Stop"</code></pre>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 4: Thêm tính năng bằng một prompt ngắn — Hook làm việc</strong>
+        <p>Khởi động lại Claude Code để nạp Hook:</p>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">claude --permission-mode acceptEdits</code></pre>
+        <p>Gõ <code>/hooks</code> để xác nhận thấy <code>PostToolUse</code> và <code>Stop</code>, rồi dán yêu cầu (chỉ nêu nghiệp vụ, không dặn về test hay kiểm tra):</p>
+        <pre class="command-line" data-prompt=">"><code class="language-text">Cho phép BUYER và SELLER sửa và xoá tin của chính mình (trang /my-listings có nút Sửa, Xoá). Khi sửa tin đã APPROVED hoặc REJECTED thì tin quay về PENDING. Người khác không được sửa/xoá tin không phải của mình.</code></pre>
+        <p>Quan sát log: sau mỗi lần ghi file Claude Code chạy Hook; nếu có lỗi lint/type/kiến trúc, nó tự sửa; trước khi dừng, <code>npm test</code> được chạy. Đo và commit:</p>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">powershell -NoProfile -ExecutionPolicy Bypass -File scorecard.ps1 -Label lab4
+git add -A
+git commit -m "lab4: sua/xoa tin cua chinh minh"</code></pre>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 5: Thử "backpressure" của Hook Stop bằng một test cố ý hỏng</strong>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">Set-Content -Path src\services\__tests__\demo-fail.test.ts -Value "import { test, expect } from 'vitest';`ntest('demo harness', () => { expect(1 + 1).toBe(3); });"
+claude</code></pre>
+        <pre class="command-line" data-prompt=">"><code class="language-text">Liệt kê cấu trúc thư mục src/ ở mức 2 cấp và tóm tắt ngắn gọn.</code></pre>
+        <p>Khi Claude Code định kết thúc, Hook <code>Stop</code> chạy test, thấy lỗi và đẩy lại; Claude Code tiếp tục xử lý. Nhờ <code>stop_hook_active</code> nó không bị chặn vô hạn. Xoá file demo sau khi thử:</p>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">Remove-Item src\services\__tests__\demo-fail.test.ts -Force
+git status --short</code></pre>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 6: Đọc điểm số và xử lý điểm bất thường</strong>
+        <p>Mở dòng mới nhất của scoreboard và đọc điểm. Dưới đây là các dấu hiệu <strong>bất thường</strong> cần xử lý:</p>
+        <ul class="feature-list">
+          <li><code>typecheck</code>, <code>lint</code> hoặc <code>tests</code> khác <code>PASS</code> (hoặc <code>tests</code> vẫn là <code>NONE</code> dù đã có hàm service mới).</li>
+          <li><code>ui_db_imports</code> lớn hơn 0 (UI gọi thẳng Prisma) hoặc <code>any_usage</code> lớn hơn 0.</li>
+          <li><code>test_files</code> không tăng, hoặc không có ca "người khác không được sửa/xoá" cho hàm service mới.</li>
+        </ul>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">Import-Csv scoreboard.csv | Format-Table label, typecheck, lint, tests, test_files, ui_db_imports, any_usage</code></pre>
+        <div class="alert alert-info">
+          <strong>Nguyên tắc xử lý điểm bất thường:</strong> đừng sửa tay rồi bỏ qua. Hãy nhờ Claude (1) tìm nguyên nhân gốc và sửa lỗi, rồi (2) <strong>bổ sung đúng một quy tắc harness</strong> (một dòng trong <code>CLAUDE.md</code>, một mục trong <code>docs/</code>, hoặc một luật của sensor) để lỗi loại này không lặp lại. Nếu mọi chỉ số đều bình thường, bạn không cần làm gì thêm — <em>không thêm quy tắc "cho chắc"</em>, vì harness thừa làm agent chậm và rối hơn.
+        </div>
+        <p>Ví dụ cách yêu cầu (thay nội dung bằng điểm bất thường thật của bạn):</p>
+        <pre class="command-line" data-prompt=">"><code class="language-text">Điểm số bất thường: test_files không tăng sau khi thêm hàm sửa/xoá tin, và chưa có test nào kiểm tra người khác bị từ chối. Hãy viết bổ sung test còn thiếu, rồi thêm MỘT quy tắc vào CLAUDE.md hoặc vào Hook Stop (ví dụ: hàm service mới mà không có file test tương ứng thì Stop hook báo lỗi) để lỗi này không lặp lại.</code></pre>
+        <p>Quy tắc có thể là guide (một dòng trong CLAUDE.md) hoặc sensor (mở rộng Hook). Ưu tiên sensor nếu kiểm tra được bằng máy.</p>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">powershell -NoProfile -ExecutionPolicy Bypass -File scorecard.ps1 -Label lab4-fix
+git add -A
+git commit -m "lab4: bo sung quy tac harness sau khi phat hien diem bat thuong"</code></pre>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 7: Hợp nhất vào main</strong>
+        <p>Khi điểm số ổn, hợp nhất vào <code>main</code> và đặt tag để Lab sau bắt đầu từ đây:</p>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">git status --short
+git switch main
+git merge --ff-only lab4
+git tag lab4-done</code></pre>
+      </div>
+    </li>
+  </ol>
+
+  <div class="verify-box">
+    <h4>✅ Kết quả mong đợi</h4>
+    <p class="body-text">Ở <code>lab4</code>, <code>test_files</code> &gt; 0, <code>tests = PASS</code>, có ca test "người khác không được sửa/xoá". Quan trọng hơn: mọi vi phạm lint/type/kiến trúc trong quá trình làm đều được Hook phát hiện <strong>ngay lúc phát sinh</strong> và agent tự sửa, không cần bạn can thiệp. Với bước thử "backpressure", Hook <code>Stop</code> chặn kết thúc lượt khi có test hỏng và không kẹt vô hạn nhờ <code>stop_hook_active</code>. Nếu điểm bất thường, xử lý theo Bước 6.</p>
+  </div>
+
+  <h2 class="section-heading">Troubleshoot</h2>
+  <div class="alert alert-warning">
+    <strong>Lỗi:</strong> Hook báo lỗi nhưng Claude Code không tự sửa, chỉ hiện cảnh báo.<br/>
+    <strong>Nguyên nhân:</strong> Script thoát với exit code khác <code>2</code> hoặc ghi lỗi ra stdout thay vì stderr.<br/>
+    <strong>Giải pháp:</strong> Nhờ Claude kiểm tra: lỗi phải ghi ra <code>stderr</code> và thoát <code>exit 2</code>.
+  </div>
+  <div class="alert alert-warning">
+    <strong>Lỗi:</strong> Claude Code bị kẹt: sửa mãi rồi lại bị Stop hook chặn.<br/>
+    <strong>Nguyên nhân:</strong> Test fail do nguyên nhân agent không thể tự sửa (ví dụ database chưa chạy), hoặc thiếu kiểm tra <code>stop_hook_active</code>.<br/>
+    <strong>Giải pháp:</strong> Đảm bảo có kiểm tra <code>stop_hook_active</code>; chạy <code>npm test</code> thủ công tìm nguyên nhân; nhấn <code>Esc</code> ngắt phiên nếu cần.
+  </div>
+  <div class="alert alert-warning">
+    <strong>Lỗi:</strong> Mỗi lần sửa file phải chờ rất lâu.<br/>
+    <strong>Nguyên nhân:</strong> <code>tsc --noEmit</code> kiểm tra toàn project mỗi lần.<br/>
+    <strong>Giải pháp:</strong> Yêu cầu Claude bật <code>"incremental": true</code> trong <code>tsconfig.json</code>, hoặc chuyển typecheck sang Hook <code>Stop</code> và chỉ giữ ESLint + kiểm tra kiến trúc ở <code>PostToolUse</code>.
+  </div>
+  <div class="alert alert-warning">
+    <strong>Lỗi:</strong> Agent "lách" bằng cách sửa hoặc xoá test cho pass.<br/>
+    <strong>Nguyên nhân:</strong> Sensor nào cũng có thể bị lách nếu agent được phép sửa nó.<br/>
+    <strong>Giải pháp:</strong> Review <code>git diff</code> phần test; đã có quy tắc "không sửa/xoá test để lách" trong thông báo của Stop hook; Lab sau thêm thêm lớp kiểm soát bằng ma trận quyền và quyền hạn của agent.
+  </div>
+
+  <h2 class="section-heading">Dọn dẹp resource</h2>
+  <div class="alert alert-info">
+    Không có resource Cloud. Hook chỉ chạy cục bộ trong project. Giữ nhánh <code>lab4</code> và tag <code>lab4-done</code>; giữ nguyên để dùng tiếp ở các Lab sau.
+  </div>
+
+  <script>mermaid.initialize({ startOnLoad: true, theme: 'default' });</script>
+</body>
+</html>

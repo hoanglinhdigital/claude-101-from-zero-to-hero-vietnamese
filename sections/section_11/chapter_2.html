@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Định hướng nâng cao: Claude API / Claude Agent SDK – Claude 101</title>
+  <title>Các thành phần của Harness &amp; ánh xạ vào Claude Code – Claude 101</title>
   <link rel="stylesheet" href="../../styles.css" />
   <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
   <script src="../../mermaid-config.js"></script>
@@ -14,101 +14,144 @@
 <body class="chapter-body">
 
   <div class="chapter-breadcrumb">
-    <span class="section-part">11. Tổng kết & Định hướng nâng cao</span>
+    <span class="section-part">11. Harness Engineering</span>
     <span class="sep">/</span>
-    <span class="chapter-part">Định hướng nâng cao: Claude API / Claude Agent SDK</span>
+    <span class="chapter-part">Các thành phần của Harness &amp; ánh xạ vào Claude Code</span>
   </div>
 
   <h2 class="section-heading">Giới thiệu</h2>
   <p class="body-text">
-    Toàn bộ khoá học này sử dụng Claude qua các <strong>giao diện có sẵn</strong>: Claude.ai/Claude Desktop App (chat),
-    và Claude Code (CLI) — cùng các cơ chế mở rộng phía trên như Skill, Sub-agent, MCP, Hook, Spec-Kit. Nếu công việc
-    của bạn đi xa hơn — cần <strong>tích hợp Claude trực tiếp vào một ứng dụng/hệ thống riêng</strong> (không qua
-    giao diện chat) hoặc <strong>tự xây một agent tuỳ biến hoàn toàn</strong>, đó là lúc cần tìm hiểu thêm về
-    <strong>Claude API</strong> (Anthropic API) và <strong>Claude Agent SDK</strong>. Đây là hướng đi <em>nâng cao,
-    không bắt buộc</em> với mọi học viên — phù hợp hơn với lập trình viên muốn đi sâu về mặt kỹ thuật.
+    Một harness không phải là một sản phẩm riêng lẻ mà là <strong>tập hợp các thành phần</strong> cùng phục vụ một mục tiêu:
+    giúp agent biết việc cần làm, làm được việc đó trong giới hạn an toàn, và nhận phản hồi để tự sửa sai. Chương này
+    liệt kê 7 thành phần cốt lõi của harness và chỉ ra <strong>mỗi thành phần tương ứng với tính năng nào của Claude Code</strong>
+    mà bạn đã học — để từ đó biết cần "vặn" núm nào khi agent làm chưa tốt.
   </p>
 
   <h2 class="section-heading">Các tính năng chính</h2>
   <ul class="feature-list">
-    <li><strong>Claude API (Anthropic API)</strong> — cách gọi trực tiếp model Claude từ code của riêng bạn (ứng dụng web, hệ thống backend, script xử lý dữ liệu...), không phụ thuộc vào giao diện chat hay Claude Code.</li>
-    <li>Phù hợp khi cần Claude hoạt động như một phần của sản phẩm/hệ thống đang vận hành — ví dụ chatbot chạy trên website của công ty, tính năng tóm tắt tự động trong một ứng dụng nội bộ.</li>
-    <li><strong>Claude Agent SDK</strong> — bộ SDK cho phép tự xây dựng một agent tuỳ biến, với vòng lặp suy luận – gọi tool – quan sát kết quả tương tự cách Claude Code được xây dựng, nhưng do bạn tự định nghĩa hành vi, tool, và giao diện riêng.</li>
-    <li>Khác với Skill/Sub-agent (vẫn chạy bên trong Claude Code), Agent SDK cho phép xây một chương trình/agent hoàn toàn độc lập, không cần Claude Code hay claude.ai làm "vỏ bọc".</li>
-    <li>Cả hai hướng đều yêu cầu kiến thức lập trình và cấu hình API Key từ Anthropic Console — không phải là bước tiếp theo bắt buộc cho học viên chỉ cần ứng dụng Claude vào công việc hằng ngày.</li>
+    <li><strong>Context &amp; hướng dẫn:</strong> thông tin agent cần để hiểu dự án — quy tắc, kiến trúc, lệnh build/test.</li>
+    <li><strong>Tools:</strong> hành động agent có thể thực hiện — đọc/sửa file, chạy lệnh, gọi hệ thống ngoài qua MCP.</li>
+    <li><strong>Permissions &amp; sandbox:</strong> ranh giới được phép — thư mục, lệnh, thao tác cần xác nhận hoặc bị cấm.</li>
+    <li><strong>Memory &amp; State:</strong> những gì agent "nhớ" qua nhiều lượt và nhiều phiên — file tiến độ, lịch sử Git.</li>
+    <li><strong>Chuyên môn hoá &amp; cô lập:</strong> Skill nạp quy trình đúng lúc; Sub-agent làm việc trong context riêng.</li>
+    <li><strong>Kiểm chứng:</strong> các bước tự động xác nhận kết quả — typecheck, lint, test, kiểm tra kiến trúc.</li>
+    <li><strong>Quan sát &amp; vòng đời:</strong> transcript/log để hiểu agent đã làm gì; điều phối chạy tự động (headless, CI).</li>
   </ul>
 
   <h2 class="section-heading">Mô hình kiến trúc</h2>
   <div class="mermaid">
-  flowchart LR
-      subgraph InCourse["🎓 Phạm vi khoá học này"]
-          direction TB
-          Interfaces["<img src='../../assets/svg-icon/claude-logo.svg' style='width:28px;height:28px;'/><br/><b>Claude qua giao diện có sẵn</b><br/>Claude.ai · Desktop App · Claude Code<br/>+ Skill / Sub-agent / MCP / Hook / Spec-Kit"]
+  flowchart TB
+      User(("<img src='../../assets/svg-icon/developer.svg' style='width:26px;height:26px;'/><br/><b>Kỹ sư</b>"))
+      Model["<img src='../../assets/svg-icon/claude-logo.svg' style='width:30px;height:30px;'/><br/><b>Claude (Model)</b>"]
+
+      subgraph Before["📥 Đầu vào của model"]
+          CM["📖 CLAUDE.md + docs/<br/>@import"]
+          SK["🧩 Skills<br/>nạp theo nhu cầu"]
+          MEM["🗂️ Memory/State<br/>progress.md, git log"]
       end
 
-      subgraph Advanced["🚀 Định hướng nâng cao (ngoài phạm vi khoá học)"]
-          direction TB
-          API["🔌<br/><b>Claude API</b><br/>(Anthropic API)<br/>Tích hợp trực tiếp vào ứng dụng/hệ thống riêng"]
-          SDK["🛠️<br/><b>Claude Agent SDK</b><br/>Tự xây dựng agent tuỳ biến<br/>(tương tự cách Claude Code được xây dựng)"]
+      subgraph Act["🛠️ Hành động"]
+          TL["<img src='../../assets/svg-icon/task.svg' style='width:24px;height:24px;'/> Built-in tools<br/>Read · Edit · Bash"]
+          MCP["🔌 MCP Server<br/>DB, CodeGraph, ..."]
+          SUB["🤝 Sub-agent<br/>context riêng"]
       end
 
-      Interfaces -.->|"Muốn nhúng Claude vào sản phẩm,<br/>không qua giao diện chat"| API
-      Interfaces -.->|"Muốn tự xây agent riêng,<br/>hành vi/tool tuỳ biến hoàn toàn"| SDK
+      subgraph Control["🛡️ Kiểm soát &amp; kiểm chứng"]
+          PERM["Permissions<br/>allow / deny / mode"]
+          HK["<img src='../../assets/svg-icon/operator.svg' style='width:24px;height:24px;'/> Hooks<br/>Pre/PostToolUse, Stop"]
+          TEST["✅ Test · Lint · Typecheck<br/>check-architecture"]
+      end
+
+      subgraph Observe["🔍 Quan sát"]
+          TR["📜 Transcript .jsonl"]
+          CI["<img src='../../assets/svg-icon/github.svg' style='width:24px;height:24px;'/> CI / headless claude -p"]
+      end
+
+      User --> Model
+      Before --> Model
+      Model --> Act
+      Act --> PERM --> HK --> TEST
+      TEST -->|"phản hồi"| Model
+      Model -.-> TR
+      TR -.->|"phân tích &amp; cải tiến"| User
+      CI --> Model
   </div>
-  <p class="arch-caption">Claude API và Claude Agent SDK không thay thế những gì đã học — đây là bước đi tiếp theo dành cho ai muốn tích hợp Claude sâu hơn vào hệ thống của riêng mình bằng code.</p>
+  <p class="arch-caption">Luồng chính: thông tin đi vào model (Đầu vào) → model hành động (Hành động) → mọi hành động đi qua kiểm soát (Permissions, Hook) và được kiểm chứng tự động → kết quả quay lại model. Transcript giúp kỹ sư quan sát và cải tiến harness theo thời gian.</p>
+
+  <h3 class="sub-heading">Ánh xạ thành phần harness vào Claude Code</h3>
+  <table class="compare-table">
+    <thead>
+      <tr><th>Thành phần harness</th><th>Tính năng Claude Code</th><th>Học ở</th><th>Lưu ý thiết kế</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Context &amp; hướng dẫn</td>
+        <td><code>CLAUDE.md</code>, thư mục <code>docs/</code>, <code>@import</code></td>
+        <td>Section 2, 4</td>
+        <td>Giữ <code>CLAUDE.md</code> ngắn như một "bản đồ", trỏ tới tài liệu chi tiết thay vì nhồi tất cả vào một file</td>
+      </tr>
+      <tr>
+        <td>Tools</td>
+        <td>Built-in tools, MCP Server</td>
+        <td>Section 2, 8</td>
+        <td>Chỉ cấp tool cần thiết; mỗi MCP Server thêm mô tả tool vào context</td>
+      </tr>
+      <tr>
+        <td>Permissions &amp; sandbox</td>
+        <td>Permission mode, rule allow/deny trong <code>settings.json</code>, Hook <code>PreToolUse</code></td>
+        <td>Section 2, 9</td>
+        <td>Dùng quy tắc cứng (Hook/deny) cho điều không được phép sai, không chỉ nhắc bằng chữ</td>
+      </tr>
+      <tr>
+        <td>Memory &amp; State</td>
+        <td>CLAUDE.md, file tiến độ, lịch sử Git, resume phiên</td>
+        <td>Section 4, 10</td>
+        <td>Trạng thái quan trọng nên nằm trong file/Git (bền vững), không chỉ trong hội thoại</td>
+      </tr>
+      <tr>
+        <td>Chuyên môn hoá &amp; cô lập</td>
+        <td>Skills, Sub-agent</td>
+        <td>Section 3</td>
+        <td>Skill tiết kiệm context nhờ nạp theo nhu cầu; Sub-agent tránh làm "bẩn" context chính</td>
+      </tr>
+      <tr>
+        <td>Kiểm chứng</td>
+        <td>Hook <code>PostToolUse</code>/<code>Stop</code> chạy test, lint, typecheck</td>
+        <td>Section 5, 9</td>
+        <td>Thông báo lỗi nên ngắn, cụ thể, nói rõ cách sửa để agent tự khắc phục</td>
+      </tr>
+      <tr>
+        <td>Quan sát &amp; vòng đời</td>
+        <td>Transcript (<code>.jsonl</code>), chế độ headless <code>claude -p</code>, CI</td>
+        <td>Section 4, 6</td>
+        <td>Không quan sát được thì không cải tiến được — luôn giữ log để phân tích lỗi lặp</td>
+      </tr>
+    </tbody>
+  </table>
 
   <h2 class="section-heading">Use Cases</h2>
   <div class="usecase-grid">
     <div class="usecase-card">
-      <h4>Chatbot tích hợp sản phẩm</h4>
-      <p>Nhúng Claude vào website/ứng dụng nội bộ của công ty qua Claude API, thay vì hướng người dùng ra claude.ai.</p>
+      <h4>Chẩn đoán agent làm sai</h4>
+      <p>Khi Claude Code tạo code vi phạm kiến trúc, dùng bảng ánh xạ để xác định thành phần thiếu: thiếu <b>guide</b> (CLAUDE.md chưa nêu rõ), thiếu <b>sensor</b> (chưa có kiểm tra tự động) hay thiếu <b>quyền hạn</b> (tool quá rộng).</p>
     </div>
     <div class="usecase-card">
-      <h4>Xử lý dữ liệu hàng loạt</h4>
-      <p>Gọi Claude API để phân loại, tóm tắt, trích xuất thông tin từ số lượng lớn văn bản/dữ liệu theo lịch tự động.</p>
+      <h4>Chuẩn hoá cách làm việc của cả team</h4>
+      <p>Đưa <code>CLAUDE.md</code>, <code>.claude/settings.json</code> và script hook vào Git để mọi thành viên dùng chung một harness — kết quả của agent nhất quán giữa các máy.</p>
     </div>
     <div class="usecase-card">
-      <h4>Agent nội bộ tuỳ biến</h4>
-      <p>Dùng Claude Agent SDK xây một agent chuyên biệt cho quy trình nội bộ, với giao diện và bộ tool riêng của tổ chức.</p>
-    </div>
-  </div>
-
-  <h2 class="section-heading">Gợi ý xây dựng thói quen sử dụng Claude hằng ngày</h2>
-  <p class="body-text">
-    Không cần đợi đến khi thành thạo API/SDK mới thấy hiệu quả — thói quen ứng dụng Claude vào công việc hằng ngày
-    quan trọng hơn nhiều so với việc biết hết mọi công cụ nâng cao. Gợi ý một lộ trình đơn giản:
-  </p>
-  <div class="phase-timeline">
-    <div class="phase-item">
-      <strong>1. Bắt đầu nhỏ</strong>
-      Chọn một tác vụ lặp lại hằng ngày/hằng tuần, thử giao cho Claude/Claude Code làm trước.
-    </div>
-    <div class="phase-item purple">
-      <strong>2. Đóng gói thành Skill</strong>
-      Khi thấy prompt lặp lại nhiều lần theo cùng khuôn mẫu, đóng gói thành Skill để tái sử dụng.
-    </div>
-    <div class="phase-item orange">
-      <strong>3. Review kết quả thường xuyên</strong>
-      Luôn kiểm tra lại output — dùng Claude như trợ lý tăng tốc, không giao toàn quyền quyết định.
-    </div>
-    <div class="phase-item green">
-      <strong>4. Tham gia cộng đồng</strong>
-      Theo dõi cộng đồng/kênh chia sẻ về Claude để học thêm use case mới, cập nhật tính năng liên tục thay đổi.
+      <h4>Đánh giá công cụ AI trước khi áp dụng</h4>
+      <p>Khi cân nhắc một công cụ agent mới, kiểm tra nó cung cấp được bao nhiêu trong 7 thành phần trên — công cụ thiếu kiểm chứng hay phân quyền sẽ cần bạn tự bổ sung.</p>
     </div>
   </div>
 
   <h2 class="section-heading">Thông tin bổ sung</h2>
-  <p class="body-text">
-    Chương này chỉ giới thiệu ở mức định hướng — khoá <b>Claude 101 for Software Development</b> tập trung vào việc dùng Claude qua các giao diện
-    có sẵn nên không đi sâu vào chi tiết kỹ thuật của Claude API/Agent SDK (cấu trúc code, cách gọi cụ thể). Nếu muốn
-    tìm hiểu tiếp, hãy tham khảo tài liệu chính thức tại <code>docs.claude.com</code> và tạo API Key tại
-    <strong>Anthropic Console</strong> đã được hướng dẫn tạo tài khoản ở Section 1.
-  </p>
-  <div class="alert alert-info">
-    <strong>Lưu ý:</strong> Chi tiết kỹ thuật, tên tham số, và cách tính phí của Claude API/Agent SDK có thể thay đổi
-    theo thời gian. Luôn kiểm tra tài liệu chính thức của Anthropic trước khi triển khai vào hệ thống thật, thay vì
-    dựa vào thông tin cũ.
-  </div>
+  <ul class="feature-list">
+    <li><strong>Đừng xây tất cả cùng lúc:</strong> bắt đầu với CLAUDE.md ngắn + một sensor (ví dụ typecheck), chỉ thêm thành phần khi có lỗi lặp lại chứng minh cần thiết.</li>
+    <li><strong>Chi phí context:</strong> mọi thứ nạp vào context (CLAUDE.md, mô tả tool MCP, kết quả hook) đều tiêu tốn token ở mỗi lượt. Giữ ngắn gọn và chỉ nạp khi cần.</li>
+    <li><strong>Hook chạy với quyền của bạn:</strong> áp dụng đầy đủ lưu ý an toàn ở Section 9 cho mọi script kiểm chứng.</li>
+    <li><strong>Harness là code:</strong> nên review, version bằng Git và có test (ít nhất chạy thử thủ công) như bất kỳ code nào khác.</li>
+  </ul>
 
   <script>mermaid.initialize({ startOnLoad: true, theme: 'default' });</script>
 </body>

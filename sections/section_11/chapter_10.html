@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lab 6 - Skill &amp; Sub-agent reviewer – Claude 101</title>
+  <link rel="stylesheet" href="../../styles.css" />
+  <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+  <script src="../../mermaid-config.js"></script>
+  <link rel="stylesheet" href="../../prism.css" />
+  <script src="../../prism.js"></script>
+  <script src="../../script.js"></script>
+</head>
+<body class="chapter-body">
+
+  <div class="chapter-breadcrumb">
+    <span class="section-part">11. Harness Engineering</span>
+    <span class="sep">/</span>
+    <span class="chapter-part">Lab 6 - Skill &amp; Sub-agent reviewer</span>
+  </div>
+
+  <div class="alert alert-info">
+    <strong>Lab 6 / 8 — Skill và Sub-agent.</strong> Hai thành phần harness cuối cùng bạn đã học ở Section 3 nay được dùng đúng vai trò:
+    <strong>Skill</strong> = guide đóng gói thành quy trình chuẩn, nạp theo nhu cầu; <strong>Sub-agent reviewer</strong> = sensor dạng <em>inferential</em> (đánh giá bằng LLM) chạy trong context riêng.
+    Cả hai được tạo bằng cách <strong>nhờ Claude viết</strong>.
+  </div>
+
+  <h2 class="section-heading">Mục tiêu</h2>
+  <ul class="feature-list">
+    <li>Nhờ Claude tạo Skill <code>add-feature</code> (quy trình chuẩn thêm tính năng) và Sub-agent <code>code-reviewer</code> (read-only).</li>
+    <li>Thêm tính năng "SYSTEM_ADMIN quản lý tài khoản" bằng một prompt ngắn và quan sát Skill tự được kích hoạt, Sub-agent review độc lập.</li>
+    <li>Phân biệt khi nào dùng sensor computational (code) và inferential (LLM reviewer).</li>
+  </ul>
+
+  <h2 class="section-heading">Mô hình kiến trúc</h2>
+  <div class="mermaid">
+  flowchart LR
+      Dev(("<img src='../../assets/svg-icon/developer.svg' style='width:26px;height:26px;'/><br/><b>Học viên</b>"))
+      Main["<img src='../../assets/svg-icon/claude-logo.svg' style='width:28px;height:28px;'/><br/><b>Claude Code</b><br/>(agent chính)"]
+      Skill["🧩 <b>Skill add-feature</b><br/>SKILL.md — quy trình 9 bước<br/>nạp khi yêu cầu khớp mô tả"]
+      Code["<img src='../../assets/svg-icon/ide.svg' style='width:24px;height:24px;'/><br/><b>src/</b>"]
+      Sensors["📏 Sensor computational<br/>Hook · test · check-arch"]
+      Rev["🔍 <b>Sub-agent code-reviewer</b><br/>read-only · context riêng<br/>Sensor inferential"]
+      Report["📝 Báo cáo review<br/>ĐẠT / CẦN SỬA"]
+
+      Dev -->|"Yêu cầu tính năng"| Main
+      Main -->|"khớp mô tả → nạp"| Skill
+      Skill -->|"hướng dẫn từng bước"| Main
+      Main -->|"viết code"| Code
+      Code --> Sensors
+      Main -->|"gọi qua Task tool"| Rev
+      Rev -->|"đọc git diff, docs/"| Code
+      Rev --> Report --> Main
+  </div>
+  <p class="arch-caption">Skill giữ cho agent chính đi đúng quy trình mà không làm phình CLAUDE.md. Sub-agent reviewer chạy trong <b>context riêng</b> và chỉ có quyền đọc: nó nhìn code bằng "con mắt mới", bắt được những lỗi ngữ nghĩa mà script không viết thành quy tắc được.</p>
+
+  <h3 class="sub-heading">Chọn loại sensor nào?</h3>
+  <table class="compare-table">
+    <thead>
+      <tr><th>Tiêu chí</th><th>Computational (script, test)</th><th>Inferential (Sub-agent reviewer)</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Phù hợp với</td><td>Quy tắc kiểm tra được bằng máy: ranh giới tầng, kiểu dữ liệu, ma trận quyền</td><td>Tiêu chí mềm: logic nghiệp vụ có đúng ý đồ không, đặt tên, thiếu ca biên</td></tr>
+      <tr><td>Kết quả</td><td>Xác định (pass/fail)</td><td>Có thể khác nhau giữa các lần chạy</td></tr>
+      <tr><td>Chi phí</td><td>Rất thấp, vài giây</td><td>Tốn token, chậm hơn</td></tr>
+      <tr><td>Dùng ở đâu</td><td>Sau mỗi lần sửa file / cuối lượt (Hook)</td><td>Một lần trước khi commit</td></tr>
+    </tbody>
+  </table>
+
+  <h2 class="section-heading">Yêu cầu trước khi bắt đầu</h2>
+  <ul class="feature-list">
+    <li>Hoàn thành Lab trước: <code>main</code> có test, Hook, ma trận quyền, <code>permissions.deny</code> (tag <code>lab5-done</code>).</li>
+    <li>Hiểu cơ bản về Skill và Sub-agent (Section 3).</li>
+  </ul>
+
+  <h2 class="section-heading">Các bước thực hành</h2>
+  <ol class="step-list">
+    <li>
+      <div>
+        <strong>Bước 1: Nhờ Claude tạo Skill add-feature</strong>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">git switch main
+git switch -c lab6
+claude --permission-mode acceptEdits</code></pre>
+        <pre class="command-line" data-prompt=">"><code class="language-text">Hãy tạo một Skill cho project tại .claude/skills/add-feature/SKILL.md (có frontmatter name và description). Mô tả (description) phải đủ rõ để Skill tự được kích hoạt mỗi khi tôi yêu cầu thêm tính năng, trang hoặc nghiệp vụ mới.
+
+Nội dung Skill là quy trình chuẩn, thực hiện lần lượt:
+1. Đọc docs/DOMAIN.md và docs/ARCHITECTURE.md; xác định role nào được làm gì với tính năng này.
+2. Lập kế hoạch ngắn (5-8 dòng): file sẽ tạo/sửa theo từng tầng. Nếu cần đổi prisma/schema.prisma thì dừng lại hỏi tôi.
+3. Tạo Zod schema trong src/lib/validators.
+4. Thêm hàm vào src/services/<domain>-service.ts: tham số đầu là actor, gọi requireRole/requireUser trước khi đọc/ghi, throw AppError cho lỗi nghiệp vụ.
+5. Viết unit test cho service TRƯỚC khi làm UI, bắt buộc có ca "role không được phép bị từ chối" và ca dữ liệu không hợp lệ; thêm hàm mới vào MATRIX trong authz-matrix.test.ts.
+6. Viết server action mỏng rồi mới tới UI.
+7. Chạy npm run typecheck, npm run lint, npm run check:arch, npm test; sửa đến khi pass.
+8. Gọi sub-agent code-reviewer trên thay đổi vừa làm và sửa các vấn đề mức CAO/TRUNG BÌNH.
+9. Báo cáo: file đã đổi, kết quả 4 lệnh, các điểm cần tôi quyết định.
+Giữ Skill ngắn gọn, dưới 50 dòng.</code></pre>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 2: Nhờ Claude tạo Sub-agent code-reviewer</strong>
+        <p>Trong cùng phiên, tạo sub-agent chỉ có quyền đọc. (Cũng có thể dùng lệnh <code>/agents</code> và chọn tạo bằng Claude.)</p>
+        <pre class="command-line" data-prompt=">"><code class="language-text">Hãy tạo sub-agent tại .claude/agents/code-reviewer.md với frontmatter: name code-reviewer, description nêu rõ "dùng sau khi hoàn thành một tính năng, trước khi commit để review git diff", tools chỉ gồm Read, Grep, Glob, Bash (KHÔNG có Edit/Write).
+
+System prompt của sub-agent: bạn là reviewer khó tính nhưng công bằng; chỉ đọc và nhận xét, không sửa code. Quy trình: chạy git diff và git status --short; đọc docs/ARCHITECTURE.md và docs/DOMAIN.md; kiểm tra từng file thay đổi theo checklist: kiến trúc (UI gọi thẳng Prisma? service import UI/next? server action làm nghiệp vụ?), phân quyền (mỗi hàm service gọi đúng requireRole theo ma trận? kiểm tra quyền sở hữu?), nghiệp vụ (luồng trạng thái, ràng buộc đặc biệt như admin cuối cùng, tự khoá mình), validation Zod ở server, test (có ca bị từ chối quyền?), chất lượng (any, console.log thừa, bí mật hard-code). Trả về báo cáo ngắn: KẾT LUẬN (ĐẠT/CẦN SỬA) và danh sách vấn đề dạng [mức độ] file:dòng — mô tả — cách sửa.</code></pre>
+        <p>Thoát phiên, kiểm tra hai file và commit:</p>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">notepad .claude\skills\add-feature\SKILL.md
+notepad .claude\agents\code-reviewer.md
+git add -A
+git commit -m "harness: skill add-feature va sub-agent code-reviewer"</code></pre>
+        <p>Checklist review: Skill có đủ 9 bước và description rõ; sub-agent có <code>tools</code> không chứa <code>Edit</code>/<code>Write</code>. (Bản tham khảo: <code>reference/.claude/skills</code> và <code>reference/.claude/agents</code>.)</p>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 3: Thêm tính năng bằng một prompt ngắn</strong>
+        <p>Mở phiên mới và <strong>không nhắc</strong> tới Skill hay reviewer — kiểm tra chúng có tự được dùng không:</p>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">claude --permission-mode acceptEdits</code></pre>
+        <pre class="command-line" data-prompt=">"><code class="language-text">Thêm chức năng quản lý tài khoản cho SYSTEM_ADMIN: trang /admin/users liệt kê người dùng (email, tên, role, trạng thái), có thể khoá/mở khoá tài khoản và đổi role. Không được hạ role hoặc khoá SYSTEM_ADMIN cuối cùng; không được tự khoá chính mình.</code></pre>
+        <p>Quan sát: dòng thông báo kích hoạt Skill <code>add-feature</code>; agent lập kế hoạch, viết test trước UI; cuối cùng gọi sub-agent <code>code-reviewer</code>. Đo và commit:</p>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">powershell -NoProfile -ExecutionPolicy Bypass -File scorecard.ps1 -Label lab6
+git add -A
+git commit -m "lab6: quan ly tai khoan"</code></pre>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 4: Đọc báo cáo của reviewer và đối chiếu ràng buộc</strong>
+        <p>Xem báo cáo reviewer trong phiên (hoặc yêu cầu Claude gọi lại: <code>Hãy gọi code-reviewer review thay đổi hiện tại</code>). Tự đối chiếu hai ràng buộc trong yêu cầu (admin cuối cùng, tự khoá chính mình):</p>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">Select-String -Path src\services\*.ts -Pattern "last|cuối|self|tự khoá|chính mình"
+Get-ChildItem src\services\__tests__ -File | Select-Object -ExpandProperty Name</code></pre>
+        <p>Kiểm tra: mỗi ràng buộc nghiệp vụ có được xử lý <em>và</em> có test không, các hàm mới có nằm trong <code>MATRIX</code> không.</p>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 5: Đọc điểm số và xử lý điểm bất thường</strong>
+        <p>Mở dòng mới nhất của scoreboard và đọc điểm. Dưới đây là các dấu hiệu <strong>bất thường</strong> cần xử lý:</p>
+        <ul class="feature-list">
+          <li><code>typecheck</code>, <code>lint</code> hoặc <code>tests</code> khác <code>PASS</code> (hoặc <code>tests</code> vẫn là <code>NONE</code> dù đã có hàm service mới).</li>
+          <li><code>ui_db_imports</code> lớn hơn 0 (UI gọi thẳng Prisma) hoặc <code>any_usage</code> lớn hơn 0.</li>
+          <li>Một ràng buộc nghiệp vụ (admin cuối cùng, tự khoá chính mình) thiếu xử lý hoặc thiếu test; hoặc reviewer báo mức CAO mà agent chưa sửa.</li>
+        </ul>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">Import-Csv scoreboard.csv | Format-Table label, typecheck, lint, tests, test_files, ui_db_imports, any_usage</code></pre>
+        <div class="alert alert-info">
+          <strong>Nguyên tắc xử lý điểm bất thường:</strong> đừng sửa tay rồi bỏ qua. Hãy nhờ Claude (1) tìm nguyên nhân gốc và sửa lỗi, rồi (2) <strong>bổ sung đúng một quy tắc harness</strong> (một dòng trong <code>CLAUDE.md</code>, một mục trong <code>docs/</code>, hoặc một luật của sensor) để lỗi loại này không lặp lại. Nếu mọi chỉ số đều bình thường, bạn không cần làm gì thêm — <em>không thêm quy tắc "cho chắc"</em>, vì harness thừa làm agent chậm và rối hơn.
+        </div>
+        <p>Ví dụ cách yêu cầu (thay nội dung bằng điểm bất thường thật của bạn):</p>
+        <pre class="command-line" data-prompt=">"><code class="language-text">Điểm số/báo cáo review bất thường: ràng buộc "không khoá SYSTEM_ADMIN cuối cùng" chưa có test. Hãy bổ sung test và sửa code nếu cần, rồi thêm MỘT thay đổi harness: bổ sung mục kiểm tra này vào checklist của sub-agent code-reviewer hoặc vào bước 5 của Skill add-feature, để các ràng buộc đặc biệt luôn được test.</code></pre>
+        <p>Reviewer và Skill là nơi tốt để ghi những "bài học nghiệp vụ" dạng mềm; các lỗi kiểm tra được bằng máy nên chuyển thành test hoặc sensor.</p>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">powershell -NoProfile -ExecutionPolicy Bypass -File scorecard.ps1 -Label lab6-fix
+git add -A
+git commit -m "lab6: bo sung quy tac harness sau khi phat hien diem bat thuong"</code></pre>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 6: Hợp nhất vào main</strong>
+        <p>Khi điểm số ổn, hợp nhất vào <code>main</code> và đặt tag để Lab sau bắt đầu từ đây:</p>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">git status --short
+git switch main
+git merge --ff-only lab6
+git tag lab6-done</code></pre>
+      </div>
+    </li>
+  </ol>
+
+  <div class="verify-box">
+    <h4>✅ Kết quả mong đợi</h4>
+    <p class="body-text">Ở <code>lab6</code>, agent đi đúng quy trình 9 bước mà bạn không phải nhắc: có kế hoạch, test trước UI, hàm mới nằm trong <code>MATRIX</code>, và reviewer độc lập đưa ra báo cáo có <code>file:dòng</code>. Hai ràng buộc "admin cuối cùng" và "tự khoá chính mình" được xử lý và có test đi kèm. Reviewer là sensor <em>inferential</em> — hữu ích nhưng không thay thế được test và script. Nếu có điểm bất thường, xử lý theo Bước 5.</p>
+  </div>
+
+  <h2 class="section-heading">Troubleshoot</h2>
+  <div class="alert alert-warning">
+    <strong>Lỗi:</strong> Skill không được kích hoạt khi bạn yêu cầu thêm tính năng.<br/>
+    <strong>Nguyên nhân:</strong> <code>description</code> của Skill chưa đủ rõ, hoặc chưa mở phiên mới sau khi tạo.<br/>
+    <strong>Giải pháp:</strong> Nhờ Claude viết lại <code>description</code> nêu rõ các tình huống kích hoạt; mở phiên mới; thử gọi tường minh bằng tên <code>add-feature</code> để kiểm tra file có hợp lệ.
+  </div>
+  <div class="alert alert-warning">
+    <strong>Lỗi:</strong> Reviewer nhận xét chung chung hoặc "ĐẠT" cho code có vấn đề.<br/>
+    <strong>Nguyên nhân:</strong> Checklist trong system prompt chưa đủ cụ thể; reviewer là sensor inferential nên có độ biến thiên.<br/>
+    <strong>Giải pháp:</strong> Bổ sung các mục kiểm tra cụ thể vào checklist (ví dụ ràng buộc admin cuối cùng) và dựa vào test/sensor computational cho những gì kiểm tra được bằng máy.
+  </div>
+  <div class="alert alert-warning">
+    <strong>Lỗi:</strong> Agent chính không gọi reviewer.<br/>
+    <strong>Nguyên nhân:</strong> Bước 8 trong Skill chưa nhấn mạnh bắt buộc, hoặc <code>description</code> của sub-agent mơ hồ.<br/>
+    <strong>Giải pháp:</strong> Sửa Skill: "BẮT BUỘC gọi code-reviewer trước khi báo xong"; hoặc yêu cầu tường minh: "Hãy dùng sub-agent code-reviewer để review".
+  </div>
+
+  <h2 class="section-heading">Dọn dẹp resource</h2>
+  <div class="alert alert-info">
+    Không có resource Cloud. Giữ Skill và Sub-agent trong <code>.claude/</code>, nhánh <code>lab6</code> và tag <code>lab6-done</code> để dùng ở các Lab sau.
+  </div>
+
+  <script>mermaid.initialize({ startOnLoad: true, theme: 'default' });</script>
+</body>
+</html>

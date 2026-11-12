@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lab 1 - Chỉ dùng Prompt Engineering – Claude 101</title>
+  <link rel="stylesheet" href="../../styles.css" />
+  <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+  <script src="../../mermaid-config.js"></script>
+  <link rel="stylesheet" href="../../prism.css" />
+  <script src="../../prism.js"></script>
+  <script src="../../script.js"></script>
+</head>
+<body class="chapter-body">
+
+  <div class="chapter-breadcrumb">
+    <span class="section-part">11. Harness Engineering</span>
+    <span class="sep">/</span>
+    <span class="chapter-part">Lab 1 - Chỉ dùng Prompt Engineering</span>
+  </div>
+
+  <div class="alert alert-info">
+    <strong>Lab 1 / 8 — chỉ có Prompt.</strong> Tiếp nối Lab trước (project <code>D:\lab-realestate</code>, tag <code>scaffold</code>).
+    Ở giai đoạn này <strong>chưa có</strong> CLAUDE.md, Hook, Skill hay kiểm tra tự động nào — agent chỉ có prompt của bạn.
+    Mục tiêu là cảm nhận <em>giới hạn</em> của Prompt Engineering trước khi thêm harness.
+  </div>
+
+  <h2 class="section-heading">Mục tiêu</h2>
+  <ul class="feature-list">
+    <li>Chạy cùng một yêu cầu bằng <strong>prompt sơ sài</strong> và <strong>prompt có cấu trúc</strong> (vai trò, bối cảnh, nhiệm vụ, ràng buộc, cách làm, tiêu chí xong) rồi so sánh bằng <code>scorecard.ps1</code>.</li>
+    <li>Xây dựng chức năng đầu tiên: <strong>đăng nhập/đăng xuất</strong> và <strong>đăng tin</strong> theo role.</li>
+    <li>Nhận ra điểm yếu cố hữu của "chỉ có prompt": phải lặp lại mọi quy tắc ở mỗi lần hỏi, không có bộ nhớ giữa các phiên, không có cơ chế kiểm tra tự động.</li>
+  </ul>
+
+  <h2 class="section-heading">Mô hình kiến trúc</h2>
+  <div class="mermaid">
+  flowchart LR
+      Dev(("<img src='../../assets/svg-icon/developer.svg' style='width:26px;height:26px;'/><br/><b>Học viên</b>"))
+      P1["💬 <b>Prompt sơ sài</b><br/>1 câu"]
+      P2["📝 <b>Prompt có cấu trúc</b><br/>vai trò · bối cảnh · ràng buộc · tiêu chí"]
+      CC["<img src='../../assets/svg-icon/claude-logo.svg' style='width:28px;height:28px;'/><br/><b>Claude Code</b><br/>(chưa có harness)"]
+      B1["🌿 <b>nhánh lab1-weak</b>"]
+      B2["🌿 <b>nhánh lab1-strong</b>"]
+      Score["📊 <b>scorecard.ps1</b>"]
+
+      Dev --> P1 --> CC --> B1 --> Score
+      Dev --> P2 --> CC
+      CC --> B2 --> Score
+      Score -->|"so sánh"| Dev
+  </div>
+  <p class="arch-caption">Cùng một agent, cùng một điểm xuất phát (tag <code>scaffold</code>), chỉ khác prompt. Mỗi kết quả nằm trên một nhánh riêng để đo và so sánh độc lập.</p>
+
+  <h2 class="section-heading">Yêu cầu trước khi bắt đầu</h2>
+  <ul class="feature-list">
+    <li>Hoàn thành Lab "Khởi tạo project": có tag <code>scaffold</code>, container <code>realestate-db</code> đang chạy, <code>scorecard.ps1</code> hoạt động.</li>
+    <li>Working tree sạch (<code>git status --short</code> không in gì).</li>
+  </ul>
+
+  <h2 class="section-heading">Các bước thực hành</h2>
+  <ol class="step-list">
+    <li>
+      <div>
+        <strong>Bước 1: Thí nghiệm A — prompt sơ sài</strong>
+        <p>Tạo nhánh từ điểm mốc và chạy Claude Code ở chế độ tự chấp nhận sửa file để quan sát toàn bộ quá trình:</p>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">cd D:\lab-realestate
+docker compose up -d db
+git switch main
+git switch -c lab1-weak scaffold
+claude --permission-mode acceptEdits</code></pre>
+        <pre class="command-line" data-prompt=">"><code class="language-text">Làm chức năng đăng nhập và đăng tin cho web bất động sản.</code></pre>
+        <p>Khi Claude Code xong (có thể hỏi lại bạn vài câu — hãy trả lời ngắn gọn theo ý hợp lý), thoát bằng <code>/exit</code> rồi đo và lưu lại:</p>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">powershell -NoProfile -ExecutionPolicy Bypass -File scorecard.ps1 -Label lab1-weak
+git add -A
+git commit -m "lab1-weak: ket qua voi prompt so sai"</code></pre>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 2: Thí nghiệm B — prompt có cấu trúc</strong>
+        <p>Quay về điểm xuất phát, tạo nhánh mới và dán prompt sau (đây là yêu cầu <em>giống hệt</em> về nội dung nhưng được mô tả đầy đủ):</p>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">git switch main
+git switch -c lab1-strong scaffold
+claude --permission-mode acceptEdits</code></pre>
+        <pre class="command-line" data-prompt=">"><code class="language-text">Vai trò: bạn là senior full-stack developer chuyên Next.js (App Router) + TypeScript + Prisma.
+
+Bối cảnh: project lab-realestate là website bất động sản. Đã có schema Prisma (User, Listing, SystemSetting), Prisma client ở src/lib/prisma.ts, và đã cài sẵn bcryptjs, jose, zod. Có 4 role: BUYER (người mua), SELLER (người bán), MODERATOR (quản trị viên duyệt tin), SYSTEM_ADMIN. Tài khoản mẫu: seller@demo.vn, buyer@demo.vn, mod@demo.vn, admin@demo.vn, mật khẩu chung Passw0rd!.
+
+Nhiệm vụ: làm 2 chức năng.
+1) Đăng nhập/đăng xuất bằng email + mật khẩu (bcryptjs). Session lưu trong cookie httpOnly chứa JWT ký bằng jose với biến môi trường AUTH_SECRET. Tài khoản isActive=false không đăng nhập được. Có trang /login và nút đăng xuất.
+2) Đăng tin tại trang /listings/new: SELLER chỉ được tạo tin type=SALE, BUYER chỉ được tạo tin type=WANTED, các role khác không được đăng. Tin mới có status=PENDING. Form gồm title, description, propertyType, priceMillion, areaM2, city, district; validate bằng Zod ở phía server. Thêm trang /listings hiển thị các tin có status=APPROVED.
+
+Ràng buộc: không sửa prisma/schema.prisma; không thêm thư viện mới; TypeScript strict, không dùng any; thông báo lỗi hiển thị cho người dùng bằng tiếng Việt.
+
+Cách làm: lập kế hoạch ngắn trước rồi mới code. Khi xong, tự chạy npm run typecheck và npm run lint, sửa lỗi nếu có và báo kết quả.</code></pre>
+        <p>Khi xong, thoát <code>/exit</code>, đo và lưu:</p>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">powershell -NoProfile -ExecutionPolicy Bypass -File scorecard.ps1 -Label lab1-strong
+git add -A
+git commit -m "lab1-strong: ket qua voi prompt co cau truc"</code></pre>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 3: So sánh hai nhánh</strong>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">Import-Csv scoreboard.csv | Format-Table label, typecheck, lint, tests, test_files, ui_db_imports, any_usage
+git diff --stat scaffold lab1-weak -- src | Select-Object -Last 1
+git diff --stat scaffold lab1-strong -- src | Select-Object -Last 1</code></pre>
+        <p>Chỉ số thường thấy: prompt có cấu trúc cho kết quả đúng yêu cầu hơn (đúng role, có validate, ít <code>any</code> hơn), nhưng <code>tests</code> vẫn <code>NONE</code> và <code>ui_db_imports</code> thường khác 0 vì bạn chưa yêu cầu kiểm thử hay tách tầng. Kết quả của AI không cố định giữa các lần chạy — hãy ghi lại số liệu <em>của bạn</em>.</p>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 4: Kiểm tra chức năng trên nhánh lab1-strong</strong>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">npm run dev</code></pre>
+        <p>Mở <code>http://localhost:3000/login</code> và thử lần lượt:</p>
+        <ul class="feature-list">
+          <li>Đăng nhập <code>seller@demo.vn</code> / <code>Passw0rd!</code> → vào <code>/listings/new</code> → đăng tin → tin ở trạng thái chờ duyệt (không hiện ở <code>/listings</code>).</li>
+          <li>Đăng nhập <code>buyer@demo.vn</code> → chỉ đăng được tin cần mua; thử gửi tin loại bán phải bị từ chối.</li>
+          <li>Đăng nhập <code>mod@demo.vn</code> → truy cập <code>/listings/new</code> phải bị từ chối.</li>
+        </ul>
+        <p>Dừng server (<code>Ctrl+C</code>) sau khi thử xong. Ghi lại những chỗ chưa đúng — đó là dữ liệu quý cho các Lab sau.</p>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 5: Thí nghiệm C — phiên mới, prompt ngắn (thấy rõ giới hạn)</strong>
+        <p>Agent không nhớ gì từ phiên trước. Mở <strong>phiên mới</strong> trên nhánh <code>lab1-strong</code> và đưa một yêu cầu ngắn, như cách người ta thường làm trong thực tế:</p>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">git switch -c lab1-short lab1-strong
+claude --permission-mode acceptEdits</code></pre>
+        <pre class="command-line" data-prompt=">"><code class="language-text">Thêm trang chi tiết tin /listings/[id], hiển thị đầy đủ thông tin của tin đã duyệt.</code></pre>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">powershell -NoProfile -ExecutionPolicy Bypass -File scorecard.ps1 -Label lab1-short
+git add -A
+git commit -m "lab1-short: prompt ngan trong phien moi"
+Select-String -LiteralPath "src\app\listings\[id]\page.tsx" -Pattern "prisma|requireRole|role" -ErrorAction SilentlyContinue</code></pre>
+        <p>Quan sát: agent có tự phát minh cách truy cập dữ liệu mới (ví dụ gọi Prisma trực tiếp trong trang) thay vì tái sử dụng cách đã dùng ở nhánh trước? Chỉ số <code>ui_db_imports</code> có tăng không?</p>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 6: Chọn nhánh làm nền cho các Lab sau</strong>
+        <p>Giữ lại kết quả của prompt có cấu trúc (chức năng đăng nhập/đăng tin) làm nền. Nhánh <code>lab1-short</code> giữ lại để đối chiếu, không hợp nhất.</p>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">git switch main
+git merge --ff-only lab1-strong
+git tag lab1-done
+git log --oneline -3</code></pre>
+      </div>
+    </li>
+  </ol>
+
+  <div class="verify-box">
+    <h4>✅ Kết quả mong đợi</h4>
+    <p class="body-text">Bạn có ba dòng điểm (<code>lab1-weak</code>, <code>lab1-strong</code>, <code>lab1-short</code>) trong <code>scoreboard.csv</code>. Prompt có cấu trúc giúp kết quả đúng hơn <em>trong lần đó</em>, nhưng khi sang phiên mới với yêu cầu ngắn, chất lượng và cách làm lại không nhất quán; chưa có test, chưa có tầng tách biệt, chưa có kiểm tra nào chạy tự động. Nhánh <code>main</code> đã chứa chức năng đăng nhập/đăng tin để dùng cho Lab tiếp theo.</p>
+  </div>
+
+  <div class="alert alert-info">
+    <strong>Rút ra:</strong> Prompt Engineering mạnh nhưng <strong>nằm trong từng lượt hỏi</strong> — nó không tự tích luỹ. Ba điểm yếu cần harness giải quyết:
+    (1) quy tắc phải được lặp lại mãi → cần <em>Context</em> bền vững; (2) không có người kiểm tra → cần <em>Sensor</em>; (3) không nhớ giữa các phiên → cần <em>Memory/State</em>.
+  </div>
+
+  <h2 class="section-heading">Troubleshoot</h2>
+  <div class="alert alert-warning">
+    <strong>Lỗi:</strong> Đăng nhập báo lỗi kết nối cơ sở dữ liệu khi chạy thử.<br/>
+    <strong>Nguyên nhân:</strong> Container PostgreSQL chưa chạy.<br/>
+    <strong>Giải pháp:</strong> <code>docker compose up -d db</code> rồi <code>docker compose ps</code> để chắc chắn <code>healthy</code>.
+  </div>
+  <div class="alert alert-warning">
+    <strong>Lỗi:</strong> Cả hai nhánh cho kết quả gần như giống nhau.<br/>
+    <strong>Nguyên nhân:</strong> Với yêu cầu nhỏ, model mạnh có thể tự suy luận tốt; kết quả cũng có tính ngẫu nhiên.<br/>
+    <strong>Giải pháp:</strong> Hãy chạy lại thí nghiệm vài lần hoặc để ý các chỉ số khác (<code>any_usage</code>, số file thay đổi, cách tổ chức thư mục). Điều quan trọng là bạn có số liệu để so sánh, không phải con số "đẹp".
+  </div>
+  <div class="alert alert-warning">
+    <strong>Lỗi:</strong> <code>scorecard.ps1</code> báo FAIL ở <code>typecheck</code> hoặc <code>lint</code> trên nhánh vừa tạo.<br/>
+    <strong>Nguyên nhân:</strong> Code agent tạo ra có lỗi — đây chính là dữ liệu của thí nghiệm.<br/>
+    <strong>Giải pháp:</strong> Ghi nhận kết quả, không cần tự sửa. (Riêng nhánh <code>lab1-strong</code>: nếu còn lỗi, nhờ Claude Code sửa trước khi hợp nhất vào <code>main</code>.)
+  </div>
+
+  <h2 class="section-heading">Dọn dẹp resource</h2>
+  <div class="alert alert-info">
+    Không có resource Cloud. Giữ nguyên các nhánh <code>lab1-weak</code>, <code>lab1-strong</code>, <code>lab1-short</code> và tag <code>lab1-done</code> để đối chiếu ở Lab cuối. Nhớ dừng <code>npm run dev</code> nếu còn chạy.
+  </div>
+
+  <script>mermaid.initialize({ startOnLoad: true, theme: 'default' });</script>
+</body>
+</html>

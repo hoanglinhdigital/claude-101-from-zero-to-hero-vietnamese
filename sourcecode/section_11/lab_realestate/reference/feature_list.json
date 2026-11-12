@@ -1,0 +1,58 @@
+{
+  "project": "lab-realestate",
+  "goal": "Module cấu hình hệ thống & dashboard cho SYSTEM_ADMIN",
+  "rules": "Chỉ được đổi giá trị của field 'passes'. Không xoá, không sửa 'description' hay 'steps'.",
+  "features": [
+    {
+      "id": "F001",
+      "description": "Service đọc/ghi cấu hình hệ thống (siteName, maxListingsPerUser, requireModeration) trên bảng SystemSetting, chỉ SYSTEM_ADMIN được ghi",
+      "steps": [
+        "Có src/services/setting-service.ts với getSettings và updateSettings",
+        "updateSettings gọi requireRole(actor, ['SYSTEM_ADMIN'])",
+        "Có unit test gồm ca role khác bị từ chối và ca giá trị không hợp lệ",
+        "npm run typecheck, check:arch, test pass"
+      ],
+      "passes": false
+    },
+    {
+      "id": "F002",
+      "description": "Trang /admin/settings cho SYSTEM_ADMIN xem và sửa cấu hình",
+      "steps": [
+        "Trang chỉ gọi service, không import Prisma",
+        "Role khác bị chuyển hướng hoặc báo không có quyền",
+        "npm run typecheck, check:arch pass"
+      ],
+      "passes": false
+    },
+    {
+      "id": "F003",
+      "description": "Áp dụng maxListingsPerUser: người dùng không thể đăng thêm tin khi đã đạt giới hạn",
+      "steps": [
+        "createListing kiểm tra số tin hiện có so với cấu hình",
+        "Có unit test cho trường hợp đạt và chưa đạt giới hạn",
+        "npm test pass"
+      ],
+      "passes": false
+    },
+    {
+      "id": "F004",
+      "description": "Áp dụng requireModeration=false: tin mới được tự động APPROVED",
+      "steps": [
+        "createListing đặt status theo cấu hình",
+        "Có unit test cho cả hai giá trị của requireModeration",
+        "npm test pass"
+      ],
+      "passes": false
+    },
+    {
+      "id": "F005",
+      "description": "Trang /admin/dashboard hiển thị số lượng người dùng theo role và số tin theo trạng thái",
+      "steps": [
+        "Có hàm service thống kê, chỉ SYSTEM_ADMIN được gọi",
+        "Có unit test kiểm tra phân quyền",
+        "npm run typecheck, check:arch pass"
+      ],
+      "passes": false
+    }
+  ]
+}

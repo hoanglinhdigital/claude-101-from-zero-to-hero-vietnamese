@@ -1,0 +1,14 @@
+[
+  {
+    "id": "T1-profile",
+    "prompt": "Thêm trang /profile cho người dùng đã đăng nhập, hiển thị email, tên, role và số tin đã đăng theo từng trạng thái."
+  },
+  {
+    "id": "T2-area-filter",
+    "prompt": "Thêm bộ lọc diện tích tối thiểu và tối đa (areaM2) vào trang danh sách /listings."
+  },
+  {
+    "id": "T3-admin-user-detail",
+    "prompt": "Thêm trang /admin/users/[id] chỉ dành cho SYSTEM_ADMIN, hiển thị chi tiết tài khoản và danh sách tin của tài khoản đó."
+  }
+]

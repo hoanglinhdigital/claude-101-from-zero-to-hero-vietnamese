@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Bài tập tổng hợp cuối khoá – Claude 101</title>
+  <title>Guides &amp; Sensors: feedforward và feedback trong thiết kế Harness – Claude 101</title>
   <link rel="stylesheet" href="../../styles.css" />
   <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
   <script src="../../mermaid-config.js"></script>
@@ -14,88 +14,116 @@
 <body class="chapter-body">
 
   <div class="chapter-breadcrumb">
-    <span class="section-part">11. Tổng kết & Định hướng nâng cao</span>
+    <span class="section-part">11. Harness Engineering</span>
     <span class="sep">/</span>
-    <span class="chapter-part">Bài tập tổng hợp cuối khoá</span>
+    <span class="chapter-part">Guides &amp; Sensors: feedforward và feedback trong thiết kế Harness</span>
   </div>
 
-  <h2 class="section-heading">Mục tiêu</h2>
+  <h2 class="section-heading">Giới thiệu</h2>
   <p class="body-text">
-    Đây là bài tập <strong>mở</strong> — không có đề bài cố định, không có command mẫu để copy-paste. Học viên tự
-    chọn một bài toán thực tế đang gặp trong công việc của mình, rồi tự thiết kế và thực hiện giải pháp bằng
-    Claude/Claude Code, có thể kết hợp thêm Skill hoặc Sub-agent đã học ở Section 3.
+    Mọi cơ chế kiểm soát trong một harness đều thuộc một trong hai nhóm: <strong>Guides</strong> (điều khiển
+    <em>trước</em> khi agent hành động — "feedforward") và <strong>Sensors</strong> (điều khiển <em>sau</em> khi agent hành
+    động — "feedback"). Cách phân loại này, được Birgitta Böckeler (Thoughtworks) trình bày trên martinfowler.com, mượn từ
+    điều khiển học (cybernetics): muốn hệ thống ổn định cần vừa <b>định hướng trước</b> vừa <b>đo và hiệu chỉnh sau</b>.
+    Hiểu hai nhóm này giúp bạn biết nên thêm loại kiểm soát nào cho từng loại lỗi.
   </p>
+
+  <h2 class="section-heading">Các tính năng chính</h2>
   <ul class="feature-list">
-    <li>Tự chọn được một đề tài <strong>cụ thể, có thật</strong> trong công việc hằng ngày — không cần quá lớn, chỉ cần rõ ràng và đo lường được kết quả.</li>
-    <li>Áp dụng lại <strong>tối thiểu 2–3 công cụ</strong> đã học xuyên suốt khoá (vd Claude Code + Skill, hoặc Claude Code + MCP, hoặc Claude Desktop + Sub-agent...).</li>
-    <li>Thực hiện đúng theo một quy trình có kiểm soát — không "vibe" ngẫu nhiên — để có thể tự đánh giá lại kết quả cuối cùng.</li>
-    <li>Tự đối chiếu được kết quả đạt được với mục tiêu ban đầu đặt ra, rút ra bài học cho lần áp dụng tiếp theo.</li>
+    <li><strong>Guides (feedforward):</strong> tăng xác suất agent làm đúng ngay lần đầu — CLAUDE.md, tài liệu kiến trúc, Skill, ví dụ mẫu, template.</li>
+    <li><strong>Sensors (feedback):</strong> phát hiện và đưa sai sót trở lại cho agent tự sửa — typecheck, lint, test, kiểm tra kiến trúc, review bằng AI.</li>
+    <li><strong>Computational (tính toán):</strong> kiểm soát bằng code, kết quả xác định, chạy nhanh và rẻ — thường dùng làm "cổng cứng".</li>
+    <li><strong>Inferential (suy luận):</strong> kiểm soát bằng LLM (review ngữ nghĩa, LLM-as-judge) — linh hoạt với tiêu chí mềm nhưng chậm hơn, tốn hơn và không hoàn toàn nhất quán.</li>
+    <li><strong>Vòng lặp tự sửa:</strong> thông báo lỗi của sensor được trả lại model (qua Hook exit code 2) để model tự khắc phục — gọi là "backpressure".</li>
   </ul>
 
-  <h2 class="section-heading">Mô hình kiến trúc: Quy trình gợi ý</h2>
+  <h2 class="section-heading">Mô hình kiến trúc</h2>
   <div class="mermaid">
   flowchart LR
-      S1["1️⃣<br/><b>Chọn bài toán thực tế</b><br/>Một việc lặp lại trong công việc hằng ngày"]
-      S2["2️⃣<br/><b>Chọn công cụ phù hợp</b><br/>Dựa theo bảng quyết định ở Chapter 1"]
-      S3["3️⃣<br/><b>Explore → Plan → Code → Verify</b><br/>Thực hiện cùng Claude/Claude Code"]
-      S4["4️⃣<br/><b>Đối chiếu kết quả</b><br/>So với mục tiêu ban đầu đã đặt ra"]
-      S1 --> S2 --> S3 --> S4
-      S4 -.->|"Chưa đạt mục tiêu → điều chỉnh công cụ/cách làm"| S2
-  </div>
-  <p class="arch-caption">Quy trình này chỉ là gợi ý — có thể lặp lại vòng 2→3→4 nhiều lần cho đến khi kết quả đáp ứng đúng mục tiêu ban đầu.</p>
+      subgraph G["📘 GUIDES — trước khi hành động (feedforward)"]
+          G1["CLAUDE.md ngắn gọn"]
+          G2["docs/ARCHITECTURE.md"]
+          G3["Skill / template mẫu"]
+      end
 
-  <h2 class="section-heading">Gợi ý đề tài mẫu theo vai trò</h2>
-  <p class="body-text">Nếu chưa nghĩ ra đề tài của riêng mình, có thể chọn tạm một trong các gợi ý sau theo vai trò công việc:</p>
+      Agent["<img src='../../assets/svg-icon/claude-logo.svg' style='width:30px;height:30px;'/><br/><b>Agent hành động</b><br/>sửa code, chạy lệnh"]
+
+      subgraph S["📏 SENSORS — sau khi hành động (feedback)"]
+          S1["⚙️ Computational<br/>typecheck · lint · test · check-architecture"]
+          S2["🧠 Inferential<br/>review bằng AI / LLM-as-judge"]
+      end
+
+      OK(["✅ Hoàn thành"])
+
+      G -->|"định hướng"| Agent
+      Agent -->|"kết quả"| S1
+      Agent -->|"kết quả"| S2
+      S1 -->|"Pass"| OK
+      S2 -->|"Pass"| OK
+      S1 -.->|"Lỗi cụ thể (exit 2)"| Agent
+      S2 -.->|"Nhận xét cần sửa"| Agent
+  </div>
+  <p class="arch-caption">Guides làm giảm số lần agent đi sai; Sensors bắt phần sai còn lại và đẩy ngược về cho agent (nét đứt). Hai nhóm bổ sung cho nhau: chỉ có Guides thì agent có thể bỏ qua; chỉ có Sensors thì agent phải thử–sai nhiều lần, tốn token.</p>
+
+  <h3 class="sub-heading">Ma trận hai chiều: hướng kiểm soát × cách thực thi</h3>
+  <table class="compare-table">
+    <thead>
+      <tr><th></th><th>Computational (code, xác định)</th><th>Inferential (LLM, suy luận)</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Guide<br/>(trước)</td>
+        <td>Template/scaffold sinh code đúng khung; lệnh build/test ghi sẵn trong CLAUDE.md</td>
+        <td>Hướng dẫn bằng văn bản: CLAUDE.md, tài liệu kiến trúc, Skill</td>
+      </tr>
+      <tr>
+        <td>Sensor<br/>(sau)</td>
+        <td>Typecheck, ESLint, unit test, <code>check-architecture.mjs</code> — kết quả pass/fail rõ ràng</td>
+        <td>Sub-agent reviewer đánh giá thiết kế, độ dễ đọc, đối chiếu yêu cầu</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3 class="sub-heading">Nguyên tắc thiết kế harness</h3>
+  <ul class="feature-list">
+    <li><strong>Bản đồ, không phải cuốn bách khoa:</strong> giữ CLAUDE.md ngắn (vài chục dòng), trỏ tới <code>docs/</code> cho chi tiết. Một file hướng dẫn quá dài bị bỏ sót và khó kiểm tra còn đúng hay không.</li>
+    <li><strong>Ưu tiên ép buộc bằng code:</strong> điều gì quan trọng và kiểm tra được bằng máy thì viết thành sensor. Guide bằng chữ chỉ là lời nhắc; sensor mới là cổng chặn.</li>
+    <li><strong>Thông báo lỗi dành cho agent:</strong> nêu file, dòng, quy tắc bị vi phạm và <em>cách sửa</em>. Lỗi mơ hồ khiến agent đoán mò.</li>
+    <li><strong>Phản hồi nhanh và rẻ trước:</strong> chạy sensor computational (vài giây) trước sensor inferential (tốn token). Chỉ chạy test nặng ở bước cuối (<code>Stop</code>).</li>
+    <li><strong>Bắt đầu tối thiểu, thêm khi có bằng chứng:</strong> mỗi rule mới phải xuất phát từ một lỗi lặp lại thật, không phải phỏng đoán.</li>
+    <li><strong>Rà soát và loại bỏ:</strong> model mới có thể không cần một số rule cũ. Harness phình to là gánh nặng chi phí và nguồn gây hành vi lạ.</li>
+  </ul>
+
+  <h2 class="section-heading">Use Cases</h2>
   <div class="usecase-grid">
     <div class="usecase-card">
-      <h4>👨‍💻 Developer</h4>
-      <p>Dùng Claude Code kết hợp MCP CodeGraph để refactor một module phức tạp trong project thực tế đang làm, đối chiếu call graph trước/sau khi sửa để đảm bảo không phá vỡ phần khác.</p>
+      <h4>Giữ ranh giới kiến trúc</h4>
+      <p>Guide: ghi quy tắc phân tầng và ví dụ đúng/sai trong <code>docs/ARCHITECTURE.md</code>. Sensor: script quét import, chặn UI gọi thẳng database — chính là bài lab ở chương sau.</p>
     </div>
     <div class="usecase-card">
-      <h4>⚙️ DevOps</h4>
-      <p>Dùng Claude Code sinh và review file Terraform cho một hạ tầng nhỏ đang thiếu, kết hợp Hook để tự động chạy kiểm tra định dạng/an toàn ngay sau mỗi lần Claude Code chỉnh sửa file <code>.tf</code>.</p>
+      <h4>Chống "tuyên bố xong quá sớm"</h4>
+      <p>Hook <code>Stop</code> chạy test trước khi cho agent kết thúc. Nếu test fail, agent phải tiếp tục sửa thay vì báo cáo hoàn thành — loại bỏ lỗi "nói xong nhưng chưa chạy được".</p>
     </div>
     <div class="usecase-card">
-      <h4>🧪 Tester</h4>
-      <p>Dùng Claude sinh bộ test case cho một chức năng thực tế đang thiếu test, sau đó đóng gói thành Skill để tái sử dụng, rồi dùng Claude Code viết test tự động theo bộ test case đó.</p>
-    </div>
-    <div class="usecase-card">
-      <h4>📊 Project Manager</h4>
-      <p>Dùng Claude Projects tổng hợp tiến độ từ nhiều buổi họp thực tế thành một status report, đóng gói thành Skill để tái sử dụng đúng template report đó mỗi kỳ báo cáo.</p>
+      <h4>Review thiết kế bằng sensor inferential</h4>
+      <p>Với tiêu chí khó viết thành code (đặt tên, độ dễ hiểu), dùng Sub-agent reviewer đọc diff và nhận xét theo checklist — kết hợp với sensor computational để có cả độ chắc chắn lẫn độ linh hoạt.</p>
     </div>
   </div>
 
-  <h2 class="section-heading">Khung tự đánh giá</h2>
-  <div class="verify-box">
-    <h4>✅ Checklist tự đánh giá — đối chiếu lại trước khi coi bài tập đã hoàn thành</h4>
+  <h2 class="section-heading">Thông tin bổ sung</h2>
+  <div class="alert alert-warning">
+    <strong>Rủi ro thường gặp:</strong>
     <ul class="feature-list">
-      <li>☐ Đã chọn được một bài toán cụ thể, có thể mô tả rõ trong 2–3 câu (không mơ hồ, không quá rộng).</li>
-      <li>☐ Đã áp dụng tối thiểu 2 công cụ đã học trong khoá — nêu rõ tên công cụ và vì sao chọn công cụ đó (tham khảo bảng quyết định ở Chapter 1).</li>
-      <li>☐ Đã thực hiện đủ chu trình Explore → Plan → Code → Verify (hoặc quy trình tương đương phù hợp với bài toán không phải code).</li>
-      <li>☐ Đã đối chiếu lại kết quả cuối cùng với mục tiêu ban đầu — ghi nhận rõ điểm đã đạt và điểm chưa đạt.</li>
-      <li>☐ Có thể tự giải thích lại lựa chọn của mình — vì sao dùng Skill/Sub-agent/MCP/Hook/Spec-Kit ở bước đó thay vì cách khác.</li>
+      <li><strong>Vòng lặp vô hạn:</strong> sensor luôn fail khiến agent sửa mãi. Cần cơ chế ngắt (ví dụ kiểm tra cờ <code>stop_hook_active</code> ở Hook <code>Stop</code>) và giới hạn số lượt.</li>
+      <li><strong>Agent "lách" sensor:</strong> sửa hoặc xoá test cho pass. Giảm nguy cơ bằng rule rõ ràng trong guide, review diff và hạn chế quyền sửa file test/cấu hình lint.</li>
+      <li><strong>Sensor quá chậm:</strong> chạy full test sau mỗi lần sửa file làm phiên làm việc chậm và tốn tiền. Phân tầng: nhanh sau mỗi lần sửa, nặng ở cuối.</li>
+      <li><strong>Quá ràng buộc:</strong> quá nhiều rule khiến agent kém linh hoạt và khó đạt kết quả tốt. Cân bằng giữa an toàn và tự chủ.</li>
     </ul>
   </div>
-
-  <h2 class="section-heading">Gợi ý nếu chưa biết bắt đầu từ đâu</h2>
-  <div class="alert alert-tip">
-    <strong>Chưa nghĩ ra đề tài?</strong> Thử các cách sau:<br/>
-    <ul>
-      <li>Xem lại các tác vụ mình đã làm trong 1–2 tuần gần nhất — tìm việc nào lặp lại từ 2 lần trở lên.</li>
-      <li>Hỏi một đồng nghiệp khác vai trò (vd Developer hỏi Tester) xem họ đang gặp việc lặp lại gì.</li>
-      <li>Chọn tạm một đề tài mẫu theo vai trò ở phần trên, làm thử rồi điều chỉnh dần cho sát với công việc thật của mình.</li>
-      <li>Bắt đầu từ quy mô rất nhỏ (vd chỉ 1 tính năng/1 bước trong quy trình) — quan trọng là đi hết quy trình 4 bước, không phải độ lớn của đề tài.</li>
-    </ul>
-  </div>
-
-  <div class="tip-box mt-24">
-    <strong>Lời kết.</strong> Vậy là chúng ta đã đi cùng nhau qua toàn bộ chặng đường từ những bước đầu làm quen với
-    Claude, đến việc mở rộng khả năng bằng Skill, Sub-agent, MCP, Hook, và áp dụng Spec-Kit cho những tính năng cần
-    kiểm soát chặt. Công cụ và tính năng của Claude sẽ còn tiếp tục thay đổi, nhưng cách tư duy — chọn đúng công cụ
-    cho đúng bài toán, luôn review kết quả, và xây dựng thói quen sử dụng đều đặn — sẽ vẫn còn giá trị lâu dài.
-    Cảm ơn bạn đã đồng hành hết khoá học này. Chúc bạn áp dụng thành công Claude vào công việc của mình, và luôn giữ
-    sự tò mò để khám phá thêm những use case mới!
-  </div>
+  <ul class="feature-list">
+    <li><strong>Chi phí:</strong> sensor computational gần như miễn phí so với token; sensor inferential tốn thêm lượt gọi model — chỉ dùng ở điểm kiểm soát quan trọng.</li>
+    <li><strong>An toàn:</strong> script sensor là code chạy với quyền của bạn; luôn review trước khi thêm vào <code>settings.json</code> (xem Section 9).</li>
+  </ul>
 
   <script>mermaid.initialize({ startOnLoad: true, theme: 'default' });</script>
 </body>

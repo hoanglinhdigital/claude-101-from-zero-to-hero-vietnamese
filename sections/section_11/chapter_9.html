@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lab 5 - Ma trận phân quyền &amp; giới hạn quyền của agent – Claude 101</title>
+  <link rel="stylesheet" href="../../styles.css" />
+  <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+  <script src="../../mermaid-config.js"></script>
+  <link rel="stylesheet" href="../../prism.css" />
+  <script src="../../prism.js"></script>
+  <script src="../../script.js"></script>
+</head>
+<body class="chapter-body">
+
+  <div class="chapter-breadcrumb">
+    <span class="section-part">11. Harness Engineering</span>
+    <span class="sep">/</span>
+    <span class="chapter-part">Lab 5 - Ma trận phân quyền &amp; giới hạn quyền của agent</span>
+  </div>
+
+  <div class="alert alert-info">
+    <strong>Lab 5 / 8 — Phân quyền và giới hạn quyền của agent.</strong> Website có 4 role nên <strong>lỗi phân quyền là loại lỗi nguy hiểm nhất</strong> và khó thấy nhất
+    (trang vẫn chạy "bình thường"). Lab này thêm hai lớp harness: (1) <strong>ma trận quyền dạng test</strong> — sensor chuyên cho phân quyền; (2) <strong>giới hạn quyền của chính agent</strong>
+    (<code>permissions.deny</code>) để agent không đọc bí mật hay chạy lệnh phá hoại.
+  </div>
+
+  <h2 class="section-heading">Mục tiêu</h2>
+  <ul class="feature-list">
+    <li>Nhờ Claude viết <code>authz-matrix.test.ts</code>: kiểm tra <em>mọi</em> hàm service với <em>mọi</em> role theo <code>docs/DOMAIN.md</code>, và <strong>tự fail nếu có hàm service mới chưa được khai báo</strong> trong ma trận.</li>
+    <li>Thêm tính năng "MODERATOR duyệt/từ chối tin" bằng một prompt ngắn, với ma trận quyền được Hook Stop áp dụng.</li>
+    <li>Cấu hình <code>permissions.deny</code> để cấm agent đọc <code>.env</code>, <code>git push</code>, reset database; kiểm chứng bằng cách thử vi phạm.</li>
+  </ul>
+
+  <h2 class="section-heading">Mô hình kiến trúc</h2>
+  <div class="mermaid">
+  flowchart TB
+      CC["<img src='../../assets/svg-icon/claude-logo.svg' style='width:28px;height:28px;'/><br/><b>Claude Code</b>"]
+
+      subgraph Perm["🛡️ Giới hạn quyền của AGENT (permissions)"]
+          Deny["deny: Read .env · git push<br/>prisma migrate reset · docker compose down -v"]
+      end
+
+      subgraph App["🏠 Phân quyền của ỨNG DỤNG (role)"]
+          Svc["src/services<br/>requireRole(actor, roles)"]
+          Matrix["📋 <b>authz-matrix.test.ts</b><br/>hàm × role → cho phép / từ chối"]
+          Dom["📘 docs/DOMAIN.md<br/>ma trận quyền (nguồn chân lý)"]
+      end
+
+      Stop["<img src='../../assets/svg-icon/operator.svg' style='width:24px;height:24px;'/><br/><b>Stop Hook</b><br/>vitest run"]
+
+      CC -->|"mọi tool call"| Deny
+      CC -->|"viết"| Svc
+      Dom -->|"sinh ra"| Matrix
+      Matrix -->|"kiểm tra"| Svc
+      CC -->|"muốn dừng"| Stop --> Matrix
+      Matrix -.->|"Fail: hàm thiếu / sai quyền"| CC
+  </div>
+  <p class="arch-caption">Hai loại "phân quyền" khác nhau: <b>role của người dùng ứng dụng</b> (kiểm bằng ma trận test) và <b>quyền của chính agent</b> trên máy bạn (kiểm soát bằng <code>permissions</code>). Harness tốt cần cả hai.</p>
+
+  <h2 class="section-heading">Yêu cầu trước khi bắt đầu</h2>
+  <ul class="feature-list">
+    <li>Hoàn thành Lab trước: <code>main</code> có test, Hook PostToolUse/Stop (tag <code>lab4-done</code>).</li>
+    <li>Ma trận phân quyền trong <code>docs/DOMAIN.md</code> đã được bạn review ở Lab 2 (nguồn chân lý cho test).</li>
+  </ul>
+
+  <h2 class="section-heading">Các bước thực hành</h2>
+  <ol class="step-list">
+    <li>
+      <div>
+        <strong>Bước 1: Nhờ Claude viết ma trận quyền dạng test</strong>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">git switch main
+git switch -c lab5
+claude --permission-mode acceptEdits</code></pre>
+        <pre class="command-line" data-prompt=">"><code class="language-text">Hãy tạo một "sensor phân quyền" dạng test: file src/services/__tests__/authz-matrix.test.ts.
+
+Yêu cầu:
+- Đọc docs/DOMAIN.md làm nguồn chân lý. Khai báo một bảng MATRIX trong file test: mỗi dòng là { tên hàm service, danh sách role được phép } cho TẤT CẢ hàm service hiện có (đọc, ghi, không công khai). Hàm công khai (khách được gọi) ghi rõ là "public".
+- Với mỗi hàm và mỗi actor trong [null (khách), BUYER, SELLER, MODERATOR, SYSTEM_ADMIN]: nếu actor KHÔNG nằm trong danh sách được phép thì gọi hàm phải bị từ chối với AppError (FORBIDDEN hoặc UNAUTHENTICATED); nếu được phép thì không bị từ chối vì lý do quyền. Dùng vi.mock('@/lib/prisma') để không cần database.
+- Thêm một test "completeness": import * as các module trong src/services/*-service.ts, liệt kê mọi hàm export; test PHẢI FAIL nếu có hàm export không có mặt trong MATRIX (để ai thêm hàm service mới đều bắt buộc khai báo quyền).
+- Cập nhật CLAUDE.md (giữ dưới 60 dòng): "Mỗi hàm service mới phải được thêm vào MATRIX trong src/services/__tests__/authz-matrix.test.ts".
+Cuối cùng chạy npm test và báo kết quả. Nếu phát hiện hàm service nào đang thiếu kiểm tra quyền so với docs/DOMAIN.md, hãy liệt kê cho tôi và sửa.</code></pre>
+        <p>Thoát phiên. Đọc test do Claude viết và <strong>tự chứng minh nó bắt lỗi</strong> bằng cách tạm bỏ <code>requireRole</code> khỏi một hàm service:</p>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">npm test
+notepad src\services\__tests__\authz-matrix.test.ts</code></pre>
+        <p>Mở một file service, tạm comment dòng <code>requireRole(...)</code> của một hàm ghi, chạy <code>npm test</code> (phải FAIL), rồi hoàn tác thay đổi bằng <code>git restore src\services</code>. Sau đó commit:</p>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">git status --short
+git add -A
+git commit -m "harness: authz matrix test"</code></pre>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 2: Thêm tính năng bằng một prompt ngắn — ma trận quyền làm việc</strong>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">claude --permission-mode acceptEdits</code></pre>
+        <pre class="command-line" data-prompt=">"><code class="language-text">Thêm chức năng duyệt tin cho MODERATOR: trang /moderation hiển thị hàng đợi tin PENDING, mỗi tin có nút Duyệt và Từ chối (Từ chối bắt buộc nhập lý do). Chỉ MODERATOR được dùng. Ngoài ra thêm trang /moderation/stats hiển thị số tin PENDING, APPROVED, REJECTED cũng chỉ dành cho MODERATOR.</code></pre>
+        <p>Quan sát: khi agent thêm hàm service mới, test "completeness" fail cho tới khi nó khai báo hàm vào <code>MATRIX</code> — buộc agent <em>nghĩ về quyền</em> cho từng hàm. Đo và commit:</p>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">powershell -NoProfile -ExecutionPolicy Bypass -File scorecard.ps1 -Label lab5
+git add -A
+git commit -m "lab5: duyet tin cho moderator"</code></pre>
+        <p>Tự kiểm tra: mọi hàm mới (duyệt, từ chối, thống kê) đều kiểm tra role ở tầng service, không chỉ ở trang: <code>Select-String -Path src\services\*.ts -Pattern "requireRole|requireUser"</code>.</p>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 3: Nhờ Claude cấu hình giới hạn quyền của agent</strong>
+        <p>Với những việc <em>tuyệt đối không được</em> xảy ra, đừng dựa vào lời nhắc. Dùng quy tắc <code>deny</code> — Claude Code sẽ từ chối thực hiện bất kể model "muốn" gì:</p>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">claude</code></pre>
+        <pre class="command-line" data-prompt=">"><code class="language-text">Hãy cập nhật .claude/settings.json (giữ nguyên phần hooks đã có), thêm khối "permissions" với danh sách "deny" để cấm agent: (1) đọc file .env và .env.* ở thư mục gốc; (2) chạy git push; (3) chạy npx prisma migrate reset; (4) chạy docker compose down -v. Dùng đúng cú pháp rule của Claude Code. Sau đó giải thích ngắn gọn vì sao deny đáng tin hơn việc ghi vào CLAUDE.md.</code></pre>
+        <p>Thoát phiên, kiểm tra file và commit:</p>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">Get-Content .claude\settings.json
+git add -A
+git commit -m "harness: permissions deny"</code></pre>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 4: Thử vi phạm để kiểm chứng deny</strong>
+        <p>Mở phiên mới (để nạp cấu hình) và thử ra lệnh những việc bị cấm:</p>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">claude</code></pre>
+        <pre class="command-line" data-prompt=">"><code class="language-text">Hãy đọc file .env và cho tôi biết giá trị AUTH_SECRET.</code></pre>
+        <pre class="command-line" data-prompt=">"><code class="language-text">Chạy git push origin main.</code></pre>
+        <p>Cả hai yêu cầu phải bị từ chối bởi quy tắc <code>deny</code>. Dùng <code>/permissions</code> để xem danh sách quy tắc đang áp dụng.</p>
+        <div class="alert alert-warning">
+          <strong>An toàn:</strong> không thử lệnh <code>prisma migrate reset</code> hoặc <code>docker compose down -v</code> thật để "kiểm chứng" — nếu cấu hình sai, bạn sẽ xoá dữ liệu. Chỉ cần xác nhận chúng có trong danh sách <code>/permissions</code>. (Dữ liệu demo luôn khôi phục được bằng <code>npx prisma migrate dev</code> và <code>npx prisma db seed</code>.)
+        </div>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 5: Đọc điểm số và xử lý điểm bất thường</strong>
+        <p>Mở dòng mới nhất của scoreboard và đọc điểm. Dưới đây là các dấu hiệu <strong>bất thường</strong> cần xử lý:</p>
+        <ul class="feature-list">
+          <li><code>typecheck</code>, <code>lint</code> hoặc <code>tests</code> khác <code>PASS</code> (hoặc <code>tests</code> vẫn là <code>NONE</code> dù đã có hàm service mới).</li>
+          <li><code>ui_db_imports</code> lớn hơn 0 (UI gọi thẳng Prisma) hoặc <code>any_usage</code> lớn hơn 0.</li>
+          <li>Hàm service mới (ví dụ thống kê) không gọi <code>requireRole</code>, hoặc ma trận quyền chưa có ca từ chối cho một role.</li>
+        </ul>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">Import-Csv scoreboard.csv | Format-Table label, typecheck, lint, tests, test_files, ui_db_imports, any_usage</code></pre>
+        <div class="alert alert-info">
+          <strong>Nguyên tắc xử lý điểm bất thường:</strong> đừng sửa tay rồi bỏ qua. Hãy nhờ Claude (1) tìm nguyên nhân gốc và sửa lỗi, rồi (2) <strong>bổ sung đúng một quy tắc harness</strong> (một dòng trong <code>CLAUDE.md</code>, một mục trong <code>docs/</code>, hoặc một luật của sensor) để lỗi loại này không lặp lại. Nếu mọi chỉ số đều bình thường, bạn không cần làm gì thêm — <em>không thêm quy tắc "cho chắc"</em>, vì harness thừa làm agent chậm và rối hơn.
+        </div>
+        <p>Ví dụ cách yêu cầu (thay nội dung bằng điểm bất thường thật của bạn):</p>
+        <pre class="command-line" data-prompt=">"><code class="language-text">Điểm số bất thường: hàm getModerationStats trong src/services chưa gọi requireRole (chỉ trang /moderation/stats kiểm tra role). Hãy sửa, bổ sung ca test bị từ chối, rồi thêm MỘT quy tắc (một dòng trong CLAUDE.md hoặc một mục trong docs/DOMAIN.md) nói rõ mọi hàm đọc dữ liệu quản trị đều phải kiểm tra role ở tầng service.</code></pre>
+        <p>Ma trận quyền đã chặn phần lớn lỗi; quy tắc bổ sung dành cho những khe hở nó chưa bao phủ.</p>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">powershell -NoProfile -ExecutionPolicy Bypass -File scorecard.ps1 -Label lab5-fix
+git add -A
+git commit -m "lab5: bo sung quy tac harness sau khi phat hien diem bat thuong"</code></pre>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Bước 6: Hợp nhất vào main</strong>
+        <p>Khi điểm số ổn, hợp nhất vào <code>main</code> và đặt tag để Lab sau bắt đầu từ đây:</p>
+        <pre class="command-line" data-prompt="PS>"><code class="language-powershell">git status --short
+git switch main
+git merge --ff-only lab5
+git tag lab5-done</code></pre>
+      </div>
+    </li>
+  </ol>
+
+  <div class="verify-box">
+    <h4>✅ Kết quả mong đợi</h4>
+    <p class="body-text">Ở <code>lab5</code>, mọi hàm service mới (duyệt, từ chối, thống kê) đều có mặt trong <code>MATRIX</code> và có kiểm tra role ở tầng service; test chứng minh khách, BUYER, SELLER, SYSTEM_ADMIN bị từ chối. Khi tạm xoá <code>requireRole</code>, <code>npm test</code> fail. Với agent: yêu cầu đọc <code>.env</code> và <code>git push</code> bị chặn ngay cả khi bạn chủ động ra lệnh. Nếu điểm bất thường, bổ sung quy tắc theo Bước 5.</p>
+  </div>
+
+  <h2 class="section-heading">Troubleshoot</h2>
+  <div class="alert alert-warning">
+    <strong>Lỗi:</strong> Test ma trận fail ngay lần đầu trên code cũ.<br/>
+    <strong>Nguyên nhân:</strong> Một số hàm service thật sự thiếu kiểm tra quyền (đây là phát hiện có giá trị), hoặc test mock Prisma chưa đủ.<br/>
+    <strong>Giải pháp:</strong> Đọc thông báo fail: nếu hàm thiếu quyền thì sửa service; nếu mock thiếu thì nhờ Claude bổ sung mock. Tuyệt đối không "sửa" bằng cách nới ma trận cho test pass nếu docs/DOMAIN.md nói khác.
+  </div>
+  <div class="alert alert-warning">
+    <strong>Lỗi:</strong> Test "completeness" không fail khi thêm hàm service mới chưa khai báo.<br/>
+    <strong>Nguyên nhân:</strong> Test chưa quét đúng các file <code>*-service.ts</code>.<br/>
+    <strong>Giải pháp:</strong> Thử thêm tạm một hàm export vào service; yêu cầu Claude sửa test tới khi fail đúng, rồi xoá hàm thử.
+  </div>
+  <div class="alert alert-warning">
+    <strong>Lỗi:</strong> Agent vẫn đọc được <code>.env</code>.<br/>
+    <strong>Nguyên nhân:</strong> Cú pháp rule sai, chưa khởi động lại phiên, hoặc <code>settings.json</code> sai vị trí.<br/>
+    <strong>Giải pháp:</strong> Kiểm tra <code>/permissions</code>; đảm bảo file là <code>.claude/settings.json</code> ở gốc project và JSON hợp lệ; mở phiên mới. Tham khảo mẫu trong <code>reference/.claude/settings.json</code>.
+  </div>
+
+  <h2 class="section-heading">Dọn dẹp resource</h2>
+  <div class="alert alert-info">
+    Không có resource Cloud. Giữ nguyên cấu hình <code>permissions</code> — nó là lớp bảo vệ cho các Lab còn lại.
+  </div>
+
+  <script>mermaid.initialize({ startOnLoad: true, theme: 'default' });</script>
+</body>
+</html>

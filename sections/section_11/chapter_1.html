@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Tổng hợp công cụ đã học & khi nào dùng cái gì – Claude 101</title>
+  <title>Harness Engineering là gì? Agent = Model + Harness – Claude 101</title>
   <link rel="stylesheet" href="../../styles.css" />
   <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
   <script src="../../mermaid-config.js"></script>
@@ -14,141 +14,121 @@
 <body class="chapter-body">
 
   <div class="chapter-breadcrumb">
-    <span class="section-part">11. Tổng kết & Định hướng nâng cao</span>
+    <span class="section-part">11. Harness Engineering</span>
     <span class="sep">/</span>
-    <span class="chapter-part">Tổng hợp công cụ đã học & khi nào dùng cái gì</span>
+    <span class="chapter-part">Harness Engineering là gì? Agent = Model + Harness</span>
   </div>
 
   <h2 class="section-heading">Giới thiệu</h2>
   <p class="body-text">
-    Xuyên suốt 10 Section vừa qua, chúng ta đã đi từ giao diện chat cơ bản đến những cơ chế mở rộng khả năng của
-    Claude ở mức sâu hơn: Skill, Sub-agent, MCP, Hook, và Spec-Kit. Mỗi công cụ giải quyết một loại vấn đề khác nhau,
-    và trong công việc thực tế rất hiếm khi chỉ dùng đúng một công cụ — thường là kết hợp vài công cụ với nhau tuỳ
-    theo tình huống. Chương này hệ thống hoá lại toàn bộ các công cụ đã học và cung cấp một sơ đồ quyết định nhanh để
-    trả lời câu hỏi thường gặp nhất: <strong>"Với việc này, tôi nên dùng cái gì?"</strong>
+    <strong>Harness Engineering</strong> là kỹ thuật thiết kế và duy trì <strong>mọi thứ xung quanh model</strong> — hướng dẫn,
+    công cụ, quyền hạn, bộ nhớ, bước kiểm chứng, khả năng quan sát — để một AI agent làm việc <strong>đáng tin cậy</strong>
+    thay vì chỉ "đôi khi làm đúng". Công thức được dùng phổ biến nhất hiện nay là
+    <strong>Agent = Model + Harness</strong>: model cung cấp trí thông minh, còn harness là toàn bộ code, cấu hình và logic
+    thực thi <em>không phải là model</em> nhưng quyết định agent làm được gì và làm tốt đến đâu.
+  </p>
+  <div class="figure-centered">
+    <img src="../../assets/images/harness-minh-hoa-by-gemini.jpg" alt="Minh họa kiến trúc agent với model, tools, skills, context, MCP và harness" />
+    <p class="figure-title">Minh họa kiến trúc một AI Agent (tạo bởi Gemini) — mọi thành phần bao quanh model chính là harness</p>
+  </div>
+  <p class="body-text">
+    Bạn đã làm việc với harness suốt khoá học mà chưa gọi tên nó: <code>CLAUDE.md</code> (Section 2, 4), Skill và Sub-agent
+    (Section 3), MCP Server (Section 8), Hook (Section 9), Spec-Kit (Section 10). Section này gom tất cả lại thành một
+    cách nhìn thống nhất và dạy bạn <strong>thiết kế harness có chủ đích</strong>.
   </p>
 
-  <h2 class="section-heading">Các công cụ đã học trong khoá</h2>
-  <div class="capability-grid">
-    <div class="capability-card">
-      <div class="icon">💬</div>
-      <h4>Claude Desktop App / Claude.ai</h4>
-      <p>Section 2 — Giao diện chat trực tiếp, có Projects và Artifacts. Phù hợp hỏi đáp, soạn thảo nhanh, không cần thao tác trực tiếp trên file/project.</p>
-    </div>
-    <div class="capability-card">
-      <div class="icon">⌨️</div>
-      <h4>Claude Code</h4>
-      <p>Section 2, 4–7 — Trợ lý dòng lệnh (CLI), đọc/sửa file trực tiếp, chạy lệnh, giữ ngữ cảnh project qua <code>CLAUDE.md</code>.</p>
-    </div>
-    <div class="capability-card">
-      <div class="icon">🧩</div>
-      <h4>Claude Skill</h4>
-      <p>Section 3 — Đóng gói một quy trình/hướng dẫn hay lặp lại thành tài nguyên tái sử dụng, Claude tự nhận diện khi cần dùng.</p>
-    </div>
-    <div class="capability-card">
-      <div class="icon">🤖</div>
-      <h4>Sub-agent</h4>
-      <p>Section 3 — Tác vụ chuyên biệt hoá, có phạm vi tool/system prompt riêng, chạy trong context tách biệt với Agent chính.</p>
-    </div>
-    <div class="capability-card">
-      <div class="icon">🔌</div>
-      <h4>MCP</h4>
-      <p>Section 8 — Chuẩn giao tiếp giúp Claude Code kết nối với hệ thống bên ngoài phạm vi file local: codebase (CodeGraph), database (MySQL)...</p>
-    </div>
-    <div class="capability-card">
-      <div class="icon">⚙️</div>
-      <h4>Hook</h4>
-      <p>Section 9 — Chèn shell command vào vòng đời làm việc của Claude Code, chạy độc lập với model theo event + matcher cố định.</p>
-    </div>
-    <div class="capability-card">
-      <div class="icon">📜</div>
-      <h4>Spec-Kit</h4>
-      <p>Section 10 — Framework Spec-Driven Development, kết hợp Claude Code để phát triển tính năng có kiểm soát từ đặc tả đến code.</p>
-    </div>
-  </div>
+  <h2 class="section-heading">Các tính năng chính</h2>
+  <ul class="feature-list">
+    <li><strong>Agent = Model + Harness:</strong> cùng một model, harness tốt hay dở cho kết quả rất khác nhau. Khi agent làm sai, câu hỏi đầu tiên không phải "model dở" mà là "harness đang thiếu gì?".</li>
+    <li><strong>Là tầng thứ ba của một chuỗi tiến hoá:</strong> Prompt Engineering (viết yêu cầu) → Context Engineering (quyết định model nhìn thấy thông tin gì) → Harness Engineering (thiết kế cả hệ thống vận hành quanh model).</li>
+    <li><strong>Gồm nhiều thành phần:</strong> context/hướng dẫn, tools, permissions, memory &amp; state, kiểm chứng (test, lint), quan sát (log, trace) và vòng đời (retry, approval).</li>
+    <li><strong>Mang tính kỹ thuật, đo lường được:</strong> mỗi lỗi lặp lại của agent được biến thành một rule hoặc một bộ kiểm tra tự động; hiệu quả được xác nhận bằng số liệu, không bằng cảm tính.</li>
+    <li><strong>Chuyển vai trò của kỹ sư:</strong> từ "tự viết code" sang "thiết kế môi trường để agent viết code đúng" — quyết định phạm vi, ràng buộc và cách kiểm chứng.</li>
+  </ul>
 
-  <h2 class="section-heading">Mô hình kiến trúc: Sơ đồ quyết định "khi nào dùng cái gì"</h2>
+  <h2 class="section-heading">Mô hình kiến trúc</h2>
   <div class="mermaid">
-  flowchart TD
-      Start(["❓ Bạn đang cần làm gì?"])
-      Q1{"Chỉ hỏi/nhờ 1 lần,<br/>không cần đọc/sửa file,<br/>không lặp lại?"}
-      ChatTool["💬<br/><b>Claude Desktop App / Claude.ai</b><br/>Chat thường"]
-      Q2{"Cần đọc/sửa file,<br/>lặp lại nhiều lần<br/>trong 1 project?"}
-      CodeTool["<img src='../../assets/svg-icon/claude-logo.svg' style='width:26px;height:26px;'/><br/><b>Claude Code</b>"]
-      Q3{"Tác vụ chuyên biệt cần tool/<br/>system prompt riêng,<br/>tránh phình context chính?"}
-      AgentTool["🧩<br/><b>Skill hoặc Sub-agent</b>"]
-      Q4{"Cần kết nối hệ thống ngoài<br/>(database, code graph,<br/>API nội bộ)?"}
-      McpTool["🔌<br/><b>MCP</b>"]
-      Q5{"Cần tự động hoá theo<br/>điều kiện cố định,<br/>không cần model quyết định?"}
-      HookTool["⚙️<br/><b>Hook</b>"]
-      Q6{"Cần phát triển tính năng<br/>có kiểm soát chặt<br/>từ đặc tả?"}
-      SpecTool["📜<br/><b>Spec-Kit</b>"]
+  %%{init: {'themeVariables': {'fontSize': '21px'}, 'flowchart': {'fontSize': 21}}}%%
+  flowchart TB
+      Dev(("<img src='../../assets/svg-icon/developer.svg' style='width:26px;height:26px;'/><br/><b>Kỹ sư</b><br/>thiết kế harness"))
 
-      Start --> Q1
-      Q1 -->|"Đúng"| ChatTool
-      Q1 -->|"Không"| Q2
-      Q2 -->|"Đúng"| CodeTool
-      Q2 -->|"Không"| Q3
-      Q3 -->|"Đúng"| AgentTool
-      Q3 -->|"Không"| Q4
-      Q4 -->|"Đúng"| McpTool
-      Q4 -->|"Không"| Q5
-      Q5 -->|"Đúng"| HookTool
-      Q5 -->|"Không"| Q6
-      Q6 -->|"Đúng"| SpecTool
+      Model["<img src='../../assets/svg-icon/claude-logo.svg' style='width:30px;height:30px;'/><br/><b>Model</b><br/>Claude (Haiku/Sonnet/Opus)"]
+
+      subgraph Harness["🧰 Harness (mọi thứ không phải model)"]
+          direction LR
+          Ctx["📖<br/><b>Context &amp; Memory</b><br/>CLAUDE.md, Skills,<br/>progress.md, git"]
+          Tools["<img src='../../assets/svg-icon/task.svg' style='width:26px;height:26px;'/><br/><b>Tools</b><br/>Read, Edit, Bash, MCP"]
+          Guard["🛡️<br/><b>Permissions</b><br/>allow/deny, Hook"]
+          Verify["<img src='../../assets/svg-icon/operator.svg' style='width:26px;height:26px;'/><br/><b>Kiểm chứng</b><br/>test, lint, typecheck"]
+      end
+
+      World["<img src='../../assets/svg-icon/github.svg' style='width:26px;height:26px;'/><br/><b>Thế giới thật</b><br/>Codebase, Git, DB, CI/CD"]
+
+      Dev -->|"Thiết kế &amp; cải tiến"| Harness
+      Harness <-->|"Context vào · Hành động ra · Phản hồi"| Model
+      Harness -->|"Thao tác có kiểm soát"| World
   </div>
-  <p class="arch-caption">Sơ đồ chỉ là gợi ý để chọn nhanh — trong thực tế các công cụ thường kết hợp với nhau (vd Claude Code + MCP, hoặc Spec-Kit + Sub-agent) chứ không loại trừ lẫn nhau.</p>
+  <p class="arch-caption">Model chỉ "suy nghĩ và đề xuất". Harness quyết định model <b>nhìn thấy gì</b> (Context, Memory), <b>làm được gì</b> (Tools, Permissions) và <b>được báo lại điều gì sau khi làm</b> (Kiểm chứng) — vòng phản hồi cuối cùng chính là thứ giúp agent tự sửa sai.</p>
 
-  <h3 class="sub-heading">Bảng tổng hợp nhanh theo tình huống</h3>
+  <h3 class="sub-heading">Ba tầng kỹ thuật làm việc với AI</h3>
   <table class="compare-table">
     <thead>
-      <tr><th>Tình huống thực tế</th><th>Công cụ nên dùng</th><th>Vì sao</th></tr>
+      <tr><th>Tiêu chí</th><th>Prompt Engineering</th><th>Context Engineering</th><th>Harness Engineering</th></tr>
     </thead>
     <tbody>
       <tr>
-        <td>Hỏi nhanh 1 câu, không liên quan đến file/project cụ thể</td>
-        <td>Claude Desktop App / Claude.ai</td>
-        <td>Không cần thao tác file hay giữ ngữ cảnh dài hạn, chỉ cần trả lời ngay</td>
+        <td>Câu hỏi trung tâm</td>
+        <td>Viết yêu cầu thế nào cho rõ?</td>
+        <td>Model cần nhìn thấy thông tin gì, vào lúc nào?</td>
+        <td>Cả hệ thống quanh model vận hành thế nào để đáng tin cậy?</td>
       </tr>
       <tr>
-        <td>Sửa code, review PR, refactor trong project đang làm</td>
-        <td>Claude Code</td>
-        <td>Truy cập trực tiếp file/terminal, giữ ngữ cảnh project qua <code>CLAUDE.md</code></td>
+        <td>Phạm vi</td>
+        <td>Một lượt hỏi–đáp</td>
+        <td>Một phiên làm việc (tài liệu, lịch sử, kết quả tool)</td>
+        <td>Nhiều phiên, nhiều agent, có kiểm chứng và quan sát</td>
       </tr>
       <tr>
-        <td>Một quy trình nhỏ hay lặp lại (vd viết changelog, format báo cáo)</td>
-        <td>Skill</td>
-        <td>Đóng gói hướng dẫn tái sử dụng, model tự nhận diện đúng lúc cần áp dụng</td>
+        <td>Ví dụ trong khoá học</td>
+        <td>Section 2: nguyên tắc viết prompt</td>
+        <td>Section 2, 4: CLAUDE.md; Section 8: MCP</td>
+        <td>Section 9: Hook; Section 10: Spec-Kit; Section 11 này</td>
       </tr>
       <tr>
-        <td>Tác vụ cần phạm vi tool riêng, tránh phình context (vd chuyên review code)</td>
-        <td>Sub-agent</td>
-        <td>Chạy trong context tách biệt, có system prompt/tool riêng cho tác vụ chuyên biệt</td>
-      </tr>
-      <tr>
-        <td>Cần Claude đọc/thao tác dữ liệu trong hệ thống ngoài (DB, code graph)</td>
-        <td>MCP</td>
-        <td>Chuẩn kết nối Claude Code với hệ thống bên ngoài phạm vi file local</td>
-      </tr>
-      <tr>
-        <td>Cần đảm bảo một hành động luôn xảy ra, không phụ thuộc model quyết định</td>
-        <td>Hook</td>
-        <td>Chạy độc lập với model theo event cố định, không cần model "nhớ" gọi</td>
-      </tr>
-      <tr>
-        <td>Phát triển tính năng lớn, cần kiểm soát chặt từ đặc tả đến code</td>
-        <td>Spec-Kit</td>
-        <td>Giữ spec làm nguồn chân lý, giảm rủi ro "vibe coding" khi tính năng phức tạp</td>
+        <td>Khi thất bại</td>
+        <td>Sửa lại câu chữ</td>
+        <td>Bổ sung/bớt thông tin</td>
+        <td>Thêm rule, sensor, bước kiểm chứng; đo lại bằng số liệu</td>
       </tr>
     </tbody>
   </table>
+
+  <h2 class="section-heading">Use Cases</h2>
+  <div class="usecase-grid">
+    <div class="usecase-card">
+      <h4>Agent lập trình đáng tin cậy</h4>
+      <p>Một đội dùng Claude Code viết tính năng mới trên codebase thật: harness gồm CLAUDE.md ngắn gọn, kiểm tra kiến trúc tự động và test chạy mỗi lần agent sửa code — giảm số lần review phải trả lại vì lỗi lặp.</p>
+    </div>
+    <div class="usecase-card">
+      <h4>Tác vụ dài, nhiều phiên</h4>
+      <p>Xây một module lớn trong nhiều ngày: harness cung cấp danh sách feature, file tiến độ và script khởi tạo để mỗi phiên mới tiếp tục đúng chỗ thay vì làm lại từ đầu hoặc tuyên bố "xong" quá sớm.</p>
+    </div>
+    <div class="usecase-card">
+      <h4>Vận hành an toàn trên hạ tầng thật</h4>
+      <p>DevOps cho agent thao tác hạ tầng: harness giới hạn quyền, chặn lệnh nguy hiểm bằng Hook và bắt buộc <code>terraform plan</code> được duyệt trước khi apply (nối tiếp Section 6 và Section 9).</p>
+    </div>
+  </div>
+
   <h2 class="section-heading">Thông tin bổ sung</h2>
-  <p class="body-text">
-    Sơ đồ và bảng quyết định ở trên chỉ mang tính gợi ý để chọn nhanh — ranh giới giữa các công cụ không tuyệt đối,
-    và phần lớn công việc thực tế sẽ cần kết hợp nhiều hơn một công cụ cùng lúc (ví dụ Claude Code làm nền, MCP để
-    kết nối dữ liệu, Hook để tự động hoá phần phụ trợ). Bảng này sẽ được dùng lại ở Chapter 3 khi thực hiện bài tập
-    tổng hợp cuối khoá — hãy dùng nó như điểm khởi đầu để tự quyết định công cụ phù hợp cho bài toán của riêng bạn.
-  </p>
+  <ul class="feature-list">
+    <li><strong>Thuật ngữ còn rất mới:</strong> được dùng rộng rãi từ đầu năm 2026 (Mitchell Hashimoto thường được nhắc đến là người dùng sớm; LangChain phát biểu công thức "Agent = Model + Harness"). Chưa có định nghĩa chính thức duy nhất — các nguồn khác nhau có phạm vi hơi khác nhau, nhưng đều thống nhất ý "mọi thứ bao quanh model".</li>
+    <li><strong>Harness không thay thế model tốt:</strong> model mạnh hơn làm giảm nhu cầu một số rule, nhưng không loại bỏ nhu cầu kiểm chứng và phân quyền. Cần rà soát harness định kỳ, bỏ những ràng buộc không còn cần thiết.</li>
+    <li><strong>Tiết kiệm chi phí:</strong> harness tốt giảm số vòng thử–sai (ít token lãng phí) và phát hiện lỗi sớm bằng sensor rẻ (lint, typecheck) thay vì để agent đi sai hướng nhiều bước. Ngược lại, nhồi quá nhiều chỉ dẫn vào context làm tốn token và giảm chất lượng.</li>
+    <li><strong>Nguồn đọc thêm:</strong> bài "Harness engineering" của OpenAI (02/2026), bài của Böckeler trên martinfowler.com, và bài "Effective harnesses for long-running agents" của Anthropic (11/2025).</li>
+  </ul>
+  <div class="alert alert-info">
+    <strong>Lưu ý:</strong> Lĩnh vực này thay đổi nhanh. Nội dung chương mang tính định hướng khái niệm; hãy đối chiếu với tài liệu chính thức của Anthropic tại <code>docs.claude.com</code> trước khi áp dụng chi tiết kỹ thuật vào công việc thật.
+  </div>
 
   <script>mermaid.initialize({ startOnLoad: true, theme: 'default' });</script>
 </body>

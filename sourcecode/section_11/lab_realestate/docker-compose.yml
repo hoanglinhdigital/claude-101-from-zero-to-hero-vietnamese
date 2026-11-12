@@ -1,0 +1,21 @@
+services:
+  db:
+    image: postgres:16
+    container_name: realestate-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: app
+      POSTGRES_PASSWORD: app_password
+      POSTGRES_DB: realestate
+    ports:
+      - "5432:5432"
+    volumes:
+      - realestate-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U app -d realestate"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  realestate-pgdata:

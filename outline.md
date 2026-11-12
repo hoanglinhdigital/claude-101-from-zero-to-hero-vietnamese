@@ -162,7 +162,34 @@ Giới thiệu Spec-Kit — framework mã nguồn mở của GitHub cho phương
 
 ---
 
-## Section 11. Tổng kết & Định hướng nâng cao
+## Section 11. Harness Engineering
+
+### Nội dung chính
+Giới thiệu Harness Engineering — kỹ thuật xây dựng mọi thứ **xung quanh model** (context, tools, permissions, memory, kiểm chứng, quan sát) để AI agent làm việc đáng tin cậy. Công thức cốt lõi: **Agent = Model + Harness**. Phần thực hành xây dựng **một website bất động sản hoàn toàn mới** (Next.js + Prisma + PostgreSQL/docker-compose, 4 role: BUYER, SELLER, MODERATOR, SYSTEM_ADMIN) và **bổ sung dần từng thành phần harness** (Prompt → Context → Sensor → Hook & Test → Phân quyền → Skill & Sub-agent → Memory/State → Quan sát & cải tiến). Ở mỗi Lab, học viên chỉ đi theo **một con đường đúng**: nhờ Claude thêm thành phần harness, thêm tính năng bằng prompt ngắn, rồi đo bằng `scorecard.ps1`; nếu điểm có dấu hiệu bất thường thì bổ sung đúng một quy tắc harness cần thiết. Các thành phần harness được **nhờ Claude viết** (không copy-paste) để học viên hình dung cách thêm từng thành phần. Không bao gồm Infrastructure/Cloud/DevOps.
+
+### Danh sách chapter
+1. Harness Engineering là gì? Agent = Model + Harness (từ Prompt Engineering → Context Engineering → Harness Engineering)
+2. Các thành phần của Harness & ánh xạ vào Claude Code (CLAUDE.md, Skills, Sub-agent, MCP, Hooks, Permissions)
+3. Guides & Sensors: feedforward và feedback trong thiết kế Harness (computational vs inferential), nguyên tắc thiết kế và rủi ro
+4. Lab 0 - Khởi tạo project bất động sản (Next.js, Prisma, PostgreSQL) + `scorecard.ps1`
+5. Lab 1 - Chỉ dùng Prompt Engineering
+6. Lab 2 - Thêm Context (CLAUDE.md & docs/)
+7. Lab 3 - Thêm Sensor kiểm tra kiến trúc
+8. Lab 4 - Vòng phản hồi tự động với Test & Hooks
+9. Lab 5 - Ma trận phân quyền & giới hạn quyền của agent
+10. Lab 6 - Skill & Sub-agent reviewer
+11. Lab 7 - Harness cho tác vụ dài hơi (nhiều phiên)
+12. Lab 8 - Quan sát, cải tiến & tổng kết hành trình
+
+### Project thực hành xuyên suốt
+`D:\lab-realestate` — website bất động sản độc lập với các project ở Section 4–10 để mọi thí nghiệm bắt đầu "sạch". Source code mẫu: `sourcecode/section_11/lab_realestate/` (file nền tảng + thư mục `reference/` chứa đáp án tham khảo của các thành phần harness).
+
+### Nguồn tham khảo định nghĩa
+Công thức "Agent = Model + Harness" (LangChain), thuật ngữ do Mitchell Hashimoto dùng từ 02/2026, bài "Harness engineering" của OpenAI (02/2026), bài của Böckeler trên martinfowler.com (guides & sensors), bài "Effective harnesses for long-running agents" của Anthropic (11/2025), và tài liệu học thuật arXiv về "AI Harness Engineering".
+
+---
+
+## Section 12. Tổng kết & Định hướng nâng cao
 
 ### Nội dung chính
 Ôn tập toàn bộ kiến thức đã học, xây dựng lộ trình ứng dụng Claude vào công việc thực tế của từng học viên, giới thiệu hướng học nâng cao (Claude API, Claude Agent SDK).
@@ -188,5 +215,6 @@ Giới thiệu Spec-Kit — framework mã nguồn mở của GitHub cho phương
 | 8 | Model Context Protocol (MCP) | 5 |
 | 9 | Claude Code Hooks | 4 |
 | 10 | Phát triển phần mềm với Spec-Kit Framework | 8 |
-| 11 | Tổng kết & Định hướng nâng cao | 3 |
-| **Tổng** | | **64 chapter** |
+| 11 | Harness Engineering | 12 |
+| 12 | Tổng kết & Định hướng nâng cao | 3 |
+| **Tổng** | | **76 chapter** |
